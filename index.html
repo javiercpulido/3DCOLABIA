@@ -79,7 +79,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v5.2 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v5.3 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -171,6 +171,7 @@ Con imán, los extremos nuevos se unen a extremos existentes.<br>
 👁 modos: Sombra·Blanco·Malla·Wire·X-Ray·Técnico (con contorno de silueta tipo SketchUp). Sección: plano de corte X/Y/Z movible mientras dibujas.<br>
 Las líneas se alinean solas a los ejes (±12°); con una línea seleccionada, teclea su longitud exacta en mm.<br>
 Selección: X/Y/Z bloquea un eje (mover, dibujar y girar solo sobre él) · Δmm desplaza exacto · ∠° gira exacto · ⎘ duplica · 🔗 agrupa/desagrupa · 🧲 pega el trazo a la superficie y lo deja fijo. ⿻ (junto a la flecha) suma/resta trazos a la selección. ⊙ cian = contacto con una pieza.<br>
+GIZMO: al seleccionar una forma o una PIEZA aparecen flechas X/Y/Z (arrastrar = desplazar en ese eje) y anillos finos (arrastrar = girar sobre ese eje). Los aros pequeños ◦ siguen siendo los puntos de control de la forma. Al mover una pieza, las intersecciones se recalculan al soltar.<br>
 👁 Oculto = líneas vistas + ocultas en discontinuo gris. Las curvas grises = intersección entre volúmenes.<br>
   Copiar = JSON al portapapeles para pegarlo en el chat.</div>
 </div>
@@ -216,18 +217,18 @@ MESHES.forEach(m=>{
       opacity:1,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1});
   mesh.userData.edges=new THREE.LineSegments(new THREE.EdgesGeometry(g,25),
       new THREE.LineBasicMaterial({color:0x1c1c1e}));
-  mesh.userData.edges.visible=false; scene.add(mesh.userData.edges);
+  mesh.userData.edges.visible=false; mesh.add(mesh.userData.edges);
   // modo MALLA: todos los triangulos de la geometria en gris claro (Blender/3ds)
   mesh.userData.wire=new THREE.LineSegments(new THREE.WireframeGeometry(g),
       new THREE.LineBasicMaterial({color:0xb9c0c7,transparent:true,opacity:.85}));
-  mesh.userData.wire.visible=false; scene.add(mesh.userData.wire);
+  mesh.userData.wire.visible=false; mesh.add(mesh.userData.wire);
   // modo OCULTO: mismas aristas pero en discontinuo gris claro donde el volumen las tapa
   mesh.userData.edgesHid=new THREE.LineSegments(mesh.userData.edges.geometry,
       new THREE.LineDashedMaterial({color:0xaeb4bb,dashSize:2.2,gapSize:1.6,transparent:true,
         depthFunc:THREE.GreaterDepth,depthWrite:false}));
   mesh.userData.edgesHid.computeLineDistances();
   mesh.userData.edgesHid.renderOrder=2;
-  mesh.userData.edgesHid.visible=false; scene.add(mesh.userData.edgesHid);
+  mesh.userData.edgesHid.visible=false; mesh.add(mesh.userData.edgesHid);
   // SILUETA dependiente de la vista (contorno tipo SketchUp): aristas cuya cara
   // frontal/trasera cambia respecto a la camara. Precalculo de adyacencia.
   (function(){
@@ -249,10 +250,10 @@ MESHES.forEach(m=>{
     geo.setAttribute('lineDistance',new THREE.BufferAttribute(ldArr,1));
     geo.setDrawRange(0,0);
     const sl=new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color:0x1c1c1e}));
-    sl.frustumCulled=false; sl.visible=false; scene.add(sl);
+    sl.frustumCulled=false; sl.visible=false; mesh.add(sl);
     const slh=new THREE.LineSegments(geo,new THREE.LineDashedMaterial({color:0xaeb4bb,
       dashSize:2.2,gapSize:1.6,transparent:true,depthFunc:THREE.GreaterDepth,depthWrite:false}));
-    slh.frustumCulled=false; slh.visible=false; slh.renderOrder=2; scene.add(slh);
+    slh.frustumCulled=false; slh.visible=false; slh.renderOrder=2; mesh.add(slh);
     mesh.userData.silh={list:arr,pos:posArr,ld:ldArr,geo,line:sl,lineHid:slh,V:pos};
   })();
   let lab=document.createElement('label');
@@ -266,16 +267,23 @@ grid.position.set(C.x,C.y,bbox.min.z-2); scene.add(grid);
 
 // ================= INTERSECCION ENTRE VOLUMENES =================
 // Curva de interseccion malla-malla (tri-tri exacto, prefiltro por cajas).
-// Las piezas son estaticas: se calcula una vez al cargar.
+// Se calcula al cargar y se RECALCULA cuando una pieza se mueve o gira.
 let interPairs=[], interOn=true;
-(function computeIntersections(){
+function computeIntersections(){
+  interPairs.forEach(ip=>{scene.remove(ip.l1);scene.remove(ip.l2);
+    ip.l1.geometry.dispose();ip.l1.material.dispose();ip.l2.material.dispose();});
+  interPairs=[];
   const EPS=1e-6;
   function buildTris(m){
+    const mesh=pieces[m.name]; mesh.updateMatrixWorld();
+    const M=mesh.matrixWorld, tv=new THREE.Vector3();
     const v=m.v,f=m.f,tris=[],bb=[];
     let mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];
     for(let i=0;i<f.length;i+=3){
       const t=new Float64Array(9);
-      for(let k=0;k<3;k++){const p=f[i+k]*3;t[k*3]=v[p];t[k*3+1]=v[p+1];t[k*3+2]=v[p+2];}
+      for(let k=0;k<3;k++){const p=f[i+k]*3;
+        tv.set(v[p],v[p+1],v[p+2]).applyMatrix4(M);
+        t[k*3]=tv.x;t[k*3+1]=tv.y;t[k*3+2]=tv.z;}
       tris.push(t);
       const b=[Math.min(t[0],t[3],t[6]),Math.min(t[1],t[4],t[7]),Math.min(t[2],t[5],t[8]),
                Math.max(t[0],t[3],t[6]),Math.max(t[1],t[4],t[7]),Math.max(t[2],t[5],t[8])];
@@ -341,7 +349,8 @@ let interPairs=[], interOn=true;
     l2.computeLineDistances(); l2.frustumCulled=false; l2.renderOrder=2; scene.add(l2);
     interPairs.push({a:A.name,b:B.name,l1,l2});
   }
-})();
+}
+computeIntersections();
 // ================= MODOS DE VISION y SECCION =================
 let viewMode='somb', baseOpacity=1;
 function edgesWanted(){return viewMode!=='somb'&&viewMode!=='malla';}
@@ -518,9 +527,11 @@ function makeText(t){
 function handleSize(){return Math.max(0.7,sph.r*0.008);}
 let _ringTex=null;
 function ringTex(){if(_ringTex)return _ringTex;
+  // tirador pequeño y elegante: aro fino con centro casi transparente
   const cv=document.createElement('canvas');cv.width=cv.height=64;const g=cv.getContext('2d');
-  g.beginPath();g.arc(32,32,21,0,7);g.fillStyle='rgba(255,255,255,.95)';g.fill();
-  g.lineWidth=6;g.strokeStyle='#1c1c1e';g.stroke();
+  g.beginPath();g.arc(32,32,17,0,7);g.fillStyle='rgba(255,255,255,.75)';g.fill();
+  g.lineWidth=3.5;g.strokeStyle='#1c1c1e';g.stroke();
+  g.beginPath();g.arc(32,32,3,0,7);g.fillStyle='#1c1c1e';g.fill();
   _ringTex=new THREE.CanvasTexture(cv);return _ringTex;}
 function to3(reg,q){return reg.c.clone().addScaledVector(reg.U,q[0]).addScaledVector(reg.V,q[1]);}
 function to2(reg,p){let d=new THREE.Vector3(...((p.toArray)?p.toArray():p)).sub(reg.c);return [d.dot(reg.U),d.dot(reg.V)];}
@@ -537,7 +548,7 @@ function makeHandles(){
   hs.forEach(([role,p])=>{
     const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:ringTex(),depthTest:false,transparent:true}));
     const pp=(p.toArray)?p.toArray():p; sp.position.set(...pp);
-    const sz=handleSize()*1.6; sp.scale.set(sz,sz,1); sp.renderOrder=11;
+    const sz=handleSize()*1.15; sp.scale.set(sz,sz,1); sp.renderOrder=11;
     handles.push({mesh:sp,stroke:s,role});});
 }
 function redraw(){
@@ -546,6 +557,7 @@ function redraw(){
   texts.forEach(t=>annGroup.add(makeText(t)));
   images.forEach(im=>annGroup.add(im.mesh));
   makeHandles(); handles.forEach(h=>annGroup.add(h.mesh));
+  if(gizmo)updateGizmo();
 }
 
 // ---- regularizacion ----
@@ -657,7 +669,7 @@ function select(kind,ref,label){
   li.style.display=isLin?'inline-block':'none'; lu.style.display=isLin?'inline':'none';
   if(isLin){const a=new THREE.Vector3(...ref.points[0]),b=new THREE.Vector3(...ref.points[ref.points.length-1]);
     li.value=a.distanceTo(b).toFixed(1);}
-  document.getElementById('strokeOps').style.display=(kind==='trazo')?'flex':'none';
+  document.getElementById('strokeOps').style.display=(kind==='trazo'||kind==='pieza')?'flex':'none';
   updOpsBar();
   document.getElementById('selbar').style.display='flex';redraw();
 }
@@ -668,6 +680,9 @@ function selectStroke(st){
   else select('trazo',st,'trazo '+(st.reg?st.reg.tipo:'mano'));
 }
 function updOpsBar(){
+  const isPieza=selected&&selected.kind==='pieza';
+  ['selMag','selDup','selGrp'].forEach(id=>
+    document.getElementById(id).style.display=isPieza?'none':'');
   const list=effSel();
   const g=list.length>1&&list.every(s=>s.grp!=null&&s.grp===list[0].grp);
   const bG=document.getElementById('selGrp');
@@ -805,7 +820,11 @@ renderer.domElement.addEventListener('pointerdown',e=>{
          drawing={points:[p.toArray()],color,sobre:'aire',w:lineW};drawDist=d;}
     lastMoveT=performance.now();
   } else if(em==='sel'&&e.button===0){
-    ndc(e); let hh2=ray.intersectObjects(handles.map(h=>h.mesh));
+    ndc(e);
+    if(gizmo&&gizmo.visible){ // gizmo primero: flechas y anillos
+      const gh=ray.intersectObjects(gizParts,false);
+      if(gh.length){startGizDrag(gh[0].object.userData.giz);return;}}
+    let hh2=ray.intersectObjects(handles.map(h=>h.mesh));
     if(hh2.length){handDrag=handles.find(h=>h.mesh===hh2[0].object);handDrag.dist=hh2[0].distance;return;}
     // 1: trazo por cercania en pantalla; 2: raycast a piezas/anotaciones
     const rct=renderer.domElement.getBoundingClientRect();
@@ -902,6 +921,7 @@ addEventListener('pointermove',e=>{
     target.copy(pinch.t0).addScaledVector(right,-(mx-pinch.mx0)/W*sph.r*1.2)
                          .addScaledVector(up,(my-pinch.my0)/H*sph.r*1.2);
     updCam(); return;}
+  if(gizDrag){ndc(e);moveGizDrag();redraw();return;}
   let hud=document.getElementById('hud');
   if(!drawing&&!handDrag&&e.pointerType==='mouse'){let h=castAt(e);
     if(h)hud.textContent='x '+h.point.x.toFixed(1)+' · y '+h.point.y.toFixed(1)+' · z '+h.point.z.toFixed(1)+' mm · '+h.object.name;}
@@ -995,6 +1015,9 @@ function endPointer(e){
           if(st.reg&&st.reg.c)st.reg.c.add(d);});
         toast('extremo unido 🧲');break;}}}
   if(selDrag)hideContact();
+  if(gizDrag){
+    if(gizDrag.t==='pieza'){computeIntersections();applySec();_silhFrame=-1;}
+    gizDrag=null;hideContact();updateGizmo();}
   drawing=null;handDrag=null;imgDrag=null;selDrag=null;dragging=false;redraw();
 }
 addEventListener('pointerup',endPointer);
@@ -1031,13 +1054,29 @@ function moveSel(d){effSel().forEach(s=>{
   s.points=s.points.map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);
   if(s.reg&&s.reg.c)s.reg.c.add(d);});redraw();}
 document.getElementById('selMove').addEventListener('change',e=>{
-  const v=+e.target.value||0; if(!v||!effSel().length)return;
+  const v=+e.target.value||0; if(!v)return;
   const ax=axLock||'z'; const d=new THREE.Vector3(); d[ax]=v;
+  if(selected&&selected.kind==='pieza'){ // desplazar PIEZA
+    selected.ref.position.add(d);
+    computeIntersections();applySec();_silhFrame=-1;updateGizmo();
+    e.target.value=''; toast('pieza Δ'+ax.toUpperCase()+' = '+v+' mm'); return;}
+  if(!effSel().length)return;
   moveSel(d); e.target.value='';
   toast('Δ'+ax.toUpperCase()+' = '+v+' mm'+(axLock?'':' (sin eje elegido: uso Z)'));
   contactProbe(effSel()[0],true);});
 document.getElementById('selRot').addEventListener('change',e=>{
-  const v=+e.target.value||0; const list=effSel(); if(!v||!list.length)return;
+  const v=+e.target.value||0; if(!v)return;
+  if(selected&&selected.kind==='pieza'){ // girar PIEZA sobre su centro
+    const ax2=axLock||'z';
+    const u2=new THREE.Vector3(ax2==='x'?1:0,ax2==='y'?1:0,ax2==='z'?1:0);
+    const q=new THREE.Quaternion().setFromAxisAngle(u2,v*Math.PI/180);
+    const m=selected.ref;
+    const Cc=new THREE.Box3().setFromObject(m).getCenter(new THREE.Vector3());
+    m.quaternion.premultiply(q);
+    m.position.sub(Cc).applyQuaternion(q).add(Cc);
+    computeIntersections();applySec();_silhFrame=-1;updateGizmo();
+    e.target.value=''; toast('pieza giro '+v+'° · eje '+ax2.toUpperCase()); return;}
+  const list=effSel(); if(!list.length)return;
   const ax=axLock||'z';
   const u=new THREE.Vector3(ax==='x'?1:0,ax==='y'?1:0,ax==='z'?1:0), ang=v*Math.PI/180;
   let cen=new THREE.Vector3(),n=0;
@@ -1123,6 +1162,137 @@ function contactProbe(st,announce){
         if(announce)toast('⊙ toca '+h.object.name);
         return h;}}}
   hideContact(); return null;}
+
+// ---- GIZMO de mover/girar (formas y piezas): flechas X/Y/Z + anillos de giro ----
+// Fino y discreto; los tiradores de puntos de control siguen siendo los aros pequeños.
+var gizmo=null,gizParts=null,gizDrag=null;
+(function buildGizmo(){
+  gizmo=new THREE.Group(); gizmo.visible=false; scene.add(gizmo);
+  gizParts=[];
+  const axes={x:[1,0,0],y:[0,1,0],z:[0,0,1]};
+  const cols={x:0xd95757,y:0x3fa65f,z:0x4b7bec};
+  const Y=new THREE.Vector3(0,1,0), Z=new THREE.Vector3(0,0,1);
+  for(const a in axes){
+    const u=new THREE.Vector3(...axes[a]);
+    const ln=new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),u]),
+      new THREE.LineBasicMaterial({color:cols[a],transparent:true,opacity:.85,depthTest:false}));
+    ln.renderOrder=20; gizmo.add(ln);
+    const cone=new THREE.Mesh(new THREE.ConeGeometry(.04,.13,10),
+      new THREE.MeshBasicMaterial({color:cols[a],transparent:true,opacity:.9,depthTest:false}));
+    cone.position.copy(u); cone.quaternion.setFromUnitVectors(Y,u);
+    cone.renderOrder=20; gizmo.add(cone);
+    const rp=[];for(let i=0;i<=48;i++){const t=i/48*2*Math.PI;
+      rp.push(new THREE.Vector3(Math.cos(t)*.72,Math.sin(t)*.72,0));}
+    const ring=new THREE.Line(new THREE.BufferGeometry().setFromPoints(rp),
+      new THREE.LineBasicMaterial({color:cols[a],transparent:true,opacity:.4,depthTest:false}));
+    ring.quaternion.setFromUnitVectors(Z,u); ring.renderOrder=20; gizmo.add(ring);
+    // zonas de toque invisibles (gordas) para dedo
+    const pc=new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,1.15,6),
+      new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthTest:false,depthWrite:false}));
+    pc.position.copy(u.clone().multiplyScalar(.55));
+    pc.quaternion.setFromUnitVectors(Y,u);
+    pc.userData.giz={type:'move',axis:a}; gizmo.add(pc); gizParts.push(pc);
+    const pt=new THREE.Mesh(new THREE.TorusGeometry(.72,.1,6,32),
+      new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthTest:false,depthWrite:false}));
+    pt.quaternion.setFromUnitVectors(Z,u);
+    pt.userData.giz={type:'rot',axis:a}; gizmo.add(pt); gizParts.push(pt);
+  }
+  const dot=new THREE.Mesh(new THREE.SphereGeometry(.045,10,10),
+    new THREE.MeshBasicMaterial({color:0x1c1c1e,transparent:true,opacity:.8,depthTest:false}));
+  dot.renderOrder=21; gizmo.add(dot);
+})();
+function gizTarget(){
+  if(selSet.length||(selected&&selected.kind==='trazo'))return 'trazo';
+  if(selected&&selected.kind==='pieza')return 'pieza';
+  return null;}
+function updateGizmo(){
+  if(!gizmo)return;
+  const t=gizTarget();
+  if(!t){gizmo.visible=false;return;}
+  const c=new THREE.Vector3();
+  if(t==='trazo'){let n=0;
+    effSel().forEach(s=>s.points.forEach(p=>{c.x+=p[0];c.y+=p[1];c.z+=p[2];n++;}));
+    if(!n){gizmo.visible=false;return;} c.multiplyScalar(1/n);}
+  else new THREE.Box3().setFromObject(selected.ref).getCenter(c);
+  gizmo.position.copy(c);
+  const L=Math.max(10,sph.r*0.12); gizmo.scale.set(L,L,L);
+  gizmo.visible=true;
+}
+function axisParam(C,u){
+  // parametro t del punto de la recta (C,u) mas cercano al rayo de la camara
+  const ro=ray.ray.origin,rd=ray.ray.direction;
+  const w0=C.clone().sub(ro);
+  const b=u.dot(rd), d=u.dot(w0), ee=rd.dot(w0);
+  const den=1-b*b; if(Math.abs(den)<1e-6)return -d;
+  return (b*ee-d)/den;
+}
+function ringAngle(C,u){
+  const ro=ray.ray.origin,rd=ray.ray.direction;
+  const den=rd.dot(u); let P;
+  if(Math.abs(den)>1e-6){const t=C.clone().sub(ro).dot(u)/den;P=ro.clone().addScaledVector(rd,t);}
+  else P=ro.clone().addScaledVector(rd,ro.distanceTo(C));
+  const A=Math.abs(u.x)>0.9?new THREE.Vector3(0,1,0):new THREE.Vector3(1,0,0);
+  const B1=new THREE.Vector3().crossVectors(u,A).normalize();
+  const B2=new THREE.Vector3().crossVectors(u,B1).normalize();
+  const v=P.sub(C);
+  return Math.atan2(v.dot(B2),v.dot(B1));
+}
+function startGizDrag(g){
+  const t=gizTarget(); if(!t)return;
+  const u=new THREE.Vector3(g.axis==='x'?1:0,g.axis==='y'?1:0,g.axis==='z'?1:0);
+  gizDrag={g,t,C:gizmo.position.clone(),u};
+  if(t==='trazo'){const list=effSel();
+    gizDrag.list=list;
+    gizDrag.orig=list.map(s=>s.points.map(p=>p.slice()));
+    gizDrag.origReg=list.map(s=>s.reg?{c:s.reg.c&&s.reg.c.clone(),
+      U:s.reg.U&&s.reg.U.clone(),V:s.reg.V&&s.reg.V.clone()}:null);}
+  else{gizDrag.mesh=selected.ref;
+    gizDrag.pos0=selected.ref.position.clone();
+    gizDrag.quat0=selected.ref.quaternion.clone();}
+  if(g.type==='move')gizDrag.t0=axisParam(gizDrag.C,u);
+  else{gizDrag.prevA=ringAngle(gizDrag.C,u);gizDrag.acc=0;}
+}
+function applyGiz(d,ang){
+  const g=gizDrag;
+  if(g.t==='trazo'){
+    g.list.forEach((s,i)=>{
+      if(d){s.points=g.orig[i].map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);
+        const or=g.origReg[i];
+        if(s.reg&&or&&or.c)s.reg.c.copy(or.c).add(d);}
+      else{s.points=g.orig[i].map(p=>new THREE.Vector3(p[0],p[1],p[2])
+          .sub(g.C).applyAxisAngle(g.u,ang).add(g.C).toArray());
+        const or=g.origReg[i];
+        if(s.reg&&or){if(or.c)s.reg.c.copy(or.c).sub(g.C).applyAxisAngle(g.u,ang).add(g.C);
+          if(or.U)s.reg.U.copy(or.U).applyAxisAngle(g.u,ang);
+          if(or.V)s.reg.V.copy(or.V).applyAxisAngle(g.u,ang);}}
+    });
+    contactProbe(g.list[0]);
+  }else{
+    const m=g.mesh;
+    if(d)m.position.copy(g.pos0).add(d);
+    else{const q=new THREE.Quaternion().setFromAxisAngle(g.u,ang);
+      m.quaternion.copy(q).multiply(g.quat0);
+      m.position.copy(g.C).add(g.pos0.clone().sub(g.C).applyQuaternion(q));}
+    _silhFrame=-1;
+  }
+  if(d)gizmo.position.copy(g.C).add(d);
+}
+function moveGizDrag(){
+  const g=gizDrag;
+  if(g.g.type==='move'){
+    const t1=axisParam(g.C,g.u), dv=g.u.clone().multiplyScalar(t1-g.t0);
+    applyGiz(dv,0);
+    document.getElementById('hud').textContent='Δ'+g.g.axis.toUpperCase()+' '+(t1-g.t0).toFixed(1)+' mm';
+  }else{
+    const a1=ringAngle(g.C,g.u);
+    let st=a1-g.prevA;
+    while(st>Math.PI)st-=2*Math.PI; while(st<-Math.PI)st+=2*Math.PI;
+    g.acc+=st; g.prevA=a1;
+    applyGiz(null,g.acc);
+    document.getElementById('hud').textContent='∠'+g.g.axis.toUpperCase()+' '+(g.acc*180/Math.PI).toFixed(1)+'°';
+  }
+}
 op.oninput=e=>{baseOpacity=+e.target.value/100;applyMode();};
 lw.oninput=e=>{lineW=+e.target.value;};
 axSnap.onchange=e=>{axisSnap=e.target.checked;};
@@ -1136,6 +1306,8 @@ function buildExport(){
     trazos:strokes.map(s=>({color:s.color,sobre:s.sobre,grosor:s.w||0.8,tipo:s.reg?s.reg.tipo:'mano',
       grp:s.grp,magLock:s.magLock||undefined,
       points:s.points.map(p=>p.map(x=>+x.toFixed(2)))})),
+    piezas:Object.keys(pieces).map(n=>({name:n,visible:pieces[n].visible,
+      pos:pieces[n].position.toArray(),quat:pieces[n].quaternion.toArray()})),
     textos:texts,
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
@@ -1157,6 +1329,13 @@ fileJson.onchange=ev=>{
     strokes=(d.trazos||[]).map(s=>({points:s.points,color:s.color,sobre:s.sobre,w:s.grosor||0.8,
       grp:s.grp,magLock:s.magLock}));
     grpN=strokes.reduce((m,s)=>Math.max(m,s.grp||0),grpN);
+    if(d.piezas){d.piezas.forEach(pz=>{const m=pieces[pz.name];if(!m)return;
+        if(pz.pos)m.position.set(...pz.pos);
+        if(pz.quat)m.quaternion.set(...pz.quat);
+        if(pz.visible!==undefined){m.visible=pz.visible;
+          const cb=document.querySelector('input[data-n="'+pz.name+'"]');
+          if(cb)cb.checked=pz.visible;}});
+      computeIntersections();applySec();_silhFrame=-1;}
     texts=d.textos||[];
     (d.imagenes||[]).forEach(im=>{if(!im.dataURL)return;
       new THREE.TextureLoader().load(im.dataURL,tex=>{
@@ -1183,12 +1362,15 @@ function updateSilh(){
   for(const n in pieces){const mch=pieces[n],sd=mch.userData.silh;
     if(!sd)continue;
     if(!mch.visible){sd.line.visible=false;sd.lineHid.visible=false;continue;}
+    // camara en coordenadas LOCALES de la pieza (la pieza puede estar transformada)
+    mch.updateMatrixWorld();
+    const camL=cam.position.clone().applyMatrix4(new THREE.Matrix4().copy(mch.matrixWorld).invert());
     let c=0; const P=sd.V;
     for(const e of sd.list){
       const a3=e.A*3,b3=e.B*3;
-      const mx=(P[a3]+P[b3])/2-cam.position.x,
-            my=(P[a3+1]+P[b3+1])/2-cam.position.y,
-            mz=(P[a3+2]+P[b3+2])/2-cam.position.z;
+      const mx=(P[a3]+P[b3])/2-camL.x,
+            my=(P[a3+1]+P[b3+1])/2-camL.y,
+            mz=(P[a3+2]+P[b3+2])/2-camL.z;
       const f1=(e.n1[0]*mx+e.n1[1]*my+e.n1[2]*mz)<0;
       const f2=e.n2?((e.n2[0]*mx+e.n2[1]*my+e.n2[2]*mz)<0):!f1;
       if(f1!==f2){
@@ -1212,6 +1394,7 @@ function updateSilh(){
   interPairs.forEach(ip=>{
     const on=interOn&&pieces[ip.a]&&pieces[ip.a].visible&&pieces[ip.b]&&pieces[ip.b].visible;
     ip.l1.visible=on; ip.l2.visible=on;});
+  if(gizmo&&gizmo.visible){const L=Math.max(10,sph.r*0.12);gizmo.scale.set(L,L,L);}
   updateSilh();
   renderer.render(scene,cam);})();
 </script>
