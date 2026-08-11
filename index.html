@@ -68,7 +68,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v4 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v4.1 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -112,6 +112,7 @@
 
 <div id="side" class="pill"><b>Piezas</b><div id="pieces"></div>
  <div style="margin-top:8px"><b>Opacidad</b><br><input type="range" id="op" min="15" max="100" value="100"></div>
+ <div style="margin-top:6px"><b>Grosor trazo</b><br><input type="range" id="lw" min="0.3" max="3" step="0.1" value="0.8"> mm</div>
  <div style="margin-top:6px"><b>Tam. imagen</b><br><input type="range" id="imsc" min="10" max="200" value="60"> mm</div>
  <label><input type="checkbox" id="grid" checked> Rejilla 10 mm</label>
  <label><input type="checkbox" id="axes" checked> Ejes</label>
@@ -181,7 +182,7 @@ vAlz.onclick=()=>setView(-Math.PI/2,Math.PI/2); vPla.onclick=()=>setView(-Math.P
 vPer.onclick=()=>setView(0,Math.PI/2); v34.onclick=()=>setView(-1.05,1.15);
 
 // ---- estado UI ----
-let mode='orbit', color='#d500f9', mag=true;
+let mode='orbit', color='#d500f9', mag=true, lineW=0.8;
 const btns={orbit:'mOrbit',draw:'mDraw',erase:'mErase',text:'mText',img:'mImg'};
 function setMode(m){mode=m;for(let k in btns)document.getElementById(btns[k]).classList.toggle('on',k===m);}
 for(let k in btns)document.getElementById(btns[k]).onclick=()=>setMode(k);
@@ -203,20 +204,31 @@ let handles=[];
 let ray=new THREE.Raycaster(); ray.params.Line={threshold:1.6}; let ptr=new THREE.Vector2();
 function ndc(e){let r=renderer.domElement.getBoundingClientRect();
   ptr.x=((e.clientX-r.left)/r.width)*2-1; ptr.y=-((e.clientY-r.top)/r.height)*2+1; ray.setFromCamera(ptr,cam);}
+function offPt(h){return h.point.clone().addScaledVector(cam.getWorldDirection(new THREE.Vector3()),-0.6);}
 function castAt(e){ndc(e);let hits=ray.intersectObjects(pickables.filter(p=>p.visible),false);return hits.length?hits[0]:null;}
 function planePoint(e,dist){ndc(e);return ray.ray.at(dist,new THREE.Vector3());}
 function strokeLine(s){
+  // TRAZO como TUBO 3D (grosor real en mm) SIEMPRE VISIBLE (depthTest off):
+  // en superficies curvas las cuerdas del trazo se hundian bajo la superficie
+  // (p.ej. el cuello cilindrico) y el z-buffer las ocultaba.
   let pts=s.points.map(p=>new THREE.Vector3(...p));
-  let l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({color:s.color}));
-  l.userData.rec=s; l.renderOrder=5; return l;
+  let obj;
+  if(pts.length<2){obj=new THREE.Object3D();}
+  else{
+    let path=new THREE.CurvePath();
+    for(let i=1;i<pts.length;i++)path.add(new THREE.LineCurve3(pts[i-1],pts[i]));
+    let g=new THREE.TubeGeometry(path,Math.max(2,pts.length*2),(s.w||0.8)/2,6,false);
+    obj=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:s.color,depthTest:false,transparent:true}));
+  }
+  obj.userData.rec=s; obj.renderOrder=10; return obj;
 }
 function makeText(t){
   let cv=document.createElement('canvas');cv.width=512;cv.height=128;
   let g=cv.getContext('2d');g.fillStyle='rgba(255,255,255,.85)';g.fillRect(0,0,512,128);
   g.fillStyle=t.color;g.font='bold 44px sans-serif';g.textBaseline='middle';g.fillText(t.text,14,64);
-  let sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv)}));
-  sp.position.set(...t.pos); let s=t.size||14; sp.scale.set(s*3.2,s*0.8,1); sp.userData.rec=t; return sp;
+  let sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false}));
+  sp.position.set(...t.pos); let s=t.size||14; sp.scale.set(s*3.2,s*0.8,1);
+  sp.userData.rec=t; sp.renderOrder=12; return sp;
 }
 function handleSize(){return Math.max(0.9,sph.r*0.011);}
 function to3(reg,q){return reg.c.clone().addScaledVector(reg.U,q[0]).addScaledVector(reg.V,q[1]);}
@@ -230,8 +242,8 @@ function makeHandles(){
       hs=[['centro',c3.toArray()],['radio',s.points[0]]];}
     hs.forEach(([role,p])=>{
       let m=new THREE.Mesh(new THREE.SphereGeometry(handleSize(),12,10),
-            new THREE.MeshBasicMaterial({color:'#111'}));
-      m.position.set(...p); handles.push({mesh:m,stroke:s,role});});
+            new THREE.MeshBasicMaterial({color:'#111',depthTest:false,transparent:true}));
+      m.position.set(...p); m.renderOrder=11; handles.push({mesh:m,stroke:s,role});});
   });
 }
 function redraw(){
@@ -357,10 +369,10 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     ndc(e); let hh=ray.intersectObjects(handles.map(h=>h.mesh));
     if(hh.length){handDrag=handles.find(h=>h.mesh===hh[0].object);handDrag.dist=hh[0].distance;return;}
     let h=mag?castAt(e):null;
-    if(h){drawing={points:[h.point.clone().addScaledVector(h.face.normal.clone().transformDirection(h.object.matrixWorld),0.5).toArray()],
-                   color,sobre:h.object.name};drawDist=h.distance;}
+    if(h){drawing={points:[offPt(h).toArray()],
+                   color,sobre:h.object.name,w:lineW};drawDist=h.distance;}
     else{let d=mag?sph.r:cam.position.distanceTo(target);let p=planePoint(e,d);
-         drawing={points:[p.toArray()],color,sobre:'aire'};drawDist=d;}
+         drawing={points:[p.toArray()],color,sobre:'aire',w:lineW};drawDist=d;}
     lastMoveT=performance.now();
   } else if(mode==='erase'&&e.button===0){
     ndc(e);
@@ -398,7 +410,7 @@ addEventListener('pointermove',e=>{
   if(handDrag){
     let s=handDrag.stroke,reg=s.reg;
     let h=mag?castAt(e):null;
-    let p=h?h.point.clone().addScaledVector(h.face.normal.clone().transformDirection(h.object.matrixWorld),0.5)
+    let p=h?offPt(h)
            :planePoint(e,handDrag.dist);
     let q=to2(reg,p);
     if(reg.tipo==='linea'){reg.pts2[handDrag.role==='p0'?0:1]=q;}
@@ -415,7 +427,7 @@ addEventListener('pointermove',e=>{
     if(drawing.editEnd){
       let reg=drawing.reg;
       let h=mag?castAt(e):null;
-      let p=h?h.point.clone().addScaledVector(h.face.normal.clone().transformDirection(h.object.matrixWorld),0.5)
+      let p=h?offPt(h)
              :planePoint(e,drawDist);
       let q=to2(reg,p);
       if(reg.tipo==='linea')reg.pts2[1]=q;
@@ -425,7 +437,7 @@ addEventListener('pointermove',e=>{
       drawing.points=genPoints(reg)||drawing.points;
       redraw(); annGroup.add(strokeLine(drawing)); return;}
     let h=mag?castAt(e):null,p;
-    if(h){p=h.point.clone().addScaledVector(h.face.normal.clone().transformDirection(h.object.matrixWorld),0.5);drawDist=h.distance;
+    if(h){p=offPt(h);drawDist=h.distance;
       if(drawing.sobre==='aire')drawing.sobre=h.object.name;}
     else p=planePoint(e,drawDist);
     let lp=drawing.points[drawing.points.length-1];
@@ -466,6 +478,7 @@ undo.onclick=()=>{strokes.pop();redraw();};
 document.getElementById('pieces').addEventListener('change',e=>{
   let n=e.target.dataset.n;if(n)pieces[n].visible=e.target.checked;});
 op.oninput=e=>{let v=+e.target.value/100;for(let n in pieces)pieces[n].material.opacity=v;};
+lw.oninput=e=>{lineW=+e.target.value;};
 document.getElementById('grid').onchange=e=>grid.visible=e.target.checked;
 document.getElementById('axes').onchange=e=>axes.visible=e.target.checked;
 
@@ -473,13 +486,13 @@ document.getElementById('axes').onchange=e=>axes.visible=e.target.checked;
 function buildExport(){
   return {app:'TECTOS-BIM canvas3d v4 webgl',fecha:new Date().toISOString(),unidades:'mm',
     camara:{pos:cam.position.toArray(),target:target.toArray()},
-    trazos:strokes.map(s=>({color:s.color,sobre:s.sobre,tipo:s.reg?s.reg.tipo:'mano',
+    trazos:strokes.map(s=>({color:s.color,sobre:s.sobre,grosor:s.w||0.8,tipo:s.reg?s.reg.tipo:'mano',
       points:s.points.map(p=>p.map(x=>+x.toFixed(2)))})),
     textos:texts,
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
-window.buildExport=buildExport;
+window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes}};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());
@@ -493,7 +506,7 @@ imp.onclick=()=>fileJson.click();
 fileJson.onchange=ev=>{
   let f=ev.target.files[0];if(!f)return;let rd=new FileReader();
   rd.onload=()=>{let d=JSON.parse(rd.result);
-    strokes=(d.trazos||[]).map(s=>({points:s.points,color:s.color,sobre:s.sobre}));
+    strokes=(d.trazos||[]).map(s=>({points:s.points,color:s.color,sobre:s.sobre,w:s.grosor||0.8}));
     texts=d.textos||[];
     (d.imagenes||[]).forEach(im=>{if(!im.dataURL)return;
       new THREE.TextureLoader().load(im.dataURL,tex=>{
