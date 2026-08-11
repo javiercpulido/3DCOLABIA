@@ -18,10 +18,10 @@
  button{-webkit-tap-highlight-color:transparent}
  .pill{background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
    border:1px solid rgba(0,0,0,.07);box-shadow:0 6px 24px rgba(0,0,0,.10);border-radius:16px}
- #brand{position:fixed;top:calc(10px + env(safe-area-inset-top));left:12px;z-index:10;
+ #brand{position:fixed;top:calc(26px + env(safe-area-inset-top));left:12px;z-index:10;
    padding:7px 12px;font-size:13px;font-weight:600;color:var(--ink)}
  #brand span{color:var(--mut);font-weight:400;font-size:11px}
- #panelBtn{position:fixed;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:10;
+ #panelBtn{position:fixed;top:calc(26px + env(safe-area-inset-top));right:12px;z-index:10;
    width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--ink);border:0;cursor:pointer}
  /* dock VERTICAL a la izquierda, a media altura */
  #dock{position:fixed;left:calc(10px + env(safe-area-inset-left));top:50%;transform:translateY(-50%);
@@ -42,7 +42,7 @@
  .sw{width:28px;height:28px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;flex:none}
  .sw.on{border-color:var(--ink)}
  #colBtn i{width:18px;height:18px;border-radius:50%;display:block}
- #side{position:fixed;top:calc(58px + env(safe-area-inset-top));right:12px;width:198px;z-index:9;
+ #side{position:fixed;top:calc(74px + env(safe-area-inset-top));right:12px;width:198px;z-index:9;
    font-size:12.5px;max-height:66%;overflow:auto;padding:12px;color:var(--ink)}
  #side label{display:block;margin:5px 0;cursor:pointer}
  #side b{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
@@ -83,7 +83,7 @@
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
-<div id="selbar" class="pill" style="position:fixed;top:calc(64px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:12;display:none;align-items:center;gap:6px;padding:6px 10px;font-size:13px;flex-wrap:wrap;max-width:94vw;justify-content:center">
+<div id="selbar" class="pill" style="position:fixed;top:calc(80px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:12;display:none;align-items:center;gap:6px;padding:6px 10px;font-size:13px;flex-wrap:wrap;max-width:94vw;justify-content:center">
  <span id="selname" style="font-weight:600"></span>
  <input id="selLen" type="number" step="0.1" style="width:64px;display:none;font-size:13px;padding:6px;border:1px solid #ddd;border-radius:8px"><span id="selLenU" style="display:none;color:var(--mut);font-size:12px">mm</span>
  <span id="strokeOps">
@@ -132,12 +132,12 @@
  </div>
 </div>
 
-<div id="views" class="pill" style="position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10;display:flex;flex-direction:row;align-items:center;padding:5px;gap:2px">
+<div id="views" class="pill" style="position:fixed;top:calc(26px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10;display:flex;flex-direction:row;align-items:center;padding:5px;gap:2px">
  <button id="v34">3/4</button><button id="vAlz">Alz</button><button id="vPla">Pla</button><button id="vPer">Per</button>
  <div style="width:1px;height:22px;background:rgba(0,0,0,.08);margin:0 3px"></div>
  <button id="vEye" title="Modo de visión" style="width:42px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
 </div>
-<div id="vmodes" class="pill" style="position:fixed;top:calc(60px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:row;padding:5px;gap:2px">
+<div id="vmodes" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:row;padding:5px;gap:2px">
  <button data-m="somb" class="on">Sombra</button><button data-m="blanco">Blanco</button><button data-m="malla">Malla</button><button data-m="wire">Wire</button><button data-m="xray">X-Ray</button><button data-m="tecnico">Técnico</button><button data-m="oculto">Oculto</button>
 </div>
 <div id="side" class="pill"><b>Piezas</b><div id="pieces"></div>
@@ -894,7 +894,8 @@ addEventListener('pointermove',e=>{
     let dAng=ang-pinch.a0;
     while(dAng>Math.PI)dAng-=2*Math.PI; while(dAng<-Math.PI)dAng+=2*Math.PI;
     if(!pinch.twist&&Math.abs(dAng)>0.07)pinch.twist=true;   // zona muerta anti-jitter
-    if(pinch.twist)sph.th=pinch.th0-dAng;
+    // giro NATURAL: la escena sigue el sentido de rotacion del par de dedos
+    if(pinch.twist)sph.th=pinch.th0+dAng;
     let mx=(ps[0].x+ps[1].x)/2,my=(ps[0].y+ps[1].y)/2;
     let right=new THREE.Vector3().setFromMatrixColumn(cam.matrix,0);
     let up=new THREE.Vector3().setFromMatrixColumn(cam.matrix,1);
