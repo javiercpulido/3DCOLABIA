@@ -69,19 +69,31 @@
    font-size:12px;font-weight:600;color:var(--ink);cursor:pointer}
  .axbtn{width:30px!important}
  svg{pointer-events:none}
+ #strokeOps{display:none;align-items:center;gap:4px;flex-wrap:wrap}
+ #strokeOps button{border:0;background:#eee;color:#1c1c1e;border-radius:9px;min-width:30px;height:32px;cursor:pointer;font-size:13px;padding:0 6px}
+ #strokeOps button.on{background:var(--acc);color:#fff}
+ #strokeOps input{font-size:13px;padding:6px;border:1px solid #ddd;border-radius:8px}
 </style>
 </head>
 <body>
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v5.1 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v5.2 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
-<div id="selbar" class="pill" style="position:fixed;top:calc(64px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:12;display:none;align-items:center;gap:6px;padding:6px 10px;font-size:13px">
+<div id="selbar" class="pill" style="position:fixed;top:calc(64px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:12;display:none;align-items:center;gap:6px;padding:6px 10px;font-size:13px;flex-wrap:wrap;max-width:94vw;justify-content:center">
  <span id="selname" style="font-weight:600"></span>
  <input id="selLen" type="number" step="0.1" style="width:64px;display:none;font-size:13px;padding:6px;border:1px solid #ddd;border-radius:8px"><span id="selLenU" style="display:none;color:var(--mut);font-size:12px">mm</span>
+ <span id="strokeOps">
+  <button id="selMag" title="Imán fijo: pegar el trazo a la superficie y bloquearlo">🧲</button>
+  <button id="selDup" title="Duplicar selección">⎘</button>
+  <button id="selGrp" title="Agrupar / desagrupar">🔗</button>
+  <button class="mvax" data-ax="x">X</button><button class="mvax" data-ax="y">Y</button><button class="mvax" data-ax="z">Z</button>
+  <input id="selMove" type="number" step="0.5" placeholder="Δmm" style="width:58px">
+  <input id="selRot" type="number" step="5" placeholder="∠°" style="width:50px">
+ </span>
  <button id="selDel" style="border:0;background:#ffebee;color:#c62828;border-radius:9px;width:36px;height:36px;cursor:pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
  <button id="selClose" style="border:0;background:#eee;color:#333;border-radius:9px;width:36px;height:36px;cursor:pointer">✕</button>
 </div>
@@ -108,6 +120,7 @@
  <div id="dock1" class="row pill">
   <button id="mOrbit" class="on" title="Orbitar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><path d="M10.4 21.9a10 10 0 0 0 9.9-15.4"/><path d="M13.5 2.1a10 10 0 0 0-9.8 15.4"/></svg></button>
   <button id="mSel" title="Seleccionar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg></button>
+  <button id="mMulti" title="Multi-selección: toca trazos para sumar/restar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="11" height="11" rx="2"/><rect x="10" y="10" width="11" height="11" rx="2"/></svg></button>
   <button id="mDraw" title="Trazo (2º toque: candado)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg><span id="lockDot" style="position:absolute;top:2px;right:4px;font-size:9px;line-height:1;display:none">🔒</span></button>
   <button id="mErase" title="Borrar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg></button>
   <button id="mag" class="on" title="Imán"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15-4-4 6.75-6.77a7.79 7.79 0 0 1 11 11L13 22l-4-4 6.39-6.36a2.14 2.14 0 0 0-3-3L6 15"/><path d="m5 8 4 4"/><path d="m12 15 4 4"/></svg></button>
@@ -125,7 +138,7 @@
  <button id="vEye" title="Modo de visión" style="width:42px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
 </div>
 <div id="vmodes" class="pill" style="position:fixed;top:calc(60px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:row;padding:5px;gap:2px">
- <button data-m="somb" class="on">Sombra</button><button data-m="blanco">Blanco</button><button data-m="malla">Malla</button><button data-m="wire">Wire</button><button data-m="xray">X-Ray</button><button data-m="tecnico">Técnico</button>
+ <button data-m="somb" class="on">Sombra</button><button data-m="blanco">Blanco</button><button data-m="malla">Malla</button><button data-m="wire">Wire</button><button data-m="xray">X-Ray</button><button data-m="tecnico">Técnico</button><button data-m="oculto">Oculto</button>
 </div>
 <div id="side" class="pill"><b>Piezas</b><div id="pieces"></div>
  <div style="margin-top:8px"><b>Opacidad</b><br><input type="range" id="op" min="15" max="100" value="100"></div>
@@ -144,6 +157,7 @@
   <input type="range" id="secPos" min="0" max="1" step="0.5" style="width:150px">
  </div>
  <label><input type="checkbox" id="axSnap" checked> Ajuste de líneas a ejes</label>
+ <label><input type="checkbox" id="interChk" checked> Intersección de volúmenes</label>
  <div style="margin-top:10px"><b>Papelera</b>
   <div id="trashList" style="margin-top:4px"></div>
   <button id="trashEmpty" style="margin-top:4px;border:0;background:#ffebee;color:#c62828;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer">Vaciar papelera</button>
@@ -156,6 +170,8 @@ Lápiz: dibuja un trazo y vuelve a orbitar; 2º toque al lápiz = candado 🔒. 
 Con imán, los extremos nuevos se unen a extremos existentes.<br>
 👁 modos: Sombra·Blanco·Malla·Wire·X-Ray·Técnico (con contorno de silueta tipo SketchUp). Sección: plano de corte X/Y/Z movible mientras dibujas.<br>
 Las líneas se alinean solas a los ejes (±12°); con una línea seleccionada, teclea su longitud exacta en mm.<br>
+Selección: X/Y/Z bloquea un eje (mover, dibujar y girar solo sobre él) · Δmm desplaza exacto · ∠° gira exacto · ⎘ duplica · 🔗 agrupa/desagrupa · 🧲 pega el trazo a la superficie y lo deja fijo. ⿻ (junto a la flecha) suma/resta trazos a la selección. ⊙ cian = contacto con una pieza.<br>
+👁 Oculto = líneas vistas + ocultas en discontinuo gris. Las curvas grises = intersección entre volúmenes.<br>
   Copiar = JSON al portapapeles para pegarlo en el chat.</div>
 </div>
 <div id="toast"></div>
@@ -205,6 +221,13 @@ MESHES.forEach(m=>{
   mesh.userData.wire=new THREE.LineSegments(new THREE.WireframeGeometry(g),
       new THREE.LineBasicMaterial({color:0xb9c0c7,transparent:true,opacity:.85}));
   mesh.userData.wire.visible=false; scene.add(mesh.userData.wire);
+  // modo OCULTO: mismas aristas pero en discontinuo gris claro donde el volumen las tapa
+  mesh.userData.edgesHid=new THREE.LineSegments(mesh.userData.edges.geometry,
+      new THREE.LineDashedMaterial({color:0xaeb4bb,dashSize:2.2,gapSize:1.6,transparent:true,
+        depthFunc:THREE.GreaterDepth,depthWrite:false}));
+  mesh.userData.edgesHid.computeLineDistances();
+  mesh.userData.edgesHid.renderOrder=2;
+  mesh.userData.edgesHid.visible=false; scene.add(mesh.userData.edgesHid);
   // SILUETA dependiente de la vista (contorno tipo SketchUp): aristas cuya cara
   // frontal/trasera cambia respecto a la camara. Precalculo de adyacencia.
   (function(){
@@ -220,12 +243,17 @@ MESHES.forEach(m=>{
         let e=em.get(key); if(!e){e={A,B,n1:N,n2:null};em.set(key,e);}else e.n2=N;}}
     const arr=[...em.values()];
     const posArr=new Float32Array(arr.length*6);
+    const ldArr=new Float32Array(arr.length*2);
     const geo=new THREE.BufferGeometry();
     geo.setAttribute('position',new THREE.BufferAttribute(posArr,3));
+    geo.setAttribute('lineDistance',new THREE.BufferAttribute(ldArr,1));
     geo.setDrawRange(0,0);
     const sl=new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color:0x1c1c1e}));
     sl.frustumCulled=false; sl.visible=false; scene.add(sl);
-    mesh.userData.silh={list:arr,pos:posArr,geo,line:sl,V:pos};
+    const slh=new THREE.LineSegments(geo,new THREE.LineDashedMaterial({color:0xaeb4bb,
+      dashSize:2.2,gapSize:1.6,transparent:true,depthFunc:THREE.GreaterDepth,depthWrite:false}));
+    slh.frustumCulled=false; slh.visible=false; slh.renderOrder=2; scene.add(slh);
+    mesh.userData.silh={list:arr,pos:posArr,ld:ldArr,geo,line:sl,lineHid:slh,V:pos};
   })();
   let lab=document.createElement('label');
   lab.innerHTML='<input type="checkbox" checked data-n="'+m.name+'"> <span style="color:'+m.color+'">■</span> '+m.name;
@@ -235,19 +263,99 @@ let C=new THREE.Vector3(); bbox.getCenter(C);
 let R=bbox.getSize(new THREE.Vector3()).length()*0.62;
 let grid=new THREE.GridHelper(300,30,0xdadfe5,0xe9edf1); grid.rotation.x=Math.PI/2;
 grid.position.set(C.x,C.y,bbox.min.z-2); scene.add(grid);
+
+// ================= INTERSECCION ENTRE VOLUMENES =================
+// Curva de interseccion malla-malla (tri-tri exacto, prefiltro por cajas).
+// Las piezas son estaticas: se calcula una vez al cargar.
+let interPairs=[], interOn=true;
+(function computeIntersections(){
+  const EPS=1e-6;
+  function buildTris(m){
+    const v=m.v,f=m.f,tris=[],bb=[];
+    let mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];
+    for(let i=0;i<f.length;i+=3){
+      const t=new Float64Array(9);
+      for(let k=0;k<3;k++){const p=f[i+k]*3;t[k*3]=v[p];t[k*3+1]=v[p+1];t[k*3+2]=v[p+2];}
+      tris.push(t);
+      const b=[Math.min(t[0],t[3],t[6]),Math.min(t[1],t[4],t[7]),Math.min(t[2],t[5],t[8]),
+               Math.max(t[0],t[3],t[6]),Math.max(t[1],t[4],t[7]),Math.max(t[2],t[5],t[8])];
+      bb.push(b);
+      for(let k=0;k<3;k++){mn[k]=Math.min(mn[k],b[k]);mx[k]=Math.max(mx[k],b[k+3]);}
+    }
+    return {tris,bb,mn,mx};
+  }
+  function triPlane(t){
+    const ux=t[3]-t[0],uy=t[4]-t[1],uz=t[5]-t[2];
+    const vx=t[6]-t[0],vy=t[7]-t[1],vz=t[8]-t[2];
+    const nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;
+    return [nx,ny,nz,-(nx*t[0]+ny*t[1]+nz*t[2])];
+  }
+  function clipPts(t,pl){
+    const d=[pl[0]*t[0]+pl[1]*t[1]+pl[2]*t[2]+pl[3],
+             pl[0]*t[3]+pl[1]*t[4]+pl[2]*t[5]+pl[3],
+             pl[0]*t[6]+pl[1]*t[7]+pl[2]*t[8]+pl[3]];
+    if((d[0]>EPS&&d[1]>EPS&&d[2]>EPS)||(d[0]<-EPS&&d[1]<-EPS&&d[2]<-EPS))return null;
+    const P=[];
+    for(let k=0;k<3;k++){const k2=(k+1)%3;
+      if(Math.abs(d[k])<=EPS){P.push([t[k*3],t[k*3+1],t[k*3+2]]);}
+      else if((d[k]>EPS&&d[k2]<-EPS)||(d[k]<-EPS&&d[k2]>EPS)){
+        const s=d[k]/(d[k]-d[k2]);
+        P.push([t[k*3]+s*(t[k2*3]-t[k*3]),t[k*3+1]+s*(t[k2*3+1]-t[k*3+1]),t[k*3+2]+s*(t[k2*3+2]-t[k*3+2])]);}}
+    return P.length>=2?P:null;
+  }
+  function triTriSeg(tA,tB){
+    const pB=triPlane(tB); const PA=clipPts(tA,pB); if(!PA)return null;
+    const pA=triPlane(tA); const PB=clipPts(tB,pA); if(!PB)return null;
+    const D=[pA[1]*pB[2]-pA[2]*pB[1],pA[2]*pB[0]-pA[0]*pB[2],pA[0]*pB[1]-pA[1]*pB[0]];
+    const tf=p=>D[0]*p[0]+D[1]*p[1]+D[2]*p[2];
+    let a0=PA[0],a1=PA[PA.length-1]; if(tf(a0)>tf(a1)){const q=a0;a0=a1;a1=q;}
+    let b0=PB[0],b1=PB[PB.length-1]; if(tf(b0)>tf(b1)){const q=b0;b0=b1;b1=q;}
+    const s=tf(a0)>tf(b0)?a0:b0, e=tf(a1)<tf(b1)?a1:b1;
+    const len2=(e[0]-s[0])**2+(e[1]-s[1])**2+(e[2]-s[2])**2;
+    if(!(tf(e)-tf(s)>1e-9)||len2<1e-6)return null;
+    return [s,e];
+  }
+  const items=MESHES.filter(m=>pieces[m.name]).map(m=>Object.assign({name:m.name},buildTris(m)));
+  for(let i=0;i<items.length;i++)for(let j=i+1;j<items.length;j++){
+    const A=items[i],B=items[j];
+    if(A.mn[0]>B.mx[0]||B.mn[0]>A.mx[0]||A.mn[1]>B.mx[1]||B.mn[1]>A.mx[1]||A.mn[2]>B.mx[2]||B.mn[2]>A.mx[2])continue;
+    const segs=[];
+    for(let a=0;a<A.tris.length;a++){
+      const ba=A.bb[a];
+      if(ba[0]>B.mx[0]||ba[3]<B.mn[0]||ba[1]>B.mx[1]||ba[4]<B.mn[1]||ba[2]>B.mx[2]||ba[5]<B.mn[2])continue;
+      for(let b=0;b<B.tris.length;b++){
+        const bb2=B.bb[b];
+        if(ba[0]>bb2[3]||bb2[0]>ba[3]||ba[1]>bb2[4]||bb2[1]>ba[4]||ba[2]>bb2[5]||bb2[2]>ba[5])continue;
+        const sg=triTriSeg(A.tris[a],B.tris[b]); if(sg)segs.push(sg);
+      }
+    }
+    if(!segs.length)continue;
+    const pos=new Float32Array(segs.length*6);
+    segs.forEach((sg,k)=>{pos.set(sg[0],k*6);pos.set(sg[1],k*6+3);});
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    const l1=new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color:0x60666e}));
+    l1.frustumCulled=false; l1.renderOrder=1; scene.add(l1);
+    const l2=new THREE.LineSegments(geo,new THREE.LineDashedMaterial({color:0xc4c9cf,
+      dashSize:1.6,gapSize:1.2,transparent:true,depthFunc:THREE.GreaterDepth,depthWrite:false}));
+    l2.computeLineDistances(); l2.frustumCulled=false; l2.renderOrder=2; scene.add(l2);
+    interPairs.push({a:A.name,b:B.name,l1,l2});
+  }
+})();
 // ================= MODOS DE VISION y SECCION =================
 let viewMode='somb', baseOpacity=1;
 function edgesWanted(){return viewMode!=='somb'&&viewMode!=='malla';}
 function applyMode(){
-  scene.background=new THREE.Color(viewMode==='tecnico'?0xffffff:0xf4f5f7);
+  scene.background=new THREE.Color((viewMode==='tecnico'||viewMode==='oculto')?0xffffff:0xf4f5f7);
   for(const n in pieces){const m=pieces[n],ud=m.userData;
-    m.material=(viewMode==='tecnico')?ud.matFlat:ud.matShaded;
+    m.material=(viewMode==='tecnico'||viewMode==='oculto')?ud.matFlat:ud.matShaded;
     const ms=ud.matShaded;
     if(viewMode==='somb'||viewMode==='malla'){ms.color.setHex(ud.baseColor);ms.opacity=baseOpacity;}
     else if(viewMode==='blanco'){ms.color.setHex(0xe9ebee);ms.opacity=baseOpacity;}
     else if(viewMode==='wire'){ms.color.setHex(0xffffff);ms.opacity=0.06;}
     else if(viewMode==='xray'){ms.color.setHex(ud.baseColor);ms.opacity=0.16;}
   }
+  _silhFrame=-1; // recalcular siluetas aunque la camara no se haya movido
   document.querySelectorAll('#vmodes button').forEach(b=>b.classList.toggle('on',b.dataset.m===viewMode));
 }
 vEye.onclick=()=>{const d=document.getElementById('vmodes');
@@ -272,7 +380,10 @@ function applySec(){
     ud.matShaded.clippingPlanes=planes; ud.matFlat.clippingPlanes=planes;
     ud.edges.material.clippingPlanes=planes;
     if(ud.wire)ud.wire.material.clippingPlanes=planes;
-    if(ud.silh)ud.silh.line.material.clippingPlanes=planes;}
+    if(ud.edgesHid)ud.edgesHid.material.clippingPlanes=planes;
+    if(ud.silh){ud.silh.line.material.clippingPlanes=planes;
+      ud.silh.lineHid.material.clippingPlanes=planes;}}
+  interPairs.forEach(ip=>{ip.l1.material.clippingPlanes=planes;ip.l2.material.clippingPlanes=planes;});
 }
 secOn.onchange=e=>{sec.on=e.target.checked;secRange();applySec();};
 secPos.oninput=applySec;
@@ -300,7 +411,9 @@ vPer.onclick=()=>setView(0,Math.PI/2); v34.onclick=()=>setView(-1.05,1.15);
 // ---- estado UI ----
 let mode='orbit', color='#d500f9', mag=true, lineW=0.8, penSeen=false, drawLock=false, selDrag=null;
 const btns={orbit:'mOrbit',sel:'mSel',draw:'mDraw',erase:'mErase',text:'mText',img:'mImg'};
-function setMode(m){mode=m;for(let k in btns)document.getElementById(btns[k]).classList.toggle('on',k===m);if(m!=='sel')deselect();}
+function setMode(m){mode=m;for(let k in btns)document.getElementById(btns[k]).classList.toggle('on',k===m);
+  if(m!=='sel'){deselect();
+    if(multiSel){multiSel=false;document.getElementById('mMulti').classList.remove('on');}}}
 for(let k in btns)document.getElementById(btns[k]).onclick=()=>setMode(k);
 document.getElementById('mDraw').onclick=()=>{
   if(mode==='draw'){drawLock=!drawLock;
@@ -322,6 +435,9 @@ function toast(t,ms){let d=document.getElementById('toast');d.textContent=t;d.st
 // ---- anotaciones ----
 let strokes=[], texts=[], images=[], annGroup=new THREE.Group(); scene.add(annGroup);
 let selected=null, trash=[];   // seleccion actual y papelera (historico recuperable)
+let selSet=[], multiSel=false, axLock=null, grpN=0; // multi-seleccion, bloqueo de eje, grupos
+function effSel(){if(selSet.length)return selSet.slice();
+  return (selected&&selected.kind==='trazo')?[selected.ref]:[];}
 let handles=[];
 let ray=new THREE.Raycaster(); ray.params.Line={threshold:1.6}; let ptr=new THREE.Vector2();
 function ndc(e){let r=renderer.domElement.getBoundingClientRect();
@@ -352,14 +468,18 @@ function snapPt(parr,exclude){
   return best?best.slice():null;}
 let axisSnap=true;
 function postLine(st,pts){
-  // RESTRICCION: si una linea queda a <12 grados de un eje global, se endereza a el
-  if(!axisSnap||!st.reg||st.reg.tipo!=='linea'||!pts||pts.length<2)return pts;
+  // RESTRICCION: si una linea queda a <12 grados de un eje global, se endereza a el.
+  // Con un eje BLOQUEADO (X/Y/Z en la barra de seleccion) la linea se fuerza SIEMPRE a ese eje.
+  if((!axisSnap&&!axLock)||!st.reg||st.reg.tipo!=='linea'||!pts||pts.length<2)return pts;
   const a=new THREE.Vector3(...pts[0]), b=new THREE.Vector3(...pts[pts.length-1]);
   const d=b.clone().sub(a), L=d.length(); if(L<1e-6)return pts;
-  const dirs=[[1,0,0],[0,1,0],[0,0,1]]; let best=null,bs=0,sg=1;
-  dirs.forEach(u=>{const dd=(d.x*u[0]+d.y*u[1]+d.z*u[2])/L;
-    if(Math.abs(dd)>bs){bs=Math.abs(dd);best=u;sg=Math.sign(dd)||1;}});
-  if(bs<Math.cos(12*Math.PI/180))return pts;
+  let best=null,bs=0,sg=1;
+  if(axLock){best=axLock==='x'?[1,0,0]:(axLock==='y'?[0,1,0]:[0,0,1]);
+    const dd=(d.x*best[0]+d.y*best[1]+d.z*best[2])/L; sg=Math.sign(dd)||1; bs=1;}
+  else{const dirs=[[1,0,0],[0,1,0],[0,0,1]];
+    dirs.forEach(u=>{const dd=(d.x*u[0]+d.y*u[1]+d.z*u[2])/L;
+      if(Math.abs(dd)>bs){bs=Math.abs(dd);best=u;sg=Math.sign(dd)||1;}});
+    if(bs<Math.cos(12*Math.PI/180))return pts;}
   const U=new THREE.Vector3(...best).multiplyScalar(sg);
   const nb=a.clone().addScaledVector(U,L);
   st.reg.c=a.clone(); st.reg.U=U.clone();
@@ -381,7 +501,7 @@ function strokeLine(s){
   else{
     let path=new THREE.CurvePath();
     for(let i=1;i<pts.length;i++)path.add(new THREE.LineCurve3(pts[i-1],pts[i]));
-    const selMe=selected&&selected.ref===s;
+    const selMe=(selected&&selected.ref===s)||selSet.includes(s);
     let g=new THREE.TubeGeometry(path,Math.max(2,pts.length*2),(selMe?1.6:1)*(s.w||0.8)/2,6,false);
     obj=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:selMe?'#0a84ff':s.color,depthTest:false,transparent:true}));
   }
@@ -525,7 +645,8 @@ function circleFrom3(p0,pm,p1){
 function deselect(){
   if(selected&&selected.kind==='pieza'){const m=selected.ref;
     if(m.material.emissive)m.material.emissive.setHex(0x000000);}
-  selected=null;document.getElementById('selbar').style.display='none';redraw();
+  selected=null;selSet=[];hideContact();
+  document.getElementById('selbar').style.display='none';redraw();
 }
 function select(kind,ref,label){
   deselect();selected={kind,ref,label};
@@ -536,7 +657,24 @@ function select(kind,ref,label){
   li.style.display=isLin?'inline-block':'none'; lu.style.display=isLin?'inline':'none';
   if(isLin){const a=new THREE.Vector3(...ref.points[0]),b=new THREE.Vector3(...ref.points[ref.points.length-1]);
     li.value=a.distanceTo(b).toFixed(1);}
+  document.getElementById('strokeOps').style.display=(kind==='trazo')?'flex':'none';
+  updOpsBar();
   document.getElementById('selbar').style.display='flex';redraw();
+}
+function selectStroke(st){
+  // seleccionar un trazo agrupado selecciona TODO su grupo
+  if(st.grp!=null){const g=strokes.filter(s=>s.grp===st.grp);
+    select('trazo',st,'grupo ('+g.length+')'); selSet=g; updOpsBar(); redraw();}
+  else select('trazo',st,'trazo '+(st.reg?st.reg.tipo:'mano'));
+}
+function updOpsBar(){
+  const list=effSel();
+  const g=list.length>1&&list.every(s=>s.grp!=null&&s.grp===list[0].grp);
+  const bG=document.getElementById('selGrp');
+  bG.classList.toggle('on',!!g); bG.title=g?'Desagrupar':'Agrupar';
+  document.getElementById('selMag').classList.toggle('on',
+    list.length>0&&list.every(s=>s.magLock));
+  document.querySelectorAll('.mvax').forEach(x=>x.classList.toggle('on',x.dataset.ax===axLock));
 }
 document.getElementById('selLen').addEventListener('change',e=>{
   if(!selected||selected.kind!=='trazo')return; const st=selected.ref;
@@ -549,7 +687,7 @@ document.getElementById('selLen').addEventListener('change',e=>{
   st.reg.V=Math.abs(U.z)>0.9?new THREE.Vector3(1,0,0):new THREE.Vector3(0,0,1).cross(U).normalize();
   st.reg.pts2=[[0,0],[L,0]];
   const smp=[];for(let i=0;i<=24;i++)smp.push(a.clone().lerp(nb,i/24).toArray());
-  st.points=(mag&&st.sobre!=='aire')?glue(smp):smp;
+  st.points=((mag||st.magLock)&&st.sobre!=='aire')?glue(smp):smp;
   redraw(); toast('longitud = '+L.toFixed(1)+' mm');});
 function renderTrash(){
   const d=document.getElementById('trashList');d.innerHTML='';
@@ -593,7 +731,12 @@ document.getElementById('trashEmpty').onclick=()=>{
   if(confirm('¿Borrar definitivamente '+trash.length+' elemento(s)?')){
     trash.forEach(purge);trash=[];renderTrash();toast('papelera vaciada');}};
 document.getElementById('selDel').onclick=()=>{
-  if(!selected)return;const it=selected;deselect();
+  if(!selected)return;
+  if(selSet.length>1){const multi=selSet.slice();deselect();
+    multi.forEach(st=>{strokes=strokes.filter(sx=>sx!==st);
+      trash.push({kind:'trazo',ref:st,label:'trazo '+(st.reg?st.reg.tipo:'mano')});});
+    renderTrash();redraw();toast(multi.length+' trazos → papelera');return;}
+  const it=selected;deselect();
   if(it.kind==='pieza'){it.ref.material.emissive&&it.ref.material.emissive.setHex(0x000000);
     it.ref.visible=false;
     const cb=document.querySelector('input[data-n="'+it.ref.name+'"]');if(cb)cb.checked=false;}
@@ -679,13 +822,27 @@ renderer.domElement.addEventListener('pointerdown',e=>{
         const dx=px-(a[0]+t*(b[0]-a[0])),dy=py-(a[1]+t*(b[1]-a[1]));
         if(dx*dx+dy*dy<324){hitS=st;break;}}}
     if(hitS){
-      if(selected&&selected.ref===hitS){ // ya seleccionado: arrastrar = MOVER
+      if(multiSel){ // sumar/restar a la seleccion
+        if(selected&&selected.kind!=='trazo')deselect();
+        if(!selSet.length&&selected&&selected.kind==='trazo'&&selected.ref!==hitS)selSet=[selected.ref];
+        const ix=selSet.indexOf(hitS);
+        if(ix>=0)selSet.splice(ix,1); else selSet.push(hitS);
+        if(selSet.length){
+          selected={kind:'trazo',ref:selSet[selSet.length-1],label:selSet.length+' trazos'};
+          document.getElementById('selname').textContent=selSet.length+' trazo'+(selSet.length>1?'s':'');
+          document.getElementById('selLen').style.display='none';
+          document.getElementById('selLenU').style.display='none';
+          document.getElementById('strokeOps').style.display='flex';updOpsBar();
+          document.getElementById('selbar').style.display='flex';redraw();
+        } else deselect();
+      } else if(selected&&(selected.ref===hitS||selSet.includes(hitS))){ // arrastrar = MOVER (toda la seleccion)
         const c=hitS.points[(hitS.points.length/2)|0];
         const depth=new THREE.Vector3(...c).sub(cam.position).dot(cam.getWorldDirection(new THREE.Vector3()));
-        selDrag={s:hitS,depth,start:planePoint(e,depth),
-                 orig:hitS.points.map(p=>p.slice()),
-                 origC:(hitS.reg&&hitS.reg.c)?hitS.reg.c.clone():null};
-      } else select('trazo',hitS,'trazo '+(hitS.reg?hitS.reg.tipo:'mano'));}
+        const list=effSel();
+        selDrag={list,depth,start:planePoint(e,depth),
+                 orig:list.map(s=>s.points.map(p=>p.slice())),
+                 origC:list.map(s=>(s.reg&&s.reg.c)?s.reg.c.clone():null)};
+      } else selectStroke(hitS);}
     else{ndc(e);
       let hits=ray.intersectObjects([...annGroup.children,...pickables.filter(p=>p.visible)],false);
       if(hits.length){
@@ -749,10 +906,17 @@ addEventListener('pointermove',e=>{
     if(h)hud.textContent='x '+h.point.x.toFixed(1)+' · y '+h.point.y.toFixed(1)+' · z '+h.point.z.toFixed(1)+' mm · '+h.object.name;}
   if(selDrag){
     const cur=planePoint(e,selDrag.depth);
-    const dx=[cur.x-selDrag.start.x,cur.y-selDrag.start.y,cur.z-selDrag.start.z];
-    selDrag.s.points=selDrag.orig.map(p=>[p[0]+dx[0],p[1]+dx[1],p[2]+dx[2]]);
-    if(selDrag.origC)selDrag.s.reg.c.copy(selDrag.origC).add(new THREE.Vector3(...dx));
-    if(mag&&selDrag.s.sobre!=='aire')selDrag.s.points=glue(selDrag.s.points);
+    const d=new THREE.Vector3().subVectors(cur,selDrag.start);
+    if(axLock){const v=d[axLock];d.set(0,0,0);d[axLock]=v;} // RESTRICCION a un eje
+    selDrag.list.forEach((s,i)=>{
+      s.points=selDrag.orig[i].map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);
+      if(selDrag.origC[i])s.reg.c.copy(selDrag.origC[i]).add(d);
+      if((mag||s.magLock)&&s.sobre!=='aire'&&!axLock)s.points=glue(s.points);
+    });
+    document.getElementById('hud').textContent='Δ '+d.length().toFixed(1)+' mm · x '+
+      d.x.toFixed(1)+' · y '+d.y.toFixed(1)+' · z '+d.z.toFixed(1)+
+      (axLock?' · eje '+axLock.toUpperCase():'');
+    contactProbe(selDrag.list[0]);
     redraw(); return;}
   if(handDrag){
     let s=handDrag.stroke,reg=s.reg;
@@ -769,8 +933,9 @@ addEventListener('pointermove',e=>{
       if(handDrag.role==='centro'){reg.circ.cx=q[0];reg.circ.cy=q[1];}
       else reg.circ.r=Math.hypot(q[0]-reg.circ.cx,q[1]-reg.circ.cy);}
     s.points=genPoints(reg)||s.points;
-    if(mag&&s.sobre!=='aire')s.points=glue(s.points);
+    if((mag||s.magLock)&&s.sobre!=='aire')s.points=glue(s.points);
     s.points=postLine(s,s.points);
+    contactProbe(s);
     redraw();return;}
   if(drawing){
     if(drawing.editEnd){
@@ -818,6 +983,17 @@ function endPointer(e){
     strokes.push(drawing);
     if(mode==='draw'&&!drawLock&&!wasPen)setMode('orbit');   // lapiz de UN trazo
   }
+  if(selDrag&&mag&&!axLock){
+    // al soltar un MOVER: si un extremo queda junto a otro extremo, toda la
+    // seleccion se traslada rigida para unirse (iman de extremos)
+    const s=selDrag.list[0];
+    for(const ep of [s.points[0],s.points[s.points.length-1]]){
+      const sn=snapPt(ep,s);
+      if(sn){const d=new THREE.Vector3(sn[0]-ep[0],sn[1]-ep[1],sn[2]-ep[2]);
+        selDrag.list.forEach(st=>{st.points=st.points.map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);
+          if(st.reg&&st.reg.c)st.reg.c.add(d);});
+        toast('extremo unido 🧲');break;}}}
+  if(selDrag)hideContact();
   drawing=null;handDrag=null;imgDrag=null;selDrag=null;dragging=false;redraw();
 }
 addEventListener('pointerup',endPointer);
@@ -840,7 +1016,112 @@ function checkHold(){
 // ---- UI resto ----
 undo.onclick=()=>{strokes.pop();redraw();};
 document.getElementById('pieces').addEventListener('change',e=>{
-  let n=e.target.dataset.n;if(n)pieces[n].visible=e.target.checked;});
+  let n=e.target.dataset.n;if(n){pieces[n].visible=e.target.checked;_silhFrame=-1;}});
+
+// ---- AYUDAS DE DIBUJO: multi-seleccion, ejes, duplicar, grupos, iman fijo, contacto ----
+document.getElementById('mMulti').onclick=e=>{
+  multiSel=!multiSel; e.currentTarget.classList.toggle('on',multiSel);
+  if(multiSel){if(mode!=='sel')setMode('sel');toast('multi-selección: toca trazos para sumar/restar');}};
+document.querySelectorAll('.mvax').forEach(b=>b.onclick=()=>{
+  axLock=(axLock===b.dataset.ax)?null:b.dataset.ax;
+  document.querySelectorAll('.mvax').forEach(x=>x.classList.toggle('on',x.dataset.ax===axLock));
+  toast(axLock?('eje '+axLock.toUpperCase()+' bloqueado: mover/dibujar/girar solo en '+axLock.toUpperCase()):'ejes libres');});
+function moveSel(d){effSel().forEach(s=>{
+  s.points=s.points.map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);
+  if(s.reg&&s.reg.c)s.reg.c.add(d);});redraw();}
+document.getElementById('selMove').addEventListener('change',e=>{
+  const v=+e.target.value||0; if(!v||!effSel().length)return;
+  const ax=axLock||'z'; const d=new THREE.Vector3(); d[ax]=v;
+  moveSel(d); e.target.value='';
+  toast('Δ'+ax.toUpperCase()+' = '+v+' mm'+(axLock?'':' (sin eje elegido: uso Z)'));
+  contactProbe(effSel()[0],true);});
+document.getElementById('selRot').addEventListener('change',e=>{
+  const v=+e.target.value||0; const list=effSel(); if(!v||!list.length)return;
+  const ax=axLock||'z';
+  const u=new THREE.Vector3(ax==='x'?1:0,ax==='y'?1:0,ax==='z'?1:0), ang=v*Math.PI/180;
+  let cen=new THREE.Vector3(),n=0;
+  list.forEach(s=>s.points.forEach(p=>{cen.x+=p[0];cen.y+=p[1];cen.z+=p[2];n++;}));
+  cen.multiplyScalar(1/n);
+  list.forEach(s=>{
+    s.points=s.points.map(p=>new THREE.Vector3(...p).sub(cen).applyAxisAngle(u,ang).add(cen).toArray());
+    if(s.reg){if(s.reg.c)s.reg.c.sub(cen).applyAxisAngle(u,ang).add(cen);
+      if(s.reg.U)s.reg.U.applyAxisAngle(u,ang);
+      if(s.reg.V)s.reg.V.applyAxisAngle(u,ang);}});
+  redraw(); e.target.value='';
+  toast('giro '+v+'° · eje '+ax.toUpperCase()+(axLock?'':' (sin eje elegido: uso Z)'));});
+function cloneReg(r){if(!r)return undefined;const n={tipo:r.tipo};
+  if(r.c)n.c=r.c.clone();if(r.U)n.U=r.U.clone();if(r.V)n.V=r.V.clone();
+  if(r.pts2)n.pts2=r.pts2.map(q=>q.slice());if(r.circ)n.circ=Object.assign({},r.circ);
+  if(r.el)n.el=Object.assign({},r.el);return n;}
+document.getElementById('selDup').onclick=()=>{
+  const list=effSel(); if(!list.length)return;
+  const ng=(list.length>1)?++grpN:null;
+  const d=new THREE.Vector3(); d[axLock||'z']=3; // pequeño offset para ver la copia
+  const copies=list.map(s=>{
+    const c={points:s.points.map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]),color:s.color,sobre:s.sobre,
+      w:s.w,reg:cloneReg(s.reg),magLock:s.magLock};
+    if(ng!=null)c.grp=ng;
+    if(c.reg&&c.reg.c)c.reg.c.add(d);
+    strokes.push(c);return c;});
+  selSet=copies;
+  selected={kind:'trazo',ref:copies[0],label:copies.length+' copias'};
+  document.getElementById('selname').textContent=copies.length>1?(copies.length+' copias'):'copia';
+  document.getElementById('selLen').style.display='none';
+  document.getElementById('selLenU').style.display='none';
+  document.getElementById('strokeOps').style.display='flex';
+  document.getElementById('selbar').style.display='flex';
+  updOpsBar(); redraw();
+  toast('duplicado ⎘ — arrastra o teclea Δmm para separar');};
+document.getElementById('selGrp').onclick=()=>{
+  const list=effSel(); if(!list.length)return;
+  const grouped=list.length>1&&list.every(s=>s.grp!=null&&s.grp===list[0].grp);
+  if(grouped){list.forEach(s=>{delete s.grp;});toast('desagrupado');}
+  else if(list.length>1){const g=++grpN;list.forEach(s=>s.grp=g);toast('grupo de '+list.length+' trazos 🔗');}
+  else toast('para agrupar: suma más trazos con el botón de multi-selección');
+  updOpsBar();};
+document.getElementById('selMag').onclick=()=>{
+  const list=effSel(); if(!list.length)return;
+  const activar=list.some(s=>!s.magLock);
+  list.forEach(s=>{
+    if(activar){
+      if(s.sobre==='aire'){ // adoptar la superficie mas cercana bajo el trazo
+        const mid=s.points[(s.points.length/2)|0];
+        const dir=cam.getWorldDirection(new THREE.Vector3());
+        const rc=new THREE.Raycaster(new THREE.Vector3(...mid).addScaledVector(dir,-80),dir);
+        const h=rc.intersectObjects(pickables.filter(x=>x.visible),false)[0];
+        if(h)s.sobre=h.object.name;}
+      if(s.sobre!=='aire'){s.points=glue(s.points);s.magLock=true;}
+    } else s.magLock=false;});
+  updOpsBar(); redraw();
+  toast(activar?('imán fijo 🧲: pegado a '+(list[0].sobre==='aire'?'…apunta la cámara a una pieza':list[0].sobre))
+               :'imán fijo quitado — el trazo vuelve a ser libre');};
+interChk.onchange=e=>{interOn=e.target.checked;};
+// indicador de CONTACTO: sondeo corto en 6 direcciones desde extremos y centro
+let contactSpr=null;
+const probeRc=new THREE.Raycaster(); probeRc.far=1.6;
+function contactTex(){const cv=document.createElement('canvas');cv.width=cv.height=64;
+  const g=cv.getContext('2d');g.beginPath();g.arc(32,32,20,0,7);
+  g.fillStyle='rgba(0,229,255,.4)';g.fill();g.lineWidth=5;g.strokeStyle='#00b8d4';g.stroke();
+  return new THREE.CanvasTexture(cv);}
+function hideContact(){if(contactSpr)contactSpr.visible=false;}
+function contactProbe(st,announce){
+  if(!st||st.points.length<2){hideContact();return null;}
+  if(!contactSpr){contactSpr=new THREE.Sprite(new THREE.SpriteMaterial({map:contactTex(),
+    depthTest:false,transparent:true}));
+    contactSpr.renderOrder=13;contactSpr.visible=false;scene.add(contactSpr);}
+  const dirs=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+  const cand=[st.points[0],st.points[(st.points.length/2)|0],st.points[st.points.length-1]];
+  const vis=pickables.filter(x=>x.visible);
+  for(const p of cand){const o=new THREE.Vector3(...p);
+    for(const dd of dirs){probeRc.set(o,new THREE.Vector3(...dd));
+      const h=probeRc.intersectObjects(vis,false)[0];
+      if(h&&h.distance<1.6){
+        contactSpr.position.copy(h.point);
+        const sz=handleSize()*2.4;contactSpr.scale.set(sz,sz,1);contactSpr.visible=true;
+        document.getElementById('hud').textContent='⊙ contacto con '+h.object.name+' ('+h.distance.toFixed(1)+' mm)';
+        if(announce)toast('⊙ toca '+h.object.name);
+        return h;}}}
+  hideContact(); return null;}
 op.oninput=e=>{baseOpacity=+e.target.value/100;applyMode();};
 lw.oninput=e=>{lineW=+e.target.value;};
 axSnap.onchange=e=>{axisSnap=e.target.checked;};
@@ -852,6 +1133,7 @@ function buildExport(){
   return {app:'TECTOS-BIM canvas3d v4 webgl',fecha:new Date().toISOString(),unidades:'mm',
     camara:{pos:cam.position.toArray(),target:target.toArray()},
     trazos:strokes.map(s=>({color:s.color,sobre:s.sobre,grosor:s.w||0.8,tipo:s.reg?s.reg.tipo:'mano',
+      grp:s.grp,magLock:s.magLock||undefined,
       points:s.points.map(p=>p.map(x=>+x.toFixed(2)))})),
     textos:texts,
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
@@ -871,7 +1153,9 @@ imp.onclick=()=>fileJson.click();
 fileJson.onchange=ev=>{
   let f=ev.target.files[0];if(!f)return;let rd=new FileReader();
   rd.onload=()=>{let d=JSON.parse(rd.result);
-    strokes=(d.trazos||[]).map(s=>({points:s.points,color:s.color,sobre:s.sobre,w:s.grosor||0.8}));
+    strokes=(d.trazos||[]).map(s=>({points:s.points,color:s.color,sobre:s.sobre,w:s.grosor||0.8,
+      grp:s.grp,magLock:s.magLock}));
+    grpN=strokes.reduce((m,s)=>Math.max(m,s.grp||0),grpN);
     texts=d.textos||[];
     (d.imagenes||[]).forEach(im=>{if(!im.dataURL)return;
       new THREE.TextureLoader().load(im.dataURL,tex=>{
@@ -893,11 +1177,11 @@ addEventListener('orientationchange',()=>setTimeout(fitSize,300));
 let _silhFrame=-1;
 function updateSilh(){
   if(!edgesWanted()){for(const n in pieces){const sd=pieces[n].userData.silh;
-    if(sd)sd.line.visible=false;} return;}
+    if(sd){sd.line.visible=false;sd.lineHid.visible=false;}} return;}
   if(_silhFrame===camFrame)return; _silhFrame=camFrame;
   for(const n in pieces){const mch=pieces[n],sd=mch.userData.silh;
     if(!sd)continue;
-    if(!mch.visible){sd.line.visible=false;continue;}
+    if(!mch.visible){sd.line.visible=false;sd.lineHid.visible=false;continue;}
     let c=0; const P=sd.V;
     for(const e of sd.list){
       const a3=e.A*3,b3=e.B*3;
@@ -908,16 +1192,25 @@ function updateSilh(){
       const f2=e.n2?((e.n2[0]*mx+e.n2[1]*my+e.n2[2]*mz)<0):!f1;
       if(f1!==f2){
         sd.pos[c*6]=P[a3];sd.pos[c*6+1]=P[a3+1];sd.pos[c*6+2]=P[a3+2];
-        sd.pos[c*6+3]=P[b3];sd.pos[c*6+4]=P[b3+1];sd.pos[c*6+5]=P[b3+2];c++;}
+        sd.pos[c*6+3]=P[b3];sd.pos[c*6+4]=P[b3+1];sd.pos[c*6+5]=P[b3+2];
+        sd.ld[c*2]=0;
+        sd.ld[c*2+1]=Math.hypot(P[b3]-P[a3],P[b3+1]-P[a3+1],P[b3+2]-P[a3+2]);
+        c++;}
     }
     sd.geo.setDrawRange(0,c*2); sd.geo.attributes.position.needsUpdate=true;
+    sd.geo.attributes.lineDistance.needsUpdate=true;
     sd.line.visible=true;
+    sd.lineHid.visible=(viewMode==='oculto');
   }
 }
 (function loop(){requestAnimationFrame(loop);checkHold();
   for(const n in pieces){const ud=pieces[n].userData;
     if(ud&&ud.edges)ud.edges.visible=pieces[n].visible&&edgesWanted();
+    if(ud&&ud.edgesHid)ud.edgesHid.visible=pieces[n].visible&&viewMode==='oculto';
     if(ud&&ud.wire)ud.wire.visible=pieces[n].visible&&viewMode==='malla';}
+  interPairs.forEach(ip=>{
+    const on=interOn&&pieces[ip.a]&&pieces[ip.a].visible&&pieces[ip.b]&&pieces[ip.b].visible;
+    ip.l1.visible=on; ip.l2.visible=on;});
   updateSilh();
   renderer.render(scene,cam);})();
 </script>
