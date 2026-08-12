@@ -132,11 +132,11 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.5 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.6 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
-<div id="selbar" class="pill" style="position:fixed;top:calc(80px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:12;display:none;align-items:center;gap:6px;padding:6px 10px;font-size:13px;flex-wrap:wrap;max-width:94vw;justify-content:center">
+<div id="selbar" class="pill" style="position:fixed;bottom:calc(14px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:12;display:none;align-items:center;gap:6px;padding:6px 10px;font-size:13px;flex-wrap:wrap;max-width:94vw;justify-content:center">
  <span id="selname" style="font-weight:600"></span>
  <input id="selLen" type="number" step="0.1" style="width:64px;display:none;font-size:13px;padding:6px;border:1px solid #ddd;border-radius:8px"><span id="selLenU" style="display:none;color:var(--mut);font-size:12px">mm</span>
  <span id="strokeOps">
@@ -214,6 +214,9 @@
  <button id="vDark" title="Modo oscuro (mejora el contraste del láser)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg></button>
  <button id="vInv" title="Modo invertido: fondo oscuro con volúmenes claros"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/></svg></button>
  <button id="secTool" title="Secciones"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="6"/><path d="M9 6 9 18"/><path d="M15 7 21 12 15 17Z" fill="currentColor" stroke="none"/></svg></button>
+ <button id="barPlanes" class="on" title="Mostrar/ocultar planos de sección (todas)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+ <button id="barCut" class="on" title="Mostrar/ocultar el corte (todas)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/></svg></button>
+ <button id="barPoche" class="on" title="Mostrar/ocultar el poché (todas)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12 12 4M8 20 20 8M14 21 21 14"/></svg></button>
 </div>
 <div id="secmenu" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:column;padding:8px;gap:6px;width:170px;max-width:92vw;font-size:12.5px;color:var(--ink)">
  <div class="menucaret"></div>
@@ -496,6 +499,16 @@ function applyMode(){
       ud.edges.material.color.setHex(0x2a2d31);
       if(ud.silh)ud.silh.line.material.color.setHex(0x2a2d31);}
   }
+  // opacidad → flag de transparencia (a plena opacidad, cola OPACA: escribe
+  // profundidad y así el poché de la sección se ve en Sombra/Blanco/Técnico/Oculto)
+  for(const n in pieces){const ud=pieces[n].userData;
+    ud.matShaded.transparent=ud.matShaded.opacity<0.999;
+    ud.matFlat.transparent=ud.matFlat.opacity<0.999;}
+  const activeOpaque = invView ? (invAlpha>=0.999)
+    : (viewMode==='tecnico'||viewMode==='oculto') ? true
+    : (viewMode==='wire'||viewMode==='xray') ? false
+    : (baseOpacity>=0.999);          // Sombra / Blanco
+  if(typeof setPocheMode==='function')setPocheMode(activeOpaque);
   _silhFrame=-1; // recalcular siluetas aunque la camara no se haya movido
   document.querySelectorAll('#vmodes button').forEach(b=>b.classList.toggle('on',b.dataset.m===viewMode));
 }
@@ -517,7 +530,7 @@ function setDark(on){ darkView=!!on; if(!darkView)invView=false; applyTheme(); }
 function setInv(on){ invView=!!on; if(invView)darkView=true; applyTheme(); }
 vEye.onclick=()=>{const d=document.getElementById('vmodes');
   const show=(d.style.display==='none'||!d.style.display);
-  if(show)dockBottom(d); else d.style.display='none';};
+  if(show)dropFromIcon(d,vEye); else d.style.display='none';};
 document.getElementById('vmodes').addEventListener('click',e=>{
   if(e.target.dataset.m){viewMode=e.target.dataset.m;applyMode();
     document.getElementById('vmodes').style.display='none';}});
@@ -1587,21 +1600,34 @@ const IC_POWER=_sv+'<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>
 // pequeño, en la esquina inferior izquierda del plano
 function secLetterOf(s){return (s.name||'A').replace(/[-\s].*$/,'')||'A';}
 function makeSecMarker(s){
-  // minimalista, líneas finas; color propio de la sección (naranja activo / gris inactivo,
-  // igual que las flechas de las esquinas); el vértice del triángulo va en el origen del gizmo
+  // Marcador de arquitecto (letra + círculo + triángulo→pico a la derecha). Se dibuja
+  // como un QUAD perpendicular al plano de sección: el pico termina en el centro (origen
+  // del gizmo) y el cuerpo sale por el lado NO visible (como una flecha que toca el centro).
   const col=s.active?secColHex(s):'#8a9099';
-  const cv=document.createElement('canvas');cv.width=cv.height=128;const g2=cv.getContext('2d');
-  g2.clearRect(0,0,128,128); g2.lineJoin='round'; g2.lineCap='round';
-  g2.beginPath();g2.arc(44,74,24,0,7);g2.fillStyle=darkView?'rgba(23,25,28,.6)':'rgba(255,255,255,.85)';g2.fill();
-  g2.lineWidth=2.6;g2.strokeStyle=col;g2.stroke();
-  g2.beginPath();g2.moveTo(68,54);g2.lineTo(104,74);g2.lineTo(68,94);g2.closePath();g2.lineWidth=2.6;g2.strokeStyle=col;g2.stroke();
-  g2.beginPath();g2.moveTo(44,52);g2.lineTo(44,96);g2.lineWidth=2.2;g2.stroke();
-  g2.fillStyle=col;g2.font='600 27px -apple-system,sans-serif';g2.textAlign='center';g2.textBaseline='middle';
-  g2.fillText(secLetterOf(s),31,75);
-  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false,transparent:true}));
-  sp.scale.set(R*0.15,R*0.15,1); sp.renderOrder=13; return sp;
+  const cv=document.createElement('canvas');cv.width=128;cv.height=96;const g2=cv.getContext('2d');
+  g2.clearRect(0,0,128,96); g2.lineJoin='round'; g2.lineCap='round';
+  g2.beginPath();g2.arc(52,48,20,0,7);g2.fillStyle=darkView?'rgba(23,25,28,.6)':'rgba(255,255,255,.85)';g2.fill();
+  g2.lineWidth=2.4;g2.strokeStyle=col;g2.stroke();
+  g2.beginPath();g2.moveTo(74,32);g2.lineTo(124,48);g2.lineTo(74,64);g2.closePath();g2.lineWidth=2.4;g2.strokeStyle=col;g2.stroke();
+  g2.beginPath();g2.moveTo(52,28);g2.lineTo(52,68);g2.lineWidth=2;g2.stroke();
+  g2.fillStyle=col;g2.font='600 23px -apple-system,sans-serif';g2.textAlign='center';g2.textBaseline='middle';
+  g2.fillText(secLetterOf(s),24,49);
+  const W=R*0.11, H=W*96/128;            // más pequeño que antes
+  const sp=new THREE.Mesh(new THREE.PlaneGeometry(W,H),
+    new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),depthTest:false,transparent:true,side:THREE.DoubleSide}));
+  sp.userData.mw=W; sp.renderOrder=13; return sp;
 }
-const SEC_MARKER_POS=[-0.048,0,0.001];   // el vértice del triángulo queda ~en el origen
+// Coloca el marcador perpendicular al plano, con el pico en el origen y el cuerpo
+// hacia el lado NO visible (+normal). El plano del quad contiene la normal.
+function placeSecMarker(mk){
+  if(!mk)return; const W=mk.userData.mw||R*0.11;
+  const m4=new THREE.Matrix4().makeBasis(
+    new THREE.Vector3(0,0,-1),   // geom +x (pico) → -normal (hacia el material/centro)
+    new THREE.Vector3(0,1,0),    // geom +y → arriba del plano
+    new THREE.Vector3(1,0,0));   // cara del quad → en el plano (perpendicular a la sección)
+  mk.quaternion.setFromRotationMatrix(m4);
+  mk.position.set(0,0,W/2);      // pico en el origen; cuerpo hacia +normal (lado no visible)
+}
 function secBrackets(h,col){
   const Lb=h*0.3, pts=[];
   const corners=[[-h,-h],[h,-h],[h,h],[-h,h]], dirs=[[1,1],[-1,1],[-1,-1],[1,-1]];
@@ -1636,7 +1662,7 @@ function buildSecWidget(s){
     [[-c,-c],[c,-c],[c,c],[-c,c]].forEach(p=>{const a=secArrow(0.9);a.position.set(p[0],p[1],0);arrows.push(a);});
   }else{const a1=secArrow(1),a2=secArrow(1);       // 2 flechas discretas centro-abajo
     a1.position.set(-h*0.4,-h*0.66,0); a2.position.set(h*0.4,-h*0.66,0); arrows.push(a1,a2);}
-  const marker=makeSecMarker(s); marker.position.set(SEC_MARKER_POS[0]*R,SEC_MARKER_POS[1]*R,SEC_MARKER_POS[2]*R);
+  const marker=makeSecMarker(s); placeSecMarker(marker);
   g.add(quad,bord,brk,...arrows,marker);
   g.traverse(o=>{if(o.userData.secRef===undefined)o.userData.secRef=s;});
   s.widget=g; s.quad=quad; s.bord=bord; s.brk=brk; s.arrows=arrows; s.marker=marker;
@@ -1659,7 +1685,7 @@ function syncSecWidget(s){
 function refreshMarker(s){
   if(!s.widget)return;
   if(s.marker)s.widget.remove(s.marker);
-  s.marker=makeSecMarker(s); s.marker.position.set(SEC_MARKER_POS[0]*R,SEC_MARKER_POS[1]*R,SEC_MARKER_POS[2]*R);
+  s.marker=makeSecMarker(s); placeSecMarker(s.marker);
   s.marker.userData.secRef=s; s.widget.add(s.marker);
 }
 function refreshSecLabel(s){refreshMarker(s);}
@@ -1740,6 +1766,7 @@ function placeSample(e){
 function startSecPlacement(e){
   const s0=placeSample(e);
   if(!s0){toast('Toca una cara del modelo'); return;}
+  if(!secShowPlanes&&typeof setSecPlanes==='function')setSecPlanes(true);   // al crear se ven todos los planos
   const s=newSectionObj(nextLetter(),s0.pt,s0.normal);
   secPlacing={s}; syncSecWidget(s);   // vista previa: aún NO corta
 }
@@ -1750,6 +1777,7 @@ function moveSecPlacement(e){
 function finishSecPlacement(){
   if(!secPlacing)return; const s=secPlacing.s; secPlacing=null;
   s.pt0=s.pt.clone(); s.n0=s.normal.clone();   // fija el estado inicial en el punto soltado
+  if(!secShowPlanes)setSecPlanes(true);        // al crear una sección se ven TODOS los planos
   s.active=true; restyleAllSec(); applySec(); renderSecList();
   secPlaceMode=false; updSecModeBtns();
   setMode('sel'); select('section',s,s.name);   // modo selección: ya se pueden arrastrar las flechas
@@ -1767,17 +1795,15 @@ document.getElementById('secList').addEventListener('click',e=>{
 });
 renderSecList();
 // menú de secciones flotante, sigue a la barra de vistas
-function dockBottom(menu){
-  // Ventana contextual anclada ABAJO y centrada, por encima de los controles
-  // del sistema del móvil, para no superponerse a la barra superior.
-  const car=menu.querySelector('.menucaret'); if(car)car.style.display='none';
-  menu.style.display='flex';        // visible para medir el ancho real
-  menu.style.top='auto'; menu.style.transform='none';
-  menu.style.bottom='calc(14px + env(safe-area-inset-bottom))';
-  const w=menu.offsetWidth;
-  menu.style.left=Math.max(6,Math.min(Math.max(6,W-w-6),(W-w)/2))+'px';
+function dropFromIcon(menu,icon){
+  // La ventana emergente surge de SU botón, esté donde esté (los menús flotan).
+  const car=menu.querySelector('.menucaret'); if(car)car.style.display='';
+  menu.style.display='flex'; menu.style.bottom='auto'; menu.style.transform='none';
+  const w=menu.offsetWidth, r=icon.getBoundingClientRect();
+  const left=Math.max(6,Math.min(Math.max(6,W-w-6), r.left+r.width/2-w/2));
+  menu.style.left=left+'px'; menu.style.top=(r.bottom+9)+'px';
+  if(car)car.style.left=Math.max(6,r.left+r.width/2-left-6)+'px';
 }
-function dropFromIcon(menu,icon,width){ dockBottom(menu); }
 document.getElementById('secTool').onclick=()=>{const d=document.getElementById('secmenu');
   const show=(d.style.display==='none'||!d.style.display);
   if(show){dropFromIcon(d,document.getElementById('secTool'),170);
@@ -1786,9 +1812,23 @@ document.getElementById('secTool').onclick=()=>{const d=document.getElementById(
   else {document.getElementById('secTool').classList.remove('on');
     if(secPlaceMode){secPlaceMode=false;updSecModeBtns();}}
   d.style.display=show?'flex':'none';};
-tglPlanes.onclick=()=>{secShowPlanes=!secShowPlanes; tglPlanes.classList.toggle('on',secShowPlanes); restyleAllSec();};
-tglCut.onclick=()=>{secShowCut=!secShowCut; tglCut.classList.toggle('on',secShowCut); applySec();};
-tglPoche.onclick=()=>{secPoche=!secPoche; tglPoche.classList.toggle('on',secPoche); updatePoche();};
+// Conmutadores globales de sección (afectan a TODAS): sincronizan el menú y los
+// botones rápidos agrupados con el botón de sección.
+function syncSecToggles(){
+  [['tglPlanes',secShowPlanes],['barPlanes',secShowPlanes],
+   ['tglCut',secShowCut],['barCut',secShowCut],
+   ['tglPoche',secPoche],['barPoche',secPoche]].forEach(([id,v])=>{
+    const b=document.getElementById(id); if(b)b.classList.toggle('on',v);});
+}
+function setSecPlanes(v){secShowPlanes=v; syncSecToggles(); restyleAllSec();}
+function setSecCut(v){secShowCut=v; syncSecToggles(); applySec();}
+function setSecPoche(v){secPoche=v; syncSecToggles(); updatePoche();}
+tglPlanes.onclick=()=>setSecPlanes(!secShowPlanes);
+tglCut.onclick=()=>setSecCut(!secShowCut);
+tglPoche.onclick=()=>setSecPoche(!secPoche);
+document.getElementById('barPlanes').onclick=()=>setSecPlanes(!secShowPlanes);
+document.getElementById('barCut').onclick=()=>setSecCut(!secShowCut);
+document.getElementById('barPoche').onclick=()=>setSecPoche(!secPoche);
 document.getElementById('secFlip').onclick=()=>{if(selected&&selected.kind==='section')flipSection(selected.ref);};
 document.getElementById('secRen').onclick=()=>{if(!(selected&&selected.kind==='section'))return;
   const s=selected.ref;
@@ -1816,6 +1856,19 @@ scene.add(pocheClear);
     b.renderOrder=1; f.renderOrder=1; b.visible=f.visible=false;
     m.add(b); m.add(f); m.userData.stB=b; m.userData.stF=f;}
 })();
+// El poché se calcula por stencil de dos maneras según el modo:
+//  · OPACO (Sombra/Blanco/Técnico/Oculto): stencil consciente de profundidad
+//    (cuenta caras traseras DETRÁS del z-buffer) → sólo se rellena la sección real.
+//  · TRANSLÚCIDO (Wire/X-Ray): winding puro (sin test de profundidad) → se ve el
+//    volumen relleno a través de las piezas.
+function setPocheMode(depthAware){
+  for(const n in pieces){const ud=pieces[n].userData; if(!ud.stB)continue;
+    [[ud.stB,THREE.IncrementWrapStencilOp],[ud.stF,THREE.DecrementWrapStencilOp]].forEach(([mesh,op])=>{
+      const m=mesh.material;
+      if(depthAware){m.depthTest=true; m.stencilFail=THREE.KeepStencilOp; m.stencilZPass=THREE.KeepStencilOp; m.stencilZFail=op;}
+      else{m.depthTest=false; m.stencilFail=op; m.stencilZPass=op; m.stencilZFail=op;}
+      m.needsUpdate=true;});}
+}
 function makePocheCap(){
   const m=new THREE.Mesh(new THREE.PlaneGeometry(R*8,R*8),
     new THREE.MeshBasicMaterial({color:pocheColor,side:THREE.DoubleSide,depthWrite:false,
@@ -2024,7 +2077,7 @@ document.getElementById('laserList').addEventListener('click',e=>{
 document.getElementById('lzNew').onclick=()=>{addLaser(false);renderLaserList();};
 document.getElementById('mLaser').onclick=()=>{const d=document.getElementById('lasermenu');
   const show=(d.style.display==='none'||!d.style.display);
-  if(show){renderLaserList();dockBottom(d);document.getElementById('mLaser').classList.add('on');}
+  if(show){renderLaserList();dropFromIcon(d,document.getElementById('mLaser'));document.getElementById('mLaser').classList.add('on');}
   else{d.style.display='none';document.getElementById('mLaser').classList.remove('on');}};
 renderLaserList();
 function syncLaserOps(L){
@@ -2245,6 +2298,7 @@ function updateSilh(){
 // restaurar preferencia de modo oscuro / invertido
 try{const iv=localStorage.getItem('tectosInv')==='1';
   if(iv)setInv(true); else if(localStorage.getItem('tectosDark')==='1')setDark(true);}catch(e){}
+applyMode();   // asegura la configuración del poché (stencil) tras crear las mallas stencil
 
 (function loop(){requestAnimationFrame(loop);checkHold();
   for(const n in pieces){const ud=pieces[n].userData;
