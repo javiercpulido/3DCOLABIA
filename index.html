@@ -53,7 +53,7 @@
    color:var(--mut);font-size:11.5px;z-index:9;background:var(--glass);padding:4px 10px;border-radius:8px;
    white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis}
  #toast{position:fixed;bottom:calc(30px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
-   background:#1c1c1eee;color:#fff;padding:9px 16px;border-radius:12px;font-size:13.5px;z-index:20;display:none;white-space:nowrap}
+   background:#1c1c1eee;color:#fff;padding:9px 16px;border-radius:12px;font-size:13.5px;z-index:8;display:none;white-space:nowrap;pointer-events:none;max-width:90vw;white-space:normal;text-align:center}
  #modal{position:fixed;inset:0;background:#0003;z-index:30;display:none;align-items:flex-start;justify-content:center}
  #modal>div{background:#fff;padding:14px;border-radius:16px;display:flex;gap:8px;box-shadow:0 12px 40px rgba(0,0,0,.2);margin-top:calc(96px + env(safe-area-inset-top))}
  #modal input{font-size:15px;padding:10px;width:56vw;max-width:340px;border:1px solid #ddd;border-radius:10px;outline:none}
@@ -132,7 +132,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.6 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.7 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -185,7 +185,6 @@
   <button id="imp" title="Importar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
  </div>
  <div id="dock1" class="row pill">
-  <button id="mOrbit" class="on" title="Orbitar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><path d="M10.4 21.9a10 10 0 0 0 9.9-15.4"/><path d="M13.5 2.1a10 10 0 0 0-9.8 15.4"/></svg></button>
   <button id="mSel" title="Seleccionar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg></button>
   <button id="mMulti" title="Multi-selección: toca trazos para sumar/restar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="11" height="11" rx="2"/><rect x="10" y="10" width="11" height="11" rx="2"/></svg></button>
   <button id="mDraw" title="Trazo (2º toque: candado)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg><span id="lockDot" style="position:absolute;top:2px;right:4px;font-size:9px;line-height:1;display:none">🔒</span></button>
@@ -202,7 +201,11 @@
 
 <div id="views" class="pill" style="position:fixed;top:calc(26px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10;display:flex;flex-direction:row;align-items:center;padding:5px;gap:2px;flex-wrap:wrap;max-width:96vw;justify-content:center">
  <div class="grip" data-grip title="Mover este menú"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
- <button id="v34" title="Vista 3/4 · proyección"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5Z"/><path d="M12 3 12 12M4 7.5 12 12 20 7.5"/></svg></button>
+ <button id="mOrbit" class="on" title="Orbitar"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><path d="M10.4 21.9a10 10 0 0 0 9.9-15.4"/><path d="M13.5 2.1a10 10 0 0 0-9.8 15.4"/></svg></button>
+ <button id="vLook" title="Girar la cabeza · look around (3 dedos en iPad)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.4"/><path d="M5 8.5a8 8 0 0 1 13 0"/><path d="M19 15.5a8 8 0 0 1-13 0"/><path d="M18 4.5v3.2h-3.2M6 19.5v-3.2h3.2"/></svg></button>
+ <button id="vOrtho" title="Proyección ortográfica (paralela)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="12" height="12" rx="1"/><path d="M8 8 8 4 20 4 20 16 16 16"/></svg></button>
+ <button id="vPersp" class="on" title="Proyección en perspectiva"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6 16 6 20 19 4 19Z"/><path d="M8 6 8 11M16 6 16 11"/></svg></button>
+ <div class="vsep"></div>
  <button id="vAlz" title="Alzado frontal (se mira desde delante)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="6" width="10" height="10" rx="1.5"/><polyline points="9.5 21.5 12 19 14.5 21.5"/></svg></button>
  <button id="vAlzP" title="Alzado posterior (se mira desde detrás)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="8" width="10" height="10" rx="1.5"/><polyline points="9.5 2.5 12 5 14.5 2.5"/></svg></button>
  <button id="vPer" title="Perfil derecho"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="7" width="10" height="10" rx="1.5"/><polyline points="21.5 9.5 19 12 21.5 14.5"/></svg></button>
@@ -233,11 +236,6 @@
   <button class="secTgl on" id="tglPoche" title="Mostrar/ocultar el relleno de corte"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12 12 4M8 20 20 8M14 21 21 14"/></svg>Poché</button>
  </div>
  <div id="secList"></div>
-</div>
-<div id="projmenu" class="pill" style="position:fixed;top:70px;left:12px;z-index:12;display:none;flex-direction:row;padding:6px;gap:4px">
- <div class="menucaret"></div>
- <button class="projopt" data-p="ortho" title="Ortográfica (paralela)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5Z"/><path d="M12 3 12 12M4 7.5 12 12 20 7.5"/></svg></button>
- <button class="projopt" data-p="persp" title="Perspectiva (fugada)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10 14 10 14 18 6 18Z"/><path d="M6 10 9 7 18 7 14 10M14 10 18 7 18 14 14 18"/></svg></button>
 </div>
 <div id="vmodes" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:row;padding:5px;gap:2px">
  <button data-m="somb" class="on">Sombra</button><button data-m="blanco">Blanco</button><button data-m="wire">Wire</button><button data-m="xray">X-Ray</button><button data-m="tecnico">Técnico</button><button data-m="oculto">Oculto</button>
@@ -589,23 +587,18 @@ const ICON_V34_ORTHO='<svg width="19" height="19" viewBox="0 0 24 24" fill="none
 const ICON_V34_PERSP='<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10 14 10 14 18 6 18Z"/><path d="M6 10 9 7 18 7 14 10M14 10 18 7 18 14 14 18"/></svg>';
 function setProj(o){
   ortho=!!o; cam=ortho?camO:camP;
-  document.querySelectorAll('#projmenu button').forEach(b=>b.classList.toggle('on',(b.dataset.p==='ortho')===ortho));
-  const vb=document.getElementById('v34');   // el icono del cubo refleja el modo activo
-  if(vb)vb.innerHTML=ortho?ICON_V34_ORTHO:ICON_V34_PERSP;
-  updCam();
+  const bo=document.getElementById('vOrtho'), bp=document.getElementById('vPersp');
+  if(bo)bo.classList.toggle('on',ortho); if(bp)bp.classList.toggle('on',!ortho);
+  updCam();   // NO cambia th/ph/target: mismo punto de vista, sólo la proyección
 }
 function setView(th,ph){sph.th=th;sph.ph=ph;updCam();}
-// el cubo abre el desplegable de proyección (ortográfica / perspectiva, con tooltip)
-v34.onclick=()=>{const d=document.getElementById('projmenu');
-  const show=(d.style.display==='none'||!d.style.display);
-  if(show){dropFromIcon(d,document.getElementById('v34'),96);
-    document.querySelectorAll('#projmenu button').forEach(b=>b.classList.toggle('on',(b.dataset.p==='ortho')===ortho));}
-  d.style.display=show?'flex':'none';};
-document.getElementById('v34').innerHTML=ICON_V34_PERSP;   // arranque en perspectiva
-document.querySelectorAll('#projmenu button').forEach(b=>b.onclick=()=>{
-  setProj(b.dataset.p==='ortho'); setView(-1.05,1.15);          // proyección elegida + vista 3/4
-  document.getElementById('projmenu').style.display='none';
-  toast(ortho?'Isométrica ortográfica (paralela)':'Vista 3/4 en perspectiva');});
+// Ortográfica y perspectiva son botones INDEPENDIENTES: cambian sólo la proyección,
+// SIN mover el punto de vista (si estás en planta perspectiva y pulsas ortográfica,
+// ves la planta ortográfica desde el mismo sitio).
+document.getElementById('vOrtho').onclick=()=>{if(!ortho){setProj(true);toast('Proyección ortográfica');}};
+document.getElementById('vPersp').onclick=()=>{if(ortho){setProj(false);toast('Proyección en perspectiva');}};
+document.getElementById('vLook').onclick=()=>{setMode(mode==='look'?'orbit':'look');
+  toast(mode==='look'?'Girar la cabeza: arrastra para mirar alrededor':'Orbitar');};
 vAlz.onclick=()=>setView(-Math.PI/2,Math.PI/2);        // alzado frontal
 vAlzP.onclick=()=>setView(Math.PI/2,Math.PI/2);        // alzado posterior
 vPer.onclick=()=>setView(0,Math.PI/2);                 // perfil derecho
@@ -617,7 +610,9 @@ vPlaInv.onclick=()=>setView(-Math.PI/2,Math.PI-0.01);  // planta invertida (infe
 let mode='orbit', color='#d500f9', mag=true, lineW=0.8, penSeen=false, drawLock=false, selDrag=null;
 const btns={orbit:'mOrbit',sel:'mSel',draw:'mDraw',erase:'mErase',text:'mText',img:'mImg'};
 function setMode(m){mode=m;for(let k in btns)document.getElementById(btns[k]).classList.toggle('on',k===m);
-  if(m!=='sel'){deselect();
+  const vl=document.getElementById('vLook'); if(vl)vl.classList.toggle('on',m==='look');
+  // navegar (orbitar / girar la cabeza) NO deselecciona; sólo los modos de edición
+  if(m!=='sel'&&m!=='orbit'&&m!=='look'){deselect();
     if(multiSel){multiSel=false;document.getElementById('mMulti').classList.remove('on');}}}
 for(let k in btns)document.getElementById(btns[k]).onclick=()=>setMode(k);
 document.getElementById('mDraw').onclick=()=>{
@@ -735,12 +730,15 @@ function makeHandles(){
   handles=[];
   // tiradores SOLO del trazo en edicion (hold) o del seleccionado
   const foc=(drawing&&drawing.editEnd)?drawing:(selected&&selected.kind==='trazo'?selected.ref:null);
-  if(!foc||!foc.reg)return;
+  if(!foc||(selSet&&selSet.length>1))return;
   const s=foc; let hs=[];
-  if(s.reg.tipo==='linea'){hs=[['p0',s.points[0]],['p1',s.points[s.points.length-1]]];}
-  else if(s.reg.tipo==='arco'){hs=[['p0',s.points[0]],['pm',s.points[(s.points.length/2)|0]],['p1',s.points[s.points.length-1]]];}
-  else if(s.reg.tipo==='circulo'){let c3=to3(s.reg,[s.reg.circ.cx,s.reg.circ.cy]);
+  if(s.reg&&s.reg.tipo==='linea'){hs=[['p0',s.points[0]],['p1',s.points[s.points.length-1]]];}
+  else if(s.reg&&s.reg.tipo==='arco'){hs=[['p0',s.points[0]],['pm',s.points[(s.points.length/2)|0]],['p1',s.points[s.points.length-1]]];}
+  else if(s.reg&&s.reg.tipo==='circulo'){let c3=to3(s.reg,[s.reg.circ.cx,s.reg.circ.cy]);
     hs=[['centro',c3.toArray()],['radio',s.points[0]]];}
+  else if(!s.reg&&s.points&&s.points.length>=2){   // trazo libre: estirar los extremos
+    hs=[['f0',s.points[0]],['f1',s.points[s.points.length-1]]];}
+  if(!hs.length)return;
   hs.forEach(([role,p])=>{
     const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:ringTex(),depthTest:false,transparent:true}));
     const pp=(p.toArray)?p.toArray():p; sp.position.set(...pp);
@@ -982,6 +980,23 @@ imsc.oninput=e=>{if(!selImg)return;let w=+e.target.value,tex=selImg.mesh.materia
 // ---- entrada ----
 let pointers=new Map(),pinch=null;
 let drawing=null,drawDist=null,lastMoveT=0,dragging=false,lastX=0,lastY=0,button=0,imgDrag=null,handDrag=null;
+let _tapDeselect=null;   // deselección diferida: sólo al SOLTAR si fue un toque (no órbita)
+// trazo bajo el cursor por cercanía en pantalla (para dar prioridad a los trazos)
+function pickStrokeAt(e){
+  const rct=renderer.domElement.getBoundingClientRect();
+  const px=e.clientX-rct.left, py=e.clientY-rct.top;
+  const scr=p=>{const v=new THREE.Vector3(...p).project(cam);
+    return [(v.x*0.5+0.5)*rct.width,(-v.y*0.5+0.5)*rct.height,v.z];};
+  for(let i=strokes.length-1;i>=0;i--){const st=strokes[i];
+    for(let j=1;j<st.points.length;j++){
+      const a=scr(st.points[j-1]), b=scr(st.points[j]);
+      if(a[2]>1||b[2]>1)continue;
+      const l2=(b[0]-a[0])**2+(b[1]-a[1])**2;
+      let t=l2?((px-a[0])*(b[0]-a[0])+(py-a[1])*(b[1]-a[1]))/l2:0;t=Math.max(0,Math.min(1,t));
+      const dx=px-(a[0]+t*(b[0]-a[0])),dy=py-(a[1]+t*(b[1]-a[1]));
+      if(dx*dx+dy*dy<324)return st;}}
+  return null;
+}
 renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 function askText(cb){let m=document.getElementById('modal');m.style.display='flex';
   let inp=document.getElementById('modalIn');inp.value='';setTimeout(()=>inp.focus(),50);
@@ -1003,8 +1018,13 @@ renderer.domElement.addEventListener('pointerdown',e=>{
   if(e.pointerType==='pen'&&!penSeen){penSeen=true;toast('✍️ Pen detectado: el lápiz dibuja, los dedos navegan');}
   const em=effMode(e);
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pointers.size===3){   // 3 dedos en iPad = activar «girar la cabeza» (look around)
+    pinch=null; _tapDeselect=null;
+    if(mode!=='look'){setMode('look');toast('👁️ Girar la cabeza · arrastra para mirar alrededor');}
+    return;}
   if(pointers.size===2){
     if(drawing){drawing=null;redraw();}
+    _tapDeselect=null;   // un pellizco (zoom/giro) no debe deseleccionar
     let ps=[...pointers.values()];
     pinch={d0:Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y),r0:sph.r,
            mx0:(ps[0].x+ps[1].x)/2,my0:(ps[0].y+ps[1].y)/2,t0:target.clone(),
@@ -1029,40 +1049,14 @@ renderer.domElement.addEventListener('pointerdown',e=>{
       if(gh.length){startGizDrag(gh[0].object.userData.giz);return;}}
     let hh2=ray.intersectObjects(handles.map(h=>h.mesh));
     if(hh2.length){handDrag=handles.find(h=>h.mesh===hh2[0].object);handDrag.dist=hh2[0].distance;return;}
-    // láseres y secciones: cubo del láser selecciona; cono ⇄ invierte; etiqueta selecciona
-    {const exs=exPick(); if(exs.length){const ex=ray.intersectObjects(exs,true);
-      if(ex.length){let o=ex[0].object;
-        while(o&&!(o.userData&&(o.userData.laserRef||o.userData.secRef)))o=o.parent;
-        if(o&&o.userData.laserRef){const Lz=o.userData.laserRef;
-          if(selected&&selected.ref===Lz){toggleLaser(Lz);return;}  // 2º toque = on/off
-          select('laser',Lz,'láser');return;}
-        if(o&&o.userData.secRef){const s3=o.userData.secRef;
-          // flecha del plano ya seleccionado = arrastrar para mover en la normal.
-          // (El plano invisible de picado tapa al rayo, por eso buscamos la flecha
-          //  en CUALQUIER impacto del rayo, no sólo en el más cercano.)
-          if(selected&&selected.ref===s3){
-            const ah=ex.find(h=>h.object.userData.flipCone&&h.object.userData.secRef===s3);
-            if(ah){secMoveDrag={s:s3,u:s3.normal.clone(),pt0:s3.pt.clone(),t0:axisParam(s3.pt.clone(),s3.normal)};
-              return;}}
-          const now=performance.now();
-          if(window._secTap&&window._secTap.s===s3&&now-window._secTap.t<380){
-            window._secTap=null; activateSection(s3); return;}   // doble-toque = activar corte
-          window._secTap={s:s3,t:now};
-          select('section',s3,s3.name);return;}}}}
-    // 1: trazo por cercania en pantalla; 2: raycast a piezas/anotaciones
-    const rct=renderer.domElement.getBoundingClientRect();
-    const px=e.clientX-rct.left, py=e.clientY-rct.top;
-    const scr=p=>{const v=new THREE.Vector3(...p).project(cam);
-      return [(v.x*0.5+0.5)*rct.width,(-v.y*0.5+0.5)*rct.height,v.z];};
-    let hitS=null;
-    for(let i=strokes.length-1;i>=0&&!hitS;i--){const st=strokes[i];
-      for(let j=1;j<st.points.length;j++){
-        const a=scr(st.points[j-1]), b=scr(st.points[j]);
-        if(a[2]>1||b[2]>1)continue;
-        const l2=(b[0]-a[0])**2+(b[1]-a[1])**2;
-        let t=l2?((px-a[0])*(b[0]-a[0])+(py-a[1])*(b[1]-a[1]))/l2:0;t=Math.max(0,Math.min(1,t));
-        const dx=px-(a[0]+t*(b[0]-a[0])),dy=py-(a[1]+t*(b[1]-a[1]));
-        if(dx*dx+dy*dy<324){hitS=st;break;}}}
+    // arrastrar la flecha de la sección YA seleccionada = mover el plano en su normal
+    if(selected&&selected.kind==='section'){const exs=exPick();
+      if(exs.length){const ex=ray.intersectObjects(exs,true);
+        const ah=ex.find(h=>h.object.userData.flipCone&&h.object.userData.secRef===selected.ref);
+        if(ah){const s3=selected.ref;
+          secMoveDrag={s:s3,u:s3.normal.clone(),pt0:s3.pt.clone(),t0:axisParam(s3.pt.clone(),s3.normal)};return;}}}
+    // PRIORIDAD a los trazos: si hay un trazo bajo el cursor, se maneja aunque haya un plano detrás
+    const hitS=pickStrokeAt(e);
     if(hitS){
       if(multiSel){ // sumar/restar a la seleccion
         if(selected&&selected.kind!=='trazo')deselect();
@@ -1084,15 +1078,34 @@ renderer.domElement.addEventListener('pointerdown',e=>{
         selDrag={list,depth,start:planePoint(e,depth),
                  orig:list.map(s=>s.points.map(p=>p.slice())),
                  origC:list.map(s=>(s.reg&&s.reg.c)?s.reg.c.clone():null)};
-      } else selectStroke(hitS);}
-    else{ndc(e);
-      let hits=ray.intersectObjects([...annGroup.children,...pickables.filter(p=>p.visible)],false);
+      } else selectStroke(hitS);
+      return;}
+    // láseres y secciones (seleccionar / doble-toque para activar)
+    {const exs=exPick(); if(exs.length){const ex=ray.intersectObjects(exs,true);
+      if(ex.length){let o=ex[0].object;
+        while(o&&!(o.userData&&(o.userData.laserRef||o.userData.secRef)))o=o.parent;
+        if(o&&o.userData.laserRef){const Lz=o.userData.laserRef;
+          const now=performance.now();                       // doble-toque = on/off + abre controles
+          if(window._lzTap&&window._lzTap.L===Lz&&now-window._lzTap.t<380){
+            window._lzTap=null; toggleLaser(Lz); select('laser',Lz,Lz.name); return;}
+          window._lzTap={L:Lz,t:now};
+          select('laser',Lz,Lz.name);return;}
+        if(o&&o.userData.secRef){const s3=o.userData.secRef;
+          const now=performance.now();
+          if(window._secTap&&window._secTap.s===s3&&now-window._secTap.t<380){
+            window._secTap=null; activateSection(s3); return;}   // doble-toque = activar corte
+          window._secTap={s:s3,t:now};
+          select('section',s3,s3.name);return;}}}}
+    // anotaciones / piezas
+    {let hits=ray.intersectObjects([...annGroup.children,...pickables.filter(p=>p.visible)],false);
       if(hits.length){
         const o=hits[0].object, rec=o.userData.rec;
-        if(rec&&texts.includes(rec))select('texto',rec,'nota "'+rec.text+'"');
-        else if(rec&&images.includes(rec))select('imagen',rec,'imagen '+rec.name);
-        else if(o.name&&pieces[o.name])select('pieza',o,o.name);
-      } else deselect();}
+        if(rec&&texts.includes(rec)){select('texto',rec,'nota "'+rec.text+'"');return;}
+        else if(rec&&images.includes(rec)){select('imagen',rec,'imagen '+rec.name);return;}
+        else if(o.name&&pieces[o.name]){select('pieza',o,o.name);return;}
+      }}
+    // VACÍO: no deseleccionar aún; permitir órbita. Sólo se deselecciona en un TOQUE (sin arrastre).
+    dragging=true; _tapDeselect={x:e.clientX,y:e.clientY,moved:false};
   } else if(em==='erase'&&e.button===0){
     // GOMA con tolerancia tactil: distancia en pantalla al trazo (~18 px)
     const rct=renderer.domElement.getBoundingClientRect();
@@ -1174,6 +1187,10 @@ addEventListener('pointermove',e=>{
     let p=h?offPt(h)
            :planePoint(e,handDrag.dist);
     if(mag){const lq=laserSnap(p);if(lq)p=lq.clone();}
+    if(!reg){   // trazo libre: estirar sólo el extremo agarrado
+      if(handDrag.role==='f0')s.points[0]=p.toArray();
+      else if(handDrag.role==='f1')s.points[s.points.length-1]=p.toArray();
+      contactProbe(s); redraw(); return;}
     let q=to2(reg,p);
     if(reg.tipo==='linea'){reg.pts2[handDrag.role==='p0'?0:1]=q;}
     else if(reg.tipo==='arco'){
@@ -1216,7 +1233,16 @@ addEventListener('pointermove',e=>{
     return;}
   if(imgDrag){let p=planePoint(e,imgDrag.dist);imgDrag.rec.mesh.position.copy(p);return;}
   if(!dragging)return;
+  if(_tapDeselect){const mdx=e.clientX-_tapDeselect.x,mdy=e.clientY-_tapDeselect.y;
+    if(mdx*mdx+mdy*mdy>36)_tapDeselect.moved=true;}   // se movió = es órbita, no deselección
   let dx=(e.clientX-lastX)/W,dy=(e.clientY-lastY)/H;lastX=e.clientX;lastY=e.clientY;
+  if(mode==='look'){   // GIRAR LA CABEZA: la cámara queda fija y gira la dirección de vista
+    const campos=cam.position.clone();
+    sph.th+=dx*3.5; sph.ph=Math.max(.02,Math.min(Math.PI-.02,sph.ph+dy*3.5));
+    const dist=ortho?ORTHO_DIST:sph.r;
+    const dir=new THREE.Vector3(Math.sin(sph.ph)*Math.cos(sph.th),Math.sin(sph.ph)*Math.sin(sph.th),Math.cos(sph.ph));
+    target.copy(campos).addScaledVector(dir,-dist);   // target=campos-dist·dir → la cámara no se mueve
+    updCam(); return;}
   if(button===2||e.shiftKey){
     let right=new THREE.Vector3().setFromMatrixColumn(cam.matrix,0);
     let up=new THREE.Vector3().setFromMatrixColumn(cam.matrix,1);
@@ -1252,6 +1278,7 @@ function endPointer(e){
   if(gizDrag){
     if(gizDrag.t==='pieza'){computeIntersections();applySec();_silhFrame=-1;updateLasers();}
     gizDrag=null;hideContact();hideMagHi();updateGizmo();}
+  if(_tapDeselect){if(!_tapDeselect.moved)deselect(); _tapDeselect=null;}   // toque en vacío = deseleccionar
   drawing=null;handDrag=null;imgDrag=null;selDrag=null;dragging=false;redraw();
 }
 addEventListener('pointerup',endPointer);
@@ -1603,30 +1630,47 @@ function makeSecMarker(s){
   // Marcador de arquitecto (letra + círculo + triángulo→pico a la derecha). Se dibuja
   // como un QUAD perpendicular al plano de sección: el pico termina en el centro (origen
   // del gizmo) y el cuerpo sale por el lado NO visible (como una flecha que toca el centro).
-  const col=s.active?secColHex(s):'#8a9099';
+  const col=s.active?secColHex(s):'#aeb4bb';   // inactivo = gris claro
   const cv=document.createElement('canvas');cv.width=128;cv.height=96;const g2=cv.getContext('2d');
   g2.clearRect(0,0,128,96); g2.lineJoin='round'; g2.lineCap='round';
   g2.beginPath();g2.arc(52,48,20,0,7);g2.fillStyle=darkView?'rgba(23,25,28,.6)':'rgba(255,255,255,.85)';g2.fill();
   g2.lineWidth=2.4;g2.strokeStyle=col;g2.stroke();
   g2.beginPath();g2.moveTo(74,32);g2.lineTo(124,48);g2.lineTo(74,64);g2.closePath();g2.lineWidth=2.4;g2.strokeStyle=col;g2.stroke();
   g2.beginPath();g2.moveTo(52,28);g2.lineTo(52,68);g2.lineWidth=2;g2.stroke();
-  g2.fillStyle=col;g2.font='600 23px -apple-system,sans-serif';g2.textAlign='center';g2.textBaseline='middle';
+  g2.fillStyle=col;g2.font='600 19px -apple-system,sans-serif';g2.textAlign='center';g2.textBaseline='middle';
   g2.fillText(secLetterOf(s),24,49);
-  const W=R*0.11, H=W*96/128;            // más pequeño que antes
+  const W=R*0.075, H=W*96/128;           // aún más pequeño
   const sp=new THREE.Mesh(new THREE.PlaneGeometry(W,H),
     new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),depthTest:false,transparent:true,side:THREE.DoubleSide}));
   sp.userData.mw=W; sp.renderOrder=13; return sp;
 }
-// Coloca el marcador perpendicular al plano, con el pico en el origen y el cuerpo
-// hacia el lado NO visible (+normal). El plano del quad contiene la normal.
+// El marcador es perpendicular al plano (su plano contiene la normal), con el pico
+// en el origen y el cuerpo hacia el lado NO visible (+normal). La posición es fija;
+// la orientación la refresca updateSecMarkers() para que además MIRE a la cámara
+// girando alrededor de la normal (así siempre se lee y siempre es perpendicular).
 function placeSecMarker(mk){
-  if(!mk)return; const W=mk.userData.mw||R*0.11;
-  const m4=new THREE.Matrix4().makeBasis(
-    new THREE.Vector3(0,0,-1),   // geom +x (pico) → -normal (hacia el material/centro)
-    new THREE.Vector3(0,1,0),    // geom +y → arriba del plano
-    new THREE.Vector3(1,0,0));   // cara del quad → en el plano (perpendicular a la sección)
-  mk.quaternion.setFromRotationMatrix(m4);
+  if(!mk)return; const W=mk.userData.mw||R*0.075;
   mk.position.set(0,0,W/2);      // pico en el origen; cuerpo hacia +normal (lado no visible)
+}
+const _mk={view:new THREE.Vector3(),ax:new THREE.Vector3(),f:new THREE.Vector3(),
+  up:new THREE.Vector3(),mpos:new THREE.Vector3(),m4:new THREE.Matrix4(),
+  wq:new THREE.Quaternion(),iq:new THREE.Quaternion()};
+function updateSecMarkers(){
+  for(const s of sections){
+    if(!s.widget||!s.widget.visible||!s.marker)continue;
+    const mk=s.marker, W=mk.userData.mw||R*0.075, n=s.normal;
+    _mk.ax.copy(n).multiplyScalar(-1).normalize();          // pico → hacia el centro
+    _mk.mpos.copy(s.pt).addScaledVector(n,W/2);
+    _mk.view.subVectors(cam.position,_mk.mpos);
+    _mk.f.copy(_mk.view).addScaledVector(_mk.ax,-_mk.view.dot(_mk.ax));  // cara ⟂ al eje, hacia cámara
+    if(_mk.f.lengthSq()<1e-9){_mk.f.set(0,0,1).addScaledVector(_mk.ax,-_mk.ax.z);
+      if(_mk.f.lengthSq()<1e-9)_mk.f.set(1,0,0);}
+    _mk.f.normalize();
+    _mk.up.crossVectors(_mk.f,_mk.ax).normalize();
+    _mk.m4.makeBasis(_mk.ax,_mk.up,_mk.f); _mk.wq.setFromRotationMatrix(_mk.m4);
+    _mk.iq.copy(s.widget.quaternion).invert();
+    mk.quaternion.copy(_mk.iq.multiply(_mk.wq));   // a local del widget
+  }
 }
 function secBrackets(h,col){
   const Lb=h*0.3, pts=[];
@@ -1655,7 +1699,7 @@ function buildSecWidget(s){
   const quad=new THREE.Mesh(new THREE.PlaneGeometry(h*2,h*2),   // invisible: solo para picar el plano
     new THREE.MeshBasicMaterial({transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));
   const bord=new THREE.LineSegments(new THREE.EdgesGeometry(quad.geometry),
-    new THREE.LineBasicMaterial({color:0x5b6570,transparent:true,opacity:.32}));
+    new THREE.LineBasicMaterial({color:0x5b6570,transparent:true,opacity:.6}));   // contorno un pelín más marcado
   const brk=secBrackets(h,0x5b6570); brk.renderOrder=11;
   const style=window.SEC_ARROWS||'four', arrows=[];
   if(style==='four'){const c=h*0.82;              // SketchUp-like: 4 flechas en las esquinas
@@ -1671,7 +1715,7 @@ function buildSecWidget(s){
 function secColHex(s){return '#'+((s.color||0xff8f1f)>>>0).toString(16).padStart(6,'0');}
 function styleSecWidget(s){
   if(!s.widget)return;
-  const act=s.active, col=act?(s.color||0xff8f1f):0x5b6570;
+  const act=s.active, col=act?(s.color||0xff8f1f):0xa8aeb6;   // inactivo = gris claro
   s.bord.material.color.setHex(col); s.brk.material.color.setHex(col);
   s.arrows.forEach(a=>a.userData.arrowMats.forEach(m=>m.color.setHex(col)));
   refreshMarker(s);
@@ -2309,7 +2353,7 @@ applyMode();   // asegura la configuración del poché (stencil) tras crear las 
     const on=interOn&&pieces[ip.a]&&pieces[ip.a].visible&&pieces[ip.b]&&pieces[ip.b].visible;
     ip.l1.visible=on; ip.l2.visible=on;});
   if(gizmo&&gizmo.visible){const L=Math.max(10,sph.r*0.12);gizmo.scale.set(L,L,L);}
-  updateSilh();
+  updateSilh(); updateSecMarkers();
   renderer.render(scene,cam);})();
 </script>
 </body>
