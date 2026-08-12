@@ -54,8 +54,8 @@
    white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis}
  #toast{position:fixed;bottom:calc(30px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
    background:#1c1c1eee;color:#fff;padding:9px 16px;border-radius:12px;font-size:13.5px;z-index:20;display:none;white-space:nowrap}
- #modal{position:fixed;inset:0;background:#0005;z-index:30;display:none;align-items:center;justify-content:center}
- #modal>div{background:#fff;padding:14px;border-radius:16px;display:flex;gap:8px;box-shadow:0 12px 40px rgba(0,0,0,.2)}
+ #modal{position:fixed;inset:0;background:#0003;z-index:30;display:none;align-items:flex-start;justify-content:center}
+ #modal>div{background:#fff;padding:14px;border-radius:16px;display:flex;gap:8px;box-shadow:0 12px 40px rgba(0,0,0,.2);margin-top:calc(96px + env(safe-area-inset-top))}
  #modal input{font-size:15px;padding:10px;width:56vw;max-width:340px;border:1px solid #ddd;border-radius:10px;outline:none}
  #modal button{border:0;border-radius:10px;padding:0 16px;font-size:14px;cursor:pointer;background:var(--acc);color:#fff}
  #modal button:last-child{background:#eee;color:var(--ink)}
@@ -89,6 +89,9 @@
  .secTgl.on{background:var(--acc);color:#fff}
  .secmk{border:0;background:#eee;color:#1c1c1e;border-radius:6px;padding:4px 7px;font-size:12px;font-weight:700;cursor:pointer}
  .secmk.on{background:var(--acc);color:#fff}
+ .axmk{display:inline-flex;align-items:center;gap:3px;padding:3px 6px}
+ .axmk b{font-size:12px}
+ body.dark .axmk{background:#2b2f34;color:var(--ink)}
  .secbtn{border:0;background:#eee;color:#1c1c1e;border-radius:6px;width:28px;height:26px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
  .secbtn.on{background:#ff8f1f;color:#fff}
  .secbtn.del{background:#ffebee;color:#c62828}
@@ -129,7 +132,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.0 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.1 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -214,10 +217,10 @@
  <div class="menucaret"></div>
  <b style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Secciones</b>
  <div class="secrow" style="flex-wrap:wrap">
-  <button class="secmk" id="secAddFace" title="Crear tocando una cara del modelo">Cara</button>
-  <button class="secmk" id="secAddX" title="Perpendicular a X">+X</button>
-  <button class="secmk" id="secAddY" title="Perpendicular a Y">+Y</button>
-  <button class="secmk" id="secAddZ" title="Horizontal (Z)">+Z</button>
+  <button class="secmk" id="secAddFace" title="Sección sobre la cara que toques (por defecto)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;vertical-align:-3px"><path d="M4 9 14 5 20 9 10 13Z"/><path d="M12 12 12 20"/></svg>Cara</button>
+  <button class="secmk axmk" id="secAddX" title="Sección según eje X (tócala y luego cualquier punto)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 9 15 5 19 12 9 16Z" fill="#e5433c" opacity=".9"/><path d="M12 10 12 20" stroke="#e5433c" stroke-width="2"/></svg><b>X</b></button>
+  <button class="secmk axmk" id="secAddY" title="Sección según eje Y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 9 15 5 19 12 9 16Z" fill="#2ca24c" opacity=".9"/><path d="M12 10 12 20" stroke="#2ca24c" stroke-width="2"/></svg><b>Y</b></button>
+  <button class="secmk axmk" id="secAddZ" title="Sección según eje Z"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 9 15 5 19 12 9 16Z" fill="#3a6ff0" opacity=".9"/><path d="M12 10 12 20" stroke="#3a6ff0" stroke-width="2"/></svg><b>Z</b></button>
  </div>
  <div class="seccol">
   <button class="secTgl on" id="tglPlanes" title="Mostrar/ocultar los planos de sección"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>Planos</button>
@@ -498,7 +501,7 @@ document.getElementById('vmodes').addEventListener('click',e=>{
 // El sentido del corte es el de la flecha; ⇄ o tocar el cono lo invierte.
 const secPlane=new THREE.Plane(new THREE.Vector3(-1,0,0),0);
 let sections=[],secActive=null,secLetters=0;
-let secShowPlanes=true,secShowCut=true,secPoche=true,secPlaceMode=false;
+let secShowPlanes=true,secShowCut=true,secPoche=true,secPlaceMode=false,secPlacing=null,secMoveDrag=null;
 var lasers=[];
 function updSecPlane(){if(!secActive)return;
   secPlane.normal.copy(secActive.normal).negate();
@@ -948,9 +951,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
   renderer.domElement.setPointerCapture(e.pointerId);
   deadPointers.delete(e.pointerId);
   if(secPlaceMode&&e.button===0&&e.isPrimary!==false){
-    const hh=castAt(e);
-    if(hh&&hh.face){addSectionOnFace(hh);} else toast('Toca una cara del modelo');
-    secPlaceMode=false; document.getElementById('secAddFace').classList.remove('on'); return;}
+    startSecPlacement(e); return;}
   if(e.pointerType==='pen'&&!penSeen){penSeen=true;toast('✍️ Pen detectado: el lápiz dibuja, los dedos navegan');}
   const em=effMode(e);
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
@@ -987,7 +988,10 @@ renderer.domElement.addEventListener('pointerdown',e=>{
           if(selected&&selected.ref===Lz){toggleLaser(Lz);return;}  // 2º toque = on/off
           select('laser',Lz,'láser');return;}
         if(o&&o.userData.secRef){const s3=o.userData.secRef;
-          if(ex[0].object.userData.flipCone&&selected&&selected.ref===s3){flipSection(s3);return;}
+          // flecha (o marcador) del plano ya seleccionado = arrastrar para mover en la normal
+          if(selected&&selected.ref===s3&&ex[0].object.userData.flipCone){
+            secMoveDrag={s:s3,u:s3.normal.clone(),pt0:s3.pt.clone(),t0:axisParam(s3.pt.clone(),s3.normal)};
+            return;}
           const now=performance.now();
           if(window._secTap&&window._secTap.s===s3&&now-window._secTap.t<380){
             window._secTap=null; activateSection(s3); return;}   // doble-toque = activar corte
@@ -1088,6 +1092,12 @@ addEventListener('pointermove',e=>{
     target.copy(pinch.t0).addScaledVector(right,-(mx-pinch.mx0)/W*sph.r*1.2)
                          .addScaledVector(up,(my-pinch.my0)/H*sph.r*1.2);
     updCam(); return;}
+  if(secPlacing){moveSecPlacement(e);return;}          // colocación en vivo (no corta hasta soltar)
+  if(secMoveDrag){ndc(e);const t=axisParam(secMoveDrag.pt0,secMoveDrag.u);
+    secMoveDrag.s.pt.copy(secMoveDrag.pt0).addScaledVector(secMoveDrag.u,t-secMoveDrag.t0);
+    syncSecWidget(secMoveDrag.s); if(secActive===secMoveDrag.s)applySec(); updateGizmo();
+    document.getElementById('hud').textContent='Δ '+(t-secMoveDrag.t0).toFixed(1)+' mm · '+secMoveDrag.s.name;
+    return;}
   if(gizDrag){ndc(e);moveGizDrag();redraw();return;}
   let hud=document.getElementById('hud');
   if(!drawing&&!handDrag&&e.pointerType==='mouse'){let h=castAt(e);
@@ -1166,6 +1176,8 @@ const deadPointers=new Set();
 function endPointer(e){
   const wasPinch=!!pinch, wasPen=e.pointerType==='pen';
   pointers.delete(e.pointerId);deadPointers.delete(e.pointerId);
+  if(secPlacing){finishSecPlacement();return;}     // soltar = activa la sección
+  if(secMoveDrag)secMoveDrag=null;
   if(pointers.size<2){pinch=null;
     if(wasPinch)pointers.forEach((_,id)=>deadPointers.add(id));} // el dedo restante no orbita/pinta
   if(drawing&&drawing.points.length>1){
@@ -1509,18 +1521,21 @@ const IC_TRASH=_sv+'<path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c
 // pequeño, en la esquina inferior izquierda del plano
 function secLetterOf(s){return (s.name||'A').replace(/[-\s].*$/,'')||'A';}
 function makeSecMarker(s){
-  const act=(s===secActive), ac=act?'#ff8f1f':'#5b6570';
+  // minimalista: líneas finas negras, letra pequeña; el vértice del triángulo (derecha)
+  // se coloca en el origen del gizmo de la sección
+  const col=darkView?'#e7e9ec':'#1c1c1e';
   const cv=document.createElement('canvas');cv.width=cv.height=128;const g2=cv.getContext('2d');
-  g2.clearRect(0,0,128,128);
-  g2.beginPath();g2.arc(58,72,32,0,7);g2.fillStyle='rgba(255,255,255,.94)';g2.fill();
-  g2.lineWidth=4;g2.strokeStyle=ac;g2.stroke();
-  g2.beginPath();g2.moveTo(84,44);g2.lineTo(116,72);g2.lineTo(84,100);g2.closePath();g2.fillStyle=ac;g2.fill();
-  g2.strokeStyle=ac;g2.lineWidth=3;g2.beginPath();g2.moveTo(58,42);g2.lineTo(58,102);g2.stroke();
-  g2.fillStyle='#1c1c1e';g2.font='bold 40px -apple-system,sans-serif';g2.textAlign='center';g2.textBaseline='middle';
-  g2.fillText(secLetterOf(s),40,72);
+  g2.clearRect(0,0,128,128); g2.lineJoin='round'; g2.lineCap='round';
+  g2.beginPath();g2.arc(44,74,24,0,7);g2.fillStyle=darkView?'rgba(23,25,28,.6)':'rgba(255,255,255,.85)';g2.fill();
+  g2.lineWidth=2.6;g2.strokeStyle=col;g2.stroke();
+  g2.beginPath();g2.moveTo(68,54);g2.lineTo(104,74);g2.lineTo(68,94);g2.closePath();g2.lineWidth=2.6;g2.strokeStyle=col;g2.stroke();
+  g2.beginPath();g2.moveTo(44,52);g2.lineTo(44,96);g2.lineWidth=2.2;g2.stroke();
+  g2.fillStyle=col;g2.font='600 27px -apple-system,sans-serif';g2.textAlign='center';g2.textBaseline='middle';
+  g2.fillText(secLetterOf(s),31,75);
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false,transparent:true}));
-  sp.scale.set(R*0.2,R*0.2,1); sp.renderOrder=13; return sp;
+  sp.scale.set(R*0.15,R*0.15,1); sp.renderOrder=13; return sp;
 }
+const SEC_MARKER_POS=[-0.048,0,0.001];   // el vértice del triángulo queda ~en el origen
 function secBrackets(h,col){
   const Lb=h*0.3, pts=[];
   const corners=[[-h,-h],[h,-h],[h,h],[-h,h]], dirs=[[1,1],[-1,1],[-1,-1],[1,-1]];
@@ -1555,7 +1570,7 @@ function buildSecWidget(s){
     [[-c,-c],[c,-c],[c,c],[-c,c]].forEach(p=>{const a=secArrow(0.9);a.position.set(p[0],p[1],0);arrows.push(a);});
   }else{const a1=secArrow(1),a2=secArrow(1);       // 2 flechas discretas centro-abajo
     a1.position.set(-h*0.4,-h*0.66,0); a2.position.set(h*0.4,-h*0.66,0); arrows.push(a1,a2);}
-  const marker=makeSecMarker(s); marker.position.set(-h*0.82,-h*0.82,0);
+  const marker=makeSecMarker(s); marker.position.set(SEC_MARKER_POS[0]*R,SEC_MARKER_POS[1]*R,SEC_MARKER_POS[2]*R);
   g.add(quad,bord,brk,...arrows,marker);
   g.traverse(o=>{if(o.userData.secRef===undefined)o.userData.secRef=s;});
   s.widget=g; s.quad=quad; s.bord=bord; s.brk=brk; s.arrows=arrows; s.marker=marker;
@@ -1575,9 +1590,9 @@ function syncSecWidget(s){
   s.widget.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),s.normal);
 }
 function refreshMarker(s){
-  if(!s.widget)return; const h=s._h||R*0.5;
+  if(!s.widget)return;
   if(s.marker)s.widget.remove(s.marker);
-  s.marker=makeSecMarker(s); s.marker.position.set(-h*0.82,-h*0.82,0);
+  s.marker=makeSecMarker(s); s.marker.position.set(SEC_MARKER_POS[0]*R,SEC_MARKER_POS[1]*R,SEC_MARKER_POS[2]*R);
   s.marker.userData.secRef=s; s.widget.add(s.marker);
 }
 function refreshSecLabel(s){refreshMarker(s);}
@@ -1592,7 +1607,7 @@ function renderSecList(){
       '<button data-f="'+i+'" class="secbtn" title="invertir sentido">'+IC_FLIP+'</button>'+
       '<button data-x="'+i+'" class="secbtn del" title="eliminar">'+IC_TRASH+'</button>';
     d.appendChild(row);});
-  if(!sections.length)d.innerHTML='<span style="color:var(--mut);font-size:11px">Sin secciones. Crea con Cara · +X · +Y · +Z</span>';
+  if(!sections.length)d.innerHTML='<span style="color:var(--mut);font-size:11px">Sin secciones. Elige Cara o X/Y/Z y toca el modelo.</span>';
 }
 function newSectionObj(name,pt,normal){const s={name,pt:pt.clone(),normal:normal.clone().normalize()};
   buildSecWidget(s); sections.push(s); return s;}
@@ -1628,10 +1643,42 @@ function removeSection(s){
   if(secActive===s)secActive=null;
   renderSecList(); applySec();
 }
-secAddX.onclick=()=>addSection('x'); secAddY.onclick=()=>addSection('y'); secAddZ.onclick=()=>addSection('z');
-secAddFace.onclick=()=>{secPlaceMode=!secPlaceMode;
-  secAddFace.classList.toggle('on',secPlaceMode);
-  if(secPlaceMode)toast('Toca una cara del modelo para crear la sección');};
+// ---- MODOS DE COLOCACIÓN (SketchUp iPad): por defecto CARA; X/Y/Z = por punto según eje ----
+function axVecOf(m){return m==='x'?new THREE.Vector3(1,0,0):m==='y'?new THREE.Vector3(0,1,0):new THREE.Vector3(0,0,1);}
+function updSecModeBtns(){['face','x','y','z'].forEach(m=>{
+  const b=document.getElementById('secAdd'+(m==='face'?'Face':m.toUpperCase()));
+  if(b)b.classList.toggle('on',secPlaceMode===m);});}
+function armSecMode(m){
+  secPlaceMode=(secPlaceMode===m)?false:m; updSecModeBtns();
+  if(secPlaceMode==='face')toast('Toca una cara (mantén y arrastra para colocar; suelta para activar)');
+  else if(secPlaceMode)toast('Toca cualquier punto del modelo · eje '+secPlaceMode.toUpperCase());}
+secAddFace.onclick=()=>armSecMode('face');
+secAddX.onclick=()=>armSecMode('x'); secAddY.onclick=()=>armSecMode('y'); secAddZ.onclick=()=>armSecMode('z');
+function placeSample(e){
+  const h=castAt(e);
+  if(secPlaceMode==='face'){
+    if(h&&h.face){const nm=new THREE.Matrix3().getNormalMatrix(h.object.matrixWorld);
+      return {pt:h.point.clone(),normal:h.face.normal.clone().applyMatrix3(nm).normalize()};}
+    return null;}
+  const u=axVecOf(secPlaceMode);
+  return {pt:h?h.point.clone():planePoint(e,sph.r),normal:u};
+}
+function startSecPlacement(e){
+  const s0=placeSample(e);
+  if(!s0){toast('Toca una cara del modelo'); return;}
+  const s=newSectionObj(nextLetter(),s0.pt,s0.normal);
+  secPlacing={s}; syncSecWidget(s);   // vista previa: aún NO corta
+}
+function moveSecPlacement(e){
+  if(!secPlacing)return; const s0=placeSample(e); if(!s0)return;
+  const s=secPlacing.s; s.pt.copy(s0.pt); s.normal.copy(s0.normal); syncSecWidget(s);
+}
+function finishSecPlacement(){
+  if(!secPlacing)return; const s=secPlacing.s; secPlacing=null;
+  secActive=s; restyleAllSec(); applySec(); renderSecList(); select('section',s,s.name);
+  secPlaceMode=false; updSecModeBtns();
+  toast('Sección '+s.name+' creada · arrastra las flechas o el gizmo para moverla');
+}
 document.getElementById('secList').addEventListener('click',e=>{
   const t=e.target.dataset, i=+(t.a??t.s??t.g??t.f??t.x);
   if(t.a!==undefined)toggleActive(sections[i]);
@@ -1652,8 +1699,10 @@ function dropFromIcon(menu,icon,width){
 document.getElementById('secTool').onclick=()=>{const d=document.getElementById('secmenu');
   const show=(d.style.display==='none'||!d.style.display);
   if(show){dropFromIcon(d,document.getElementById('secTool'),170);
-    document.getElementById('secTool').classList.add('on');}
-  else document.getElementById('secTool').classList.remove('on');
+    document.getElementById('secTool').classList.add('on');
+    armSecMode('face');}   // por defecto: colocar por cara
+  else {document.getElementById('secTool').classList.remove('on');
+    if(secPlaceMode){secPlaceMode=false;updSecModeBtns();}}
   d.style.display=show?'flex':'none';};
 tglPlanes.onclick=()=>{secShowPlanes=!secShowPlanes; tglPlanes.classList.toggle('on',secShowPlanes); restyleAllSec();};
 tglCut.onclick=()=>{secShowCut=!secShowCut; tglCut.classList.toggle('on',secShowCut); applySec();};
