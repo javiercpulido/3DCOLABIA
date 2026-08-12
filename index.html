@@ -114,7 +114,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v5.8 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v5.9 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -171,7 +171,7 @@
   <button id="mDraw" title="Trazo (2º toque: candado)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg><span id="lockDot" style="position:absolute;top:2px;right:4px;font-size:9px;line-height:1;display:none">🔒</span></button>
   <button id="mErase" title="Borrar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg></button>
   <button id="mag" class="on" title="Imán"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15-4-4 6.75-6.77a7.79 7.79 0 0 1 11 11L13 22l-4-4 6.39-6.36a2.14 2.14 0 0 0-3-3L6 15"/><path d="m5 8 4 4"/><path d="m12 15 4 4"/></svg></button>
-  <button id="mLaser" title="Láser de obra: planos H/V y líneas verdes sobre la geometría"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="6" height="6" rx="1"/><line x1="12" y1="2.5" x2="12" y2="6.5"/><line x1="12" y1="17.5" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="6.5" y2="12"/><line x1="17.5" y1="12" x2="21.5" y2="12"/></svg></button>
+  <button id="mLaser" title="Láser de obra: inserta un nivel láser con rayos verdes"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="2" y1="12" x2="22" y2="12" stroke="#00c853"/><line x1="12" y1="2" x2="12" y2="22" stroke="#00c853"/><rect x="8.3" y="8.3" width="7.4" height="7.4" rx="1.6" fill="#fff" stroke="currentColor" stroke-width="1.8"/></svg></button>
   <div class="sep"></div>
   <button id="colBtn" title="Color"><i style="background:#d500f9"></i></button>
   <button id="undo" title="Deshacer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></button>
@@ -1491,14 +1491,14 @@ function secBrackets(h,col){
   return new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.9}));
 }
 // flecha fina que indica hacia dónde MIRA la sección (dirección de vista, +normal)
-function secArrow(){
-  const a=new THREE.Group();
-  const sh=new THREE.Mesh(new THREE.CylinderGeometry(R*0.006,R*0.006,R*0.11,6),
+function secArrow(k){
+  k=k||1; const a=new THREE.Group();
+  const sh=new THREE.Mesh(new THREE.CylinderGeometry(R*0.005*k,R*0.005*k,R*0.075*k,6),
     new THREE.MeshBasicMaterial({depthTest:false,transparent:true}));
-  sh.rotation.x=Math.PI/2; sh.position.z=R*0.055;
-  const hd=new THREE.Mesh(new THREE.ConeGeometry(R*0.022,R*0.055,10),
+  sh.rotation.x=Math.PI/2; sh.position.z=R*0.037*k;
+  const hd=new THREE.Mesh(new THREE.ConeGeometry(R*0.017*k,R*0.045*k,10),
     new THREE.MeshBasicMaterial({depthTest:false,transparent:true}));
-  hd.rotation.x=Math.PI/2; hd.position.z=R*0.135;
+  hd.rotation.x=Math.PI/2; hd.position.z=R*0.095*k;
   a.add(sh,hd); a.userData.arrowMats=[sh.material,hd.material];
   a.traverse(o=>o.userData.flipCone=true);   // tocar la flecha invierte el sentido
   return a;
@@ -1510,12 +1510,15 @@ function buildSecWidget(s){
   const bord=new THREE.LineSegments(new THREE.EdgesGeometry(quad.geometry),
     new THREE.LineBasicMaterial({color:0x5b6570,transparent:true,opacity:.32}));
   const brk=secBrackets(h,0x5b6570); brk.renderOrder=11;
-  const a1=secArrow(), a2=secArrow();
-  a1.position.set(-h*0.42,-h*0.7,0); a2.position.set(h*0.42,-h*0.7,0);
+  const style=window.SEC_ARROWS||'four', arrows=[];
+  if(style==='four'){const c=h*0.82;              // SketchUp-like: 4 flechas en las esquinas
+    [[-c,-c],[c,-c],[c,c],[-c,c]].forEach(p=>{const a=secArrow(0.9);a.position.set(p[0],p[1],0);arrows.push(a);});
+  }else{const a1=secArrow(1),a2=secArrow(1);       // 2 flechas discretas centro-abajo
+    a1.position.set(-h*0.4,-h*0.66,0); a2.position.set(h*0.4,-h*0.66,0); arrows.push(a1,a2);}
   const marker=makeSecMarker(s); marker.position.set(-h*0.82,-h*0.82,0);
-  g.add(quad,bord,brk,a1,a2,marker);
+  g.add(quad,bord,brk,...arrows,marker);
   g.traverse(o=>{if(o.userData.secRef===undefined)o.userData.secRef=s;});
-  s.widget=g; s.quad=quad; s.bord=bord; s.brk=brk; s.arrows=[a1,a2]; s.marker=marker;
+  s.widget=g; s.quad=quad; s.bord=bord; s.brk=brk; s.arrows=arrows; s.marker=marker;
   scene.add(g); styleSecWidget(s); syncSecWidget(s);
 }
 function styleSecWidget(s){
