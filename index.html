@@ -96,6 +96,21 @@
  #secmenu.vert,#vmodes.vert{max-width:200px}
  .menucaret{position:absolute;top:-6px;left:12px;width:11px;height:11px;background:var(--glass);
    border-left:1px solid rgba(0,0,0,.07);border-top:1px solid rgba(0,0,0,.07);transform:rotate(45deg)}
+ /* MODO OSCURO */
+ body.dark{--ink:#e7e9ec;--mut:#9aa0a7;--glass:rgba(30,32,36,.9);background:#17191c}
+ body.dark .pill{border:1px solid rgba(255,255,255,.08);box-shadow:0 6px 24px rgba(0,0,0,.55)}
+ body.dark .row button:active,body.dark #views button:active{background:rgba(255,255,255,.08)}
+ body.dark .menucaret{border-color:rgba(255,255,255,.08)}
+ body.dark #modal>div{background:#232629}
+ body.dark #modal input,body.dark #selLen{background:#17191c;color:var(--ink);border-color:#3a3e44}
+ body.dark .secmk,body.dark .secTgl,body.dark .secbtn,body.dark .projopt,
+ body.dark #strokeOps button,body.dark #xformOps button,body.dark #laserOps button,body.dark #secOps button,
+ body.dark #selClose,body.dark .axbtn{background:#2b2f34;color:var(--ink)}
+ body.dark .secbtn.del,body.dark #selDel{background:#3a2426;color:#ff8a80}
+ body.dark #strokeOps input,body.dark #xformOps input,body.dark #laserOps input,body.dark #secOps input{background:#17191c;color:var(--ink);border-color:#3a3e44}
+ body.dark .secmk.on,body.dark .secTgl.on,body.dark .secbtn.on,body.dark .projopt.on,
+ body.dark #strokeOps button.on,body.dark #laserOps button.on{background:var(--acc);color:#fff}
+ body.dark .secbtn.on{background:#ff8f1f}
  .projopt{border:0;background:transparent;color:var(--ink);border-radius:10px;width:42px;height:38px;cursor:pointer;display:flex;align-items:center;justify-content:center}
  .projopt.on{background:var(--acc);color:#fff}
  #secmenu .seccol{display:flex;flex-direction:column;gap:4px}
@@ -114,7 +129,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v5.9 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.0 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -132,6 +147,7 @@
   <input id="selRot" type="number" step="5" placeholder="∠°" style="width:50px">
  </span>
  <span id="laserOps">
+  <button id="lzPw" title="Encender / apagar (fantasma)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></svg></button>
   <button id="lzH" title="Plano horizontal">H</button><button id="lzV" title="Plano vertical">V</button><button id="lzV2" title="Vertical cruzado">+V</button>
   <input id="lzN" type="range" min="1" max="9" step="1" title="Nº de planos por dirección">
   <input id="lzSp" type="number" step="5" style="width:56px" title="Separación entre planos (mm)">
@@ -191,6 +207,7 @@
  <button id="vPlaInv" title="Planta invertida (vista inferior)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4.5" width="12" height="11" rx="1.6"/><polyline points="8.5 19.5 12 17 15.5 19.5"/></svg></button>
  <div class="vsep"></div>
  <button id="vEye" title="Modo de visión"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+ <button id="vDark" title="Modo oscuro (mejora el contraste del láser)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg></button>
  <button id="secTool" title="Secciones"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="6"/><path d="M9 6 9 18"/><path d="M15 7 21 12 15 17Z" fill="currentColor" stroke="none"/></svg></button>
 </div>
 <div id="secmenu" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:column;padding:8px;gap:6px;width:170px;max-width:92vw;font-size:12.5px;color:var(--ink)">
@@ -344,6 +361,9 @@ let C=new THREE.Vector3(); bbox.getCenter(C);
 let R=bbox.getSize(new THREE.Vector3()).length()*0.62;
 let grid=new THREE.GridHelper(300,30,0xdadfe5,0xe9edf1); grid.rotation.x=Math.PI/2;
 grid.position.set(C.x,C.y,bbox.min.z-2); scene.add(grid);
+// rejilla gemela para el modo oscuro
+let gridDark=new THREE.GridHelper(300,30,0x33383f,0x23272c); gridDark.rotation.x=Math.PI/2;
+gridDark.position.copy(grid.position); gridDark.visible=false; scene.add(gridDark);
 
 // ================= INTERSECCION ENTRE VOLUMENES =================
 // Curva de interseccion malla-malla (tri-tri exacto, prefiltro por cajas).
@@ -432,20 +452,37 @@ function computeIntersections(){
 }
 computeIntersections();
 // ================= MODOS DE VISION y SECCION =================
-let viewMode='somb', baseOpacity=1;
+let viewMode='somb', baseOpacity=1, darkView=false, gridChk=true;
 function edgesWanted(){return viewMode!=='somb'&&viewMode!=='malla';}
 function applyMode(){
-  scene.background=new THREE.Color((viewMode==='tecnico'||viewMode==='oculto')?0xffffff:0xf4f5f7);
+  const dk=darkView;
+  scene.background=new THREE.Color(dk?0x17191c:((viewMode==='tecnico'||viewMode==='oculto')?0xffffff:0xf4f5f7));
   for(const n in pieces){const m=pieces[n],ud=m.userData;
     m.material=(viewMode==='tecnico'||viewMode==='oculto')?ud.matFlat:ud.matShaded;
+    ud.matFlat.color.setHex(dk?0x24272b:0xffffff);
+    ud.edges.material.color.setHex(dk?0xd8dbdf:0x1c1c1e);
+    if(ud.silh)ud.silh.line.material.color.setHex(dk?0xd8dbdf:0x1c1c1e);
     const ms=ud.matShaded;
-    if(viewMode==='somb'||viewMode==='malla'){ms.color.setHex(ud.baseColor);ms.opacity=baseOpacity;}
-    else if(viewMode==='blanco'){ms.color.setHex(0xe9ebee);ms.opacity=baseOpacity;}
-    else if(viewMode==='wire'){ms.color.setHex(0xffffff);ms.opacity=0.06;}
+    if(viewMode==='somb'||viewMode==='malla'){ms.color.setHex(ud.baseColor);
+      if(dk)ms.color.multiplyScalar(0.55); ms.opacity=baseOpacity;}
+    else if(viewMode==='blanco'){ms.color.setHex(dk?0x3d4248:0xe9ebee);ms.opacity=baseOpacity;}
+    else if(viewMode==='wire'){ms.color.setHex(dk?0x0e1013:0xffffff);ms.opacity=0.06;}
     else if(viewMode==='xray'){ms.color.setHex(ud.baseColor);ms.opacity=0.16;}
   }
   _silhFrame=-1; // recalcular siluetas aunque la camara no se haya movido
   document.querySelectorAll('#vmodes button').forEach(b=>b.classList.toggle('on',b.dataset.m===viewMode));
+}
+function setDark(on){
+  darkView=!!on;
+  document.body.classList.toggle('dark',darkView);
+  const b=document.getElementById('vDark'); if(b)b.classList.toggle('on',darkView);
+  grid.visible=gridChk&&!darkView; gridDark.visible=gridChk&&darkView;
+  // el laser gana contraste: verde mas brillante y halo mas presente en oscuro
+  lasers.forEach(L=>{L.matA.color.setHex(darkView?0x00e676:0x00c853);
+    L.matB.opacity=darkView?0.38:0.25;});
+  if(typeof pocheCap!=='undefined'&&pocheCap)pocheCap.material.color.setHex(darkView?0xaab0b7:0x3c4046);
+  applyMode();
+  try{localStorage.setItem('tectosDark',darkView?'1':'0');}catch(e){}
 }
 vEye.onclick=()=>{const d=document.getElementById('vmodes');
   const show=(d.style.display==='none'||!d.style.display);
@@ -946,7 +983,9 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     {const exs=exPick(); if(exs.length){const ex=ray.intersectObjects(exs,true);
       if(ex.length){let o=ex[0].object;
         while(o&&!(o.userData&&(o.userData.laserRef||o.userData.secRef)))o=o.parent;
-        if(o&&o.userData.laserRef){select('laser',o.userData.laserRef,'láser');return;}
+        if(o&&o.userData.laserRef){const Lz=o.userData.laserRef;
+          if(selected&&selected.ref===Lz){toggleLaser(Lz);return;}  // 2º toque = on/off
+          select('laser',Lz,'láser');return;}
         if(o&&o.userData.secRef){const s3=o.userData.secRef;
           if(ex[0].object.userData.flipCone&&selected&&selected.ref===s3){flipSection(s3);return;}
           const now=performance.now();
@@ -1500,6 +1539,7 @@ function secArrow(k){
     new THREE.MeshBasicMaterial({depthTest:false,transparent:true}));
   hd.rotation.x=Math.PI/2; hd.position.z=R*0.095*k;
   a.add(sh,hd); a.userData.arrowMats=[sh.material,hd.material];
+  a.rotation.x=Math.PI;   // apunta hacia el material QUE SE VE (dirección de mirada, -normal)
   a.traverse(o=>o.userData.flipCone=true);   // tocar la flecha invierte el sentido
   return a;
 }
@@ -1696,6 +1736,7 @@ function laserPlanesOf(L){
 function updateLasers(){
   const inv=new THREE.Matrix4(), lp=new THREE.Vector3(), ln=new THREE.Vector3();
   for(const L of lasers){
+    if(L.off){L.geo.setAttribute('position',new THREE.Float32BufferAttribute([],3));continue;}
     const pos=[];
     for(const pl of laserPlanesOf(L)){
       cutTris(GROUND_TRIS,pl.n,pl.pt,pos,null);
@@ -1713,7 +1754,8 @@ function laserSnap(p){
   if(!lasers.length)return null;
   const tol=Math.max(0.8,sph.r*0.012); let bd=tol*tol,best=null;
   const a=new THREE.Vector3(),b=new THREE.Vector3(),ab=new THREE.Vector3();
-  for(const L of lasers){const at=L.geo.attributes.position; if(!at)continue;
+  for(const L of lasers){if(L.off)continue;
+    const at=L.geo.attributes.position; if(!at)continue;
     for(let i=0;i+1<at.count;i+=2){
       a.fromBufferAttribute(at,i); b.fromBufferAttribute(at,i+1);
       ab.subVectors(b,a);
@@ -1724,31 +1766,49 @@ function laserSnap(p){
 }
 function addLaser(silent){
   const g=new THREE.Group();
-  const cube=new THREE.Mesh(new THREE.BoxGeometry(8,8,8),
-    new THREE.MeshStandardMaterial({color:0x2c3136,metalness:.35,roughness:.5}));
-  const top=new THREE.Mesh(new THREE.CylinderGeometry(2.6,2.6,2.4,16),
-    new THREE.MeshBasicMaterial({color:0x00e676}));
+  const cubeMat=new THREE.MeshStandardMaterial({color:0x2c3136,metalness:.35,roughness:.5,transparent:true});
+  const topMat=new THREE.MeshBasicMaterial({color:0x00e676,transparent:true});
+  const cube=new THREE.Mesh(new THREE.BoxGeometry(8,8,8),cubeMat);
+  const top=new THREE.Mesh(new THREE.CylinderGeometry(2.6,2.6,2.4,16),topMat);
   top.rotation.x=Math.PI/2; top.position.z=5;
   g.add(cube,top); g.position.copy(target);
   const geo=new THREE.BufferGeometry();
-  const matA=new THREE.LineBasicMaterial({color:0x00c853});
-  const matB=new THREE.LineBasicMaterial({color:0x00e676,transparent:true,opacity:.25,depthTest:false});
+  const matA=new THREE.LineBasicMaterial({color:darkView?0x00e676:0x00c853});
+  const matB=new THREE.LineBasicMaterial({color:0x00e676,transparent:true,opacity:darkView?.38:.25,depthTest:false});
   const lA=new THREE.LineSegments(geo,matA), lB=new THREE.LineSegments(geo,matB);
   lA.frustumCulled=lB.frustumCulled=false; lA.renderOrder=3; lB.renderOrder=9;
-  const L={mesh:g,on:{h:true,v:true,v2:false},n:1,sp:20,geo,matA,matB,linesA:lA,linesB:lB};
+  const L={mesh:g,on:{h:true,v:true,v2:false},n:1,sp:20,off:false,geo,matA,matB,
+    linesA:lA,linesB:lB,cubeMat,topMat};
   {const cp=curClipPlanes();matA.clippingPlanes=cp;matB.clippingPlanes=cp;}
   g.traverse(o=>{o.userData.laserRef=L;});
   scene.add(g); scene.add(lA); scene.add(lB);
   lasers.push(L); updateLasers();
-  if(!silent){setMode('sel'); select('laser',L,'láser');
-    toast('Láser: gizmo para colocar/girar · H/V/+V · nº de planos y separación');}
+  if(!silent){
+    if(!darkView)setDark(true);   // el modo oscuro da el contraste del laser
+    setMode('sel'); select('laser',L,'láser');
+    toast('Láser insertado · modo oscuro activado (🌓 para salir) · tócalo otra vez = apagar');}
   return L;
+}
+// encendido/apagado del laser: apagado queda como FANTASMA gris clarito, sin rayos
+function setLaserPower(L,on){
+  L.off=!on;
+  L.cubeMat.opacity=on?1:0.22; L.cubeMat.color.setHex(on?0x2c3136:0xb9bec4);
+  L.topMat.opacity=on?1:0.25;  L.topMat.color.setHex(on?0x00e676:0x9aa0a6);
+  L.linesA.visible=L.linesB.visible=on;
+  if(on)updateLasers();
+  if(selected&&selected.ref===L)syncLaserOps(L);
+}
+function toggleLaser(L){
+  setLaserPower(L,L.off);
+  toast(L.off?'láser apagado 👻 — tócalo para encender':'láser encendido');
 }
 document.getElementById('mLaser').onclick=()=>addLaser(false);
 function syncLaserOps(L){
+  lzPw.classList.toggle('on',!L.off);
   lzH.classList.toggle('on',L.on.h); lzV.classList.toggle('on',L.on.v); lzV2.classList.toggle('on',L.on.v2);
   lzN.value=L.n; lzSp.value=L.sp;
 }
+lzPw.onclick=()=>{if(selected&&selected.kind==='laser')toggleLaser(selected.ref);};
 [['lzH','h'],['lzV','v'],['lzV2','v2']].forEach(([id,k])=>{
   document.getElementById(id).onclick=()=>{if(!(selected&&selected.kind==='laser'))return;
     const L=selected.ref; L.on[k]=!L.on[k]; syncLaserOps(L); updateLasers();};});
@@ -1769,7 +1829,9 @@ function showOpsFor(kind){
 op.oninput=e=>{baseOpacity=+e.target.value/100;applyMode();};
 lw.oninput=e=>{lineW=+e.target.value;};
 axSnap.onchange=e=>{axisSnap=e.target.checked;};
-document.getElementById('grid').onchange=e=>grid.visible=e.target.checked;
+document.getElementById('grid').onchange=e=>{gridChk=e.target.checked;
+  grid.visible=gridChk&&!darkView; gridDark.visible=gridChk&&darkView;};
+document.getElementById('vDark').onclick=()=>setDark(!darkView);
 document.getElementById('axes').onchange=e=>axes.visible=e.target.checked;
 
 // ---- export / import ----
@@ -1783,7 +1845,7 @@ function buildExport(){
       pos:pieces[n].position.toArray(),quat:pieces[n].quaternion.toArray()})),
     secciones:sections.map(s=>({name:s.name,pt:s.pt.toArray(),normal:s.normal.toArray(),active:s===secActive})),
     lasers:lasers.map(L=>({pos:L.mesh.position.toArray(),quat:L.mesh.quaternion.toArray(),
-      h:L.on.h,v:L.on.v,v2:L.on.v2,n:L.n,sp:L.sp})),
+      h:L.on.h,v:L.on.v,v2:L.on.v2,n:L.n,sp:L.sp,off:L.off||undefined})),
     textos:texts,
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
@@ -1821,7 +1883,8 @@ fileJson.onchange=ev=>{
         lasers=lasers.filter(x=>x!==L);});
       d.lasers.forEach(ld=>{const L=addLaser(true);
         if(ld.pos)L.mesh.position.set(...ld.pos); if(ld.quat)L.mesh.quaternion.set(...ld.quat);
-        L.on={h:!!ld.h,v:!!ld.v,v2:!!ld.v2}; L.n=ld.n||1; L.sp=ld.sp||20;});
+        L.on={h:!!ld.h,v:!!ld.v,v2:!!ld.v2}; L.n=ld.n||1; L.sp=ld.sp||20;
+        if(ld.off)setLaserPower(L,false);});
       updateLasers();}
     texts=d.textos||[];
     (d.imagenes||[]).forEach(im=>{if(!im.dataURL)return;
@@ -1941,6 +2004,9 @@ function updateSilh(){
     setPos(it.el,s.left,s.top);clamp(it.el);}catch(err){}});
   window._reclampFloat=()=>items.forEach(it=>{if(it.el.style.left)try{clamp(it.el);}catch(e){}});
 })();
+
+// restaurar preferencia de modo oscuro
+try{if(localStorage.getItem('tectosDark')==='1')setDark(true);}catch(e){}
 
 (function loop(){requestAnimationFrame(loop);checkHold();
   for(const n in pieces){const ud=pieces[n].userData;
