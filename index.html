@@ -132,7 +132,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.4 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.5 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -152,8 +152,8 @@
  <span id="laserOps">
   <button id="lzPw" title="Encender / apagar (fantasma)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></svg></button>
   <button id="lzH" title="Plano horizontal">H</button><button id="lzV" title="Plano vertical">V</button><button id="lzV2" title="Vertical cruzado">+V</button>
-  <input id="lzN" type="range" min="1" max="30" step="1" title="Nº de planos por dirección">
-  <input id="lzSp" type="number" min="2" step="2" style="width:56px" title="Separación entre planos (mm) · menor = más densidad">
+  <input id="lzN" type="range" min="1" max="30" step="1" title="Nº de líneas desde el origen">
+  <input id="lzSp" type="number" step="5" style="width:56px" title="Separación entre líneas (mm)">
   <button id="lzReset" title="restablecer láser"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.3M3 4v5h5"/></svg></button>
  </span>
  <span id="secOps">
@@ -1024,10 +1024,13 @@ renderer.domElement.addEventListener('pointerdown',e=>{
           if(selected&&selected.ref===Lz){toggleLaser(Lz);return;}  // 2º toque = on/off
           select('laser',Lz,'láser');return;}
         if(o&&o.userData.secRef){const s3=o.userData.secRef;
-          // flecha (o marcador) del plano ya seleccionado = arrastrar para mover en la normal
-          if(selected&&selected.ref===s3&&ex[0].object.userData.flipCone){
-            secMoveDrag={s:s3,u:s3.normal.clone(),pt0:s3.pt.clone(),t0:axisParam(s3.pt.clone(),s3.normal)};
-            return;}
+          // flecha del plano ya seleccionado = arrastrar para mover en la normal.
+          // (El plano invisible de picado tapa al rayo, por eso buscamos la flecha
+          //  en CUALQUIER impacto del rayo, no sólo en el más cercano.)
+          if(selected&&selected.ref===s3){
+            const ah=ex.find(h=>h.object.userData.flipCone&&h.object.userData.secRef===s3);
+            if(ah){secMoveDrag={s:s3,u:s3.normal.clone(),pt0:s3.pt.clone(),t0:axisParam(s3.pt.clone(),s3.normal)};
+              return;}}
           const now=performance.now();
           if(window._secTap&&window._secTap.s===s3&&now-window._secTap.t<380){
             window._secTap=null; activateSection(s3); return;}   // doble-toque = activar corte
@@ -1586,7 +1589,7 @@ function secLetterOf(s){return (s.name||'A').replace(/[-\s].*$/,'')||'A';}
 function makeSecMarker(s){
   // minimalista, líneas finas; color propio de la sección (naranja activo / gris inactivo,
   // igual que las flechas de las esquinas); el vértice del triángulo va en el origen del gizmo
-  const col=s.active?'#ff8f1f':'#8a9099';
+  const col=s.active?secColHex(s):'#8a9099';
   const cv=document.createElement('canvas');cv.width=cv.height=128;const g2=cv.getContext('2d');
   g2.clearRect(0,0,128,128); g2.lineJoin='round'; g2.lineCap='round';
   g2.beginPath();g2.arc(44,74,24,0,7);g2.fillStyle=darkView?'rgba(23,25,28,.6)':'rgba(255,255,255,.85)';g2.fill();
@@ -1610,10 +1613,10 @@ function secBrackets(h,col){
 // flecha fina que indica hacia dónde MIRA la sección (dirección de vista, +normal)
 function secArrow(k){
   k=k||1; const a=new THREE.Group();
-  const sh=new THREE.Mesh(new THREE.CylinderGeometry(R*0.005*k,R*0.005*k,R*0.075*k,6),
+  const sh=new THREE.Mesh(new THREE.CylinderGeometry(R*0.0032*k,R*0.0032*k,R*0.078*k,6),
     new THREE.MeshBasicMaterial({depthTest:false,transparent:true}));
   sh.rotation.x=Math.PI/2; sh.position.z=R*0.037*k;
-  const hd=new THREE.Mesh(new THREE.ConeGeometry(R*0.017*k,R*0.045*k,10),
+  const hd=new THREE.Mesh(new THREE.ConeGeometry(R*0.011*k,R*0.04*k,12),
     new THREE.MeshBasicMaterial({depthTest:false,transparent:true}));
   hd.rotation.x=Math.PI/2; hd.position.z=R*0.095*k;
   a.add(sh,hd); a.userData.arrowMats=[sh.material,hd.material];
@@ -1639,9 +1642,10 @@ function buildSecWidget(s){
   s.widget=g; s.quad=quad; s.bord=bord; s.brk=brk; s.arrows=arrows; s.marker=marker;
   scene.add(g); styleSecWidget(s); syncSecWidget(s);
 }
+function secColHex(s){return '#'+((s.color||0xff8f1f)>>>0).toString(16).padStart(6,'0');}
 function styleSecWidget(s){
   if(!s.widget)return;
-  const act=s.active, col=act?0xff8f1f:0x5b6570;
+  const act=s.active, col=act?(s.color||0xff8f1f):0x5b6570;
   s.bord.material.color.setHex(col); s.brk.material.color.setHex(col);
   s.arrows.forEach(a=>a.userData.arrowMats.forEach(m=>m.color.setHex(col)));
   refreshMarker(s);
@@ -1664,8 +1668,9 @@ function renderSecList(){
   const d=document.getElementById('secList'); d.innerHTML='';
   sections.forEach((s,i)=>{
     const row=document.createElement('div'); row.className='secrow';
-    row.innerHTML='<button data-a="'+i+'" class="secbtn'+(s.active?' on':'')+'" title="activar/desactivar corte (varias a la vez)">'+IC_SCISS+'</button>'+
-      '<span data-s="'+i+'" style="flex:1;cursor:pointer;font-weight:600;color:'+(s.active?'#c96a00':'inherit')+'">'+escH(s.name)+'</span>'+
+    const chex=secColHex(s);
+    row.innerHTML='<button data-a="'+i+'" class="secbtn'+(s.active?' on':'')+'" title="activar/desactivar corte (varias a la vez)"'+(s.active?' style="background:'+chex+';color:#fff"':'')+'>'+IC_SCISS+'</button>'+
+      '<span data-s="'+i+'" style="flex:1;cursor:pointer;font-weight:600;color:'+(s.active?chex:'inherit')+'">'+escH(s.name)+'</span>'+
       '<button data-g="'+i+'" class="secbtn" title="alinear vista (elevación)">'+IC_ALIGN+'</button>'+
       '<button data-f="'+i+'" class="secbtn" title="invertir sentido">'+IC_FLIP+'</button>'+
       '<button data-o="'+i+'" class="secbtn'+(secRotate===s?' on':'')+'" title="girar el plano (órbita)">'+IC_ORBIT+'</button>'+
@@ -1674,8 +1679,12 @@ function renderSecList(){
     d.appendChild(row);});
   if(!sections.length)d.innerHTML='<span style="color:var(--mut);font-size:11px">Sin secciones. Elige Cara o X/Y/Z y toca el modelo.</span>';
 }
+// paleta: cada sección estrena un color propio (naranja, azul, verde, morado…)
+const SEC_PALETTE=[0xff8f1f,0x2f7df0,0x2ca24c,0xb44cff,0xe5433c,0x00b3b3,0xff5aa0,0xc9a000];
+let secColorIdx=0;
 function newSectionObj(name,pt,normal){
   const s={name,pt:pt.clone(),normal:normal.clone().normalize(),active:false,
+    color:SEC_PALETTE[secColorIdx++%SEC_PALETTE.length],
     plane:new THREE.Plane(new THREE.Vector3(-1,0,0),0)};
   s.pt0=s.pt.clone(); s.n0=s.normal.clone();   // estado inicial para "restablecer"
   buildSecWidget(s); sections.push(s); return s;}
@@ -1690,7 +1699,7 @@ function resetSection(s){
   toast(s.name+': posición y ángulo restablecidos');}
 function toggleSecRotate(s){
   if(secRotate===s){secRotate=null;toast(s.name+': giro desactivado');}
-  else{if(!(selected&&selected.ref===s))select('section',s,s.name);
+  else{setMode('sel'); if(!(selected&&selected.ref===s))select('section',s,s.name);
     secRotate=s; toast(s.name+': giro activo · arrastra el anillo del gizmo');}
   renderSecList(); updateGizmo();}
 function flipSection(s){s.normal.negate();syncSecWidget(s);
@@ -1741,14 +1750,15 @@ function moveSecPlacement(e){
 function finishSecPlacement(){
   if(!secPlacing)return; const s=secPlacing.s; secPlacing=null;
   s.pt0=s.pt.clone(); s.n0=s.normal.clone();   // fija el estado inicial en el punto soltado
-  s.active=true; restyleAllSec(); applySec(); renderSecList(); select('section',s,s.name);
+  s.active=true; restyleAllSec(); applySec(); renderSecList();
   secPlaceMode=false; updSecModeBtns();
-  toast('Sección '+s.name+' creada · arrastra las flechas o el gizmo para moverla');
+  setMode('sel'); select('section',s,s.name);   // modo selección: ya se pueden arrastrar las flechas
+  toast('Sección '+s.name+' creada · arrastra las flechas de las esquinas para moverla');
 }
 document.getElementById('secList').addEventListener('click',e=>{
   const t=e.target.dataset, i=+(t.a??t.s??t.g??t.f??t.o??t.r??t.x);
   if(t.a!==undefined)toggleActive(sections[i]);
-  else if(t.s!==undefined){select('section',sections[i],sections[i].name);}
+  else if(t.s!==undefined){setMode('sel');select('section',sections[i],sections[i].name);}
   else if(t.g!==undefined)alignToSection(sections[i]);
   else if(t.f!==undefined)flipSection(sections[i]);
   else if(t.o!==undefined)toggleSecRotate(sections[i]);
@@ -1863,7 +1873,8 @@ function laserPlanesOf(L){
   const uy=new THREE.Vector3().setFromMatrixColumn(M,1).normalize();
   const uz=new THREE.Vector3().setFromMatrixColumn(M,2).normalize();
   const out=[];
-  const add=nrm=>{for(let i=0;i<L.n;i++){const off=(i-(L.n-1)/2)*L.sp;
+  // siempre hay una línea EN el origen; las demás crecen a partir de él
+  const add=nrm=>{for(let i=0;i<L.n;i++){const off=(i-Math.floor((L.n-1)/2))*L.sp;
     out.push({n:nrm,pt:o.clone().addScaledVector(nrm,off)});}};
   if(L.on.h)add(uz); if(L.on.v)add(uy); if(L.on.v2)add(ux);
   return out;
@@ -2028,9 +2039,9 @@ lzReset.onclick=()=>{if(selected&&selected.kind==='laser')resetLaser(selected.re
     const L=selected.ref; L.on[k]=!L.on[k]; syncLaserOps(L); updateLasers();};});
 lzN.oninput=e=>{if(!(selected&&selected.kind==='laser'))return;
   selected.ref.n=Math.max(1,Math.min(30,+e.target.value||1)); updateLasers();
-  toast(selected.ref.n+' plano(s) por dirección');};
-lzSp.addEventListener('change',e=>{if(!(selected&&selected.kind==='laser'))return;
-  selected.ref.sp=Math.max(2,+e.target.value||20); updateLasers();});
+  toast(selected.ref.n+' línea(s) desde el origen');};
+lzSp.addEventListener('input',e=>{if(!(selected&&selected.kind==='laser'))return;
+  selected.ref.sp=Math.max(1,+e.target.value||20); updateLasers();});   // en tiempo real
 function exPick(){const a2=[];lasers.forEach(L=>a2.push(L.mesh));
   sections.forEach(s=>{if(s.widget&&s.widget.visible)a2.push(s.widget);});return a2;}
 function showOpsFor(kind){
