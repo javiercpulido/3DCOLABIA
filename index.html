@@ -42,8 +42,11 @@
  .sw{width:28px;height:28px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;flex:none}
  .sw.on{border-color:var(--ink)}
  #colBtn i{width:18px;height:18px;border-radius:50%;display:block}
- #side{position:fixed;top:calc(74px + env(safe-area-inset-top));right:12px;width:198px;z-index:9;
-   font-size:12.5px;max-height:66%;overflow:auto;padding:12px;color:var(--ink)}
+ /* panel derecho adosado al lateral (estilo SketchUp/Blender) */
+ #side{position:fixed;top:calc(74px + env(safe-area-inset-top));right:0;width:214px;z-index:9;
+   font-size:12.5px;overflow:auto;padding:12px;color:var(--ink);
+   height:calc(100% - 84px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+   border-radius:16px 0 0 16px;border-right:0}
  #side label{display:block;margin:5px 0;cursor:pointer}
  #side b{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
  #hud{position:fixed;bottom:calc(10px + env(safe-area-inset-bottom));left:12px;
@@ -93,8 +96,10 @@
  #secmenu.vert,#vmodes.vert{max-width:200px}
  .menucaret{position:absolute;top:-6px;left:12px;width:11px;height:11px;background:var(--glass);
    border-left:1px solid rgba(0,0,0,.07);border-top:1px solid rgba(0,0,0,.07);transform:rotate(45deg)}
- .projopt{border:0;background:transparent;color:var(--ink);border-radius:8px;padding:7px 8px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;text-align:left}
+ .projopt{border:0;background:transparent;color:var(--ink);border-radius:10px;width:42px;height:38px;cursor:pointer;display:flex;align-items:center;justify-content:center}
  .projopt.on{background:var(--acc);color:#fff}
+ #secmenu .seccol{display:flex;flex-direction:column;gap:4px}
+ #secmenu .seccol .secTgl{flex:none;justify-content:flex-start;padding:7px 9px}
  /* asa de arrastre de menús flotantes */
  .grip{align-self:center;display:flex;align-items:center;justify-content:center;
    width:16px;min-width:16px;height:26px;color:var(--mut);cursor:grab;touch-action:none;
@@ -109,7 +114,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v5.7 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v5.8 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -177,9 +182,7 @@
 
 <div id="views" class="pill" style="position:fixed;top:calc(26px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10;display:flex;flex-direction:row;align-items:center;padding:5px;gap:2px;flex-wrap:wrap;max-width:96vw;justify-content:center">
  <div class="grip" data-grip title="Mover este menú"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
- <button id="vProj" title="Proyección: perspectiva / ortográfica"></button>
- <div class="vsep"></div>
- <button id="v34" title="Vista 3/4 (isométrica)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5Z"/><path d="M12 3 12 12M4 7.5 12 12 20 7.5"/></svg></button>
+ <button id="v34" title="Vista 3/4 · proyección"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5Z"/><path d="M12 3 12 12M4 7.5 12 12 20 7.5"/></svg></button>
  <button id="vAlz" title="Alzado frontal (se mira desde delante)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="6" width="10" height="10" rx="1.5"/><polyline points="9.5 21.5 12 19 14.5 21.5"/></svg></button>
  <button id="vAlzP" title="Alzado posterior (se mira desde detrás)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="8" width="10" height="10" rx="1.5"/><polyline points="9.5 2.5 12 5 14.5 2.5"/></svg></button>
  <button id="vPer" title="Perfil derecho"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="7" width="10" height="10" rx="1.5"/><polyline points="21.5 9.5 19 12 21.5 14.5"/></svg></button>
@@ -190,26 +193,26 @@
  <button id="vEye" title="Modo de visión"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
  <button id="secTool" title="Secciones"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="6"/><path d="M9 6 9 18"/><path d="M15 7 21 12 15 17Z" fill="currentColor" stroke="none"/></svg></button>
 </div>
-<div id="secmenu" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:column;padding:8px;gap:6px;width:236px;max-width:92vw;font-size:12.5px;color:var(--ink)">
+<div id="secmenu" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:column;padding:8px;gap:6px;width:170px;max-width:92vw;font-size:12.5px;color:var(--ink)">
  <div class="menucaret"></div>
- <div class="secrow">
-  <b style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);flex:1">Secciones</b>
+ <b style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Secciones</b>
+ <div class="secrow" style="flex-wrap:wrap">
   <button class="secmk" id="secAddFace" title="Crear tocando una cara del modelo">Cara</button>
   <button class="secmk" id="secAddX" title="Perpendicular a X">+X</button>
   <button class="secmk" id="secAddY" title="Perpendicular a Y">+Y</button>
   <button class="secmk" id="secAddZ" title="Horizontal (Z)">+Z</button>
  </div>
- <div class="secrow">
-  <button class="secTgl on" id="tglPlanes" title="Mostrar/ocultar los planos de sección"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>Planos</button>
-  <button class="secTgl on" id="tglCut" title="Mostrar/ocultar el corte"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/></svg>Corte</button>
-  <button class="secTgl on" id="tglPoche" title="Mostrar/ocultar el relleno de corte"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12 12 4M8 20 20 8M14 21 21 14"/></svg>Poché</button>
+ <div class="seccol">
+  <button class="secTgl on" id="tglPlanes" title="Mostrar/ocultar los planos de sección"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>Planos</button>
+  <button class="secTgl on" id="tglCut" title="Mostrar/ocultar el corte"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/></svg>Corte</button>
+  <button class="secTgl on" id="tglPoche" title="Mostrar/ocultar el relleno de corte"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12 12 4M8 20 20 8M14 21 21 14"/></svg>Poché</button>
  </div>
  <div id="secList"></div>
 </div>
-<div id="projmenu" class="pill" style="position:fixed;top:70px;left:12px;z-index:12;display:none;flex-direction:column;padding:6px;gap:2px;width:150px">
+<div id="projmenu" class="pill" style="position:fixed;top:70px;left:12px;z-index:12;display:none;flex-direction:row;padding:6px;gap:4px">
  <div class="menucaret"></div>
- <button class="projopt" data-p="persp"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6 16 6 20 19 4 19Z"/><path d="M8 6 8 11M16 6 16 11"/></svg> Perspectiva</button>
- <button class="projopt" data-p="ortho"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="12" height="12" rx="1"/><path d="M8 8 8 4 20 4 20 16 16 16"/></svg> Ortográfica</button>
+ <button class="projopt" data-p="ortho" title="Ortográfica (paralela)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5Z"/><path d="M12 3 12 12M4 7.5 12 12 20 7.5"/></svg></button>
+ <button class="projopt" data-p="persp" title="Perspectiva (fugada)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10 14 10 14 18 6 18Z"/><path d="M6 10 9 7 18 7 14 10M14 10 18 7 18 14 14 18"/></svg></button>
 </div>
 <div id="vmodes" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:row;padding:5px;gap:2px">
  <button data-m="somb" class="on">Sombra</button><button data-m="blanco">Blanco</button><button data-m="malla">Malla</button><button data-m="wire">Wire</button><button data-m="xray">X-Ray</button><button data-m="tecnico">Técnico</button><button data-m="oculto">Oculto</button>
@@ -504,28 +507,26 @@ const ICON_PERSP='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" st
 const ICON_ORTHO='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="12" height="12" rx="1"/><path d="M8 8 8 4 20 4 20 16 16 16"/></svg>';
 function setProj(o){
   ortho=!!o; cam=ortho?camO:camP;
-  const b=document.getElementById('vProj');
-  b.classList.toggle('on',ortho); b.innerHTML=ortho?ICON_ORTHO:ICON_PERSP;
-  b.title='Proyección: '+(ortho?'ortográfica → toca para perspectiva':'perspectiva → toca para ortográfica');
-  updCam(); toast(ortho?'Proyección ortográfica (paralela)':'Proyección en perspectiva');
+  document.querySelectorAll('#projmenu button').forEach(b=>b.classList.toggle('on',(b.dataset.p==='ortho')===ortho));
+  updCam();
 }
-document.getElementById('vProj').innerHTML=ICON_PERSP;
-document.getElementById('vProj').onclick=()=>{const d=document.getElementById('projmenu');
+function setView(th,ph){sph.th=th;sph.ph=ph;updCam();}
+// el cubo abre el desplegable de proyección (ortográfica / perspectiva, con tooltip)
+v34.onclick=()=>{const d=document.getElementById('projmenu');
   const show=(d.style.display==='none'||!d.style.display);
-  if(show)dropFromIcon(d,document.getElementById('vProj'),150);
-  document.querySelectorAll('#projmenu button').forEach(b=>b.classList.toggle('on',
-    (b.dataset.p==='ortho')===ortho));
+  if(show){dropFromIcon(d,document.getElementById('v34'),96);
+    document.querySelectorAll('#projmenu button').forEach(b=>b.classList.toggle('on',(b.dataset.p==='ortho')===ortho));}
   d.style.display=show?'flex':'none';};
 document.querySelectorAll('#projmenu button').forEach(b=>b.onclick=()=>{
-  setProj(b.dataset.p==='ortho'); document.getElementById('projmenu').style.display='none';});
-function setView(th,ph){sph.th=th;sph.ph=ph;updCam();}
+  setProj(b.dataset.p==='ortho'); setView(-1.05,1.15);          // proyección elegida + vista 3/4
+  document.getElementById('projmenu').style.display='none';
+  toast(ortho?'Isométrica ortográfica (paralela)':'Vista 3/4 en perspectiva');});
 vAlz.onclick=()=>setView(-Math.PI/2,Math.PI/2);        // alzado frontal
 vAlzP.onclick=()=>setView(Math.PI/2,Math.PI/2);        // alzado posterior
 vPer.onclick=()=>setView(0,Math.PI/2);                 // perfil derecho
 vPerI.onclick=()=>setView(Math.PI,Math.PI/2);          // perfil izquierdo
 vPla.onclick=()=>setView(-Math.PI/2,0.01);             // planta (superior)
 vPlaInv.onclick=()=>setView(-Math.PI/2,Math.PI-0.01);  // planta invertida (inferior)
-v34.onclick=()=>setView(-1.05,1.15);                   // 3/4 (isométrica)
 
 // ---- estado UI ----
 let mode='orbit', color='#d500f9', mag=true, lineW=0.8, penSeen=false, drawLock=false, selDrag=null;
@@ -1607,7 +1608,7 @@ function dropFromIcon(menu,icon,width){
 }
 document.getElementById('secTool').onclick=()=>{const d=document.getElementById('secmenu');
   const show=(d.style.display==='none'||!d.style.display);
-  if(show){dropFromIcon(d,document.getElementById('secTool'),236);
+  if(show){dropFromIcon(d,document.getElementById('secTool'),170);
     document.getElementById('secTool').classList.add('on');}
   else document.getElementById('secTool').classList.remove('on');
   d.style.display=show?'flex':'none';};
