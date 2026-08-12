@@ -82,12 +82,19 @@
  #strokeOps button.on,#xformOps button.on,#laserOps button.on,#secOps button.on{background:var(--acc);color:#fff}
  #strokeOps input,#xformOps input,#laserOps input,#secOps input{font-size:13px;padding:6px;border:1px solid #ddd;border-radius:8px}
  #laserOps input[type=range]{padding:0;border:0;width:64px}
- .secTgl{border:0;background:#eee;color:#1c1c1e;border-radius:8px;padding:5px 6px;font-size:12px;cursor:pointer;flex:1}
+ .secTgl{border:0;background:#eee;color:#1c1c1e;border-radius:8px;padding:6px 6px;font-size:12px;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:4px}
  .secTgl.on{background:var(--acc);color:#fff}
  .secmk{border:0;background:#eee;color:#1c1c1e;border-radius:6px;padding:4px 7px;font-size:12px;font-weight:700;cursor:pointer}
  .secmk.on{background:var(--acc);color:#fff}
+ .secbtn{border:0;background:#eee;color:#1c1c1e;border-radius:6px;width:28px;height:26px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+ .secbtn.on{background:#ff8f1f;color:#fff}
+ .secbtn.del{background:#ffebee;color:#c62828}
  #secmenu .secrow{display:flex;align-items:center;gap:4px;margin:2px 0}
  #secmenu.vert,#vmodes.vert{max-width:200px}
+ .menucaret{position:absolute;top:-6px;left:12px;width:11px;height:11px;background:var(--glass);
+   border-left:1px solid rgba(0,0,0,.07);border-top:1px solid rgba(0,0,0,.07);transform:rotate(45deg)}
+ .projopt{border:0;background:transparent;color:var(--ink);border-radius:8px;padding:7px 8px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;text-align:left}
+ .projopt.on{background:var(--acc);color:#fff}
  /* asa de arrastre de menús flotantes */
  .grip{align-self:center;display:flex;align-items:center;justify-content:center;
    width:16px;min-width:16px;height:26px;color:var(--mut);cursor:grab;touch-action:none;
@@ -102,7 +109,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v5.6 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v5.7 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -181,9 +188,10 @@
  <button id="vPlaInv" title="Planta invertida (vista inferior)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4.5" width="12" height="11" rx="1.6"/><polyline points="8.5 19.5 12 17 15.5 19.5"/></svg></button>
  <div class="vsep"></div>
  <button id="vEye" title="Modo de visión"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
- <button id="secTool" title="Secciones"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="7.5" r="4"/><path d="M8 11.5 8 19"/><path d="M5 16 8 20 11 16"/><path d="M12.5 7.5 21 7.5" stroke-dasharray="2 2.4"/></svg></button>
+ <button id="secTool" title="Secciones"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="6"/><path d="M9 6 9 18"/><path d="M15 7 21 12 15 17Z" fill="currentColor" stroke="none"/></svg></button>
 </div>
 <div id="secmenu" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:column;padding:8px;gap:6px;width:236px;max-width:92vw;font-size:12.5px;color:var(--ink)">
+ <div class="menucaret"></div>
  <div class="secrow">
   <b style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);flex:1">Secciones</b>
   <button class="secmk" id="secAddFace" title="Crear tocando una cara del modelo">Cara</button>
@@ -192,11 +200,16 @@
   <button class="secmk" id="secAddZ" title="Horizontal (Z)">+Z</button>
  </div>
  <div class="secrow">
-  <button class="secTgl on" id="tglPlanes" title="Mostrar/ocultar los planos de sección">👁 Planos</button>
-  <button class="secTgl on" id="tglCut" title="Mostrar/ocultar el corte">✂ Corte</button>
-  <button class="secTgl on" id="tglPoche" title="Mostrar/ocultar el relleno de corte">▨ Poché</button>
+  <button class="secTgl on" id="tglPlanes" title="Mostrar/ocultar los planos de sección"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>Planos</button>
+  <button class="secTgl on" id="tglCut" title="Mostrar/ocultar el corte"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/></svg>Corte</button>
+  <button class="secTgl on" id="tglPoche" title="Mostrar/ocultar el relleno de corte"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12 12 4M8 20 20 8M14 21 21 14"/></svg>Poché</button>
  </div>
  <div id="secList"></div>
+</div>
+<div id="projmenu" class="pill" style="position:fixed;top:70px;left:12px;z-index:12;display:none;flex-direction:column;padding:6px;gap:2px;width:150px">
+ <div class="menucaret"></div>
+ <button class="projopt" data-p="persp"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6 16 6 20 19 4 19Z"/><path d="M8 6 8 11M16 6 16 11"/></svg> Perspectiva</button>
+ <button class="projopt" data-p="ortho"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="12" height="12" rx="1"/><path d="M8 8 8 4 20 4 20 16 16 16"/></svg> Ortográfica</button>
 </div>
 <div id="vmodes" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:row;padding:5px;gap:2px">
  <button data-m="somb" class="on">Sombra</button><button data-m="blanco">Blanco</button><button data-m="malla">Malla</button><button data-m="wire">Wire</button><button data-m="xray">X-Ray</button><button data-m="tecnico">Técnico</button><button data-m="oculto">Oculto</button>
@@ -497,7 +510,14 @@ function setProj(o){
   updCam(); toast(ortho?'Proyección ortográfica (paralela)':'Proyección en perspectiva');
 }
 document.getElementById('vProj').innerHTML=ICON_PERSP;
-document.getElementById('vProj').onclick=()=>setProj(!ortho);
+document.getElementById('vProj').onclick=()=>{const d=document.getElementById('projmenu');
+  const show=(d.style.display==='none'||!d.style.display);
+  if(show)dropFromIcon(d,document.getElementById('vProj'),150);
+  document.querySelectorAll('#projmenu button').forEach(b=>b.classList.toggle('on',
+    (b.dataset.p==='ortho')===ortho));
+  d.style.display=show?'flex':'none';};
+document.querySelectorAll('#projmenu button').forEach(b=>b.onclick=()=>{
+  setProj(b.dataset.p==='ortho'); document.getElementById('projmenu').style.display='none';});
 function setView(th,ph){sph.th=th;sph.ph=ph;updCam();}
 vAlz.onclick=()=>setView(-Math.PI/2,Math.PI/2);        // alzado frontal
 vAlzP.onclick=()=>setView(Math.PI/2,Math.PI/2);        // alzado posterior
@@ -1438,47 +1458,71 @@ function moveGizDrag(){
 
 // ================= SECCIONES: widget, lista y poché =================
 function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function makeSecLabel(s){
-  const cv=document.createElement('canvas');cv.width=256;cv.height=72;const g2=cv.getContext('2d');
-  g2.fillStyle='rgba(255,255,255,.9)';
-  g2.beginPath();
-  if(g2.roundRect)g2.roundRect(58,10,140,52,14);else g2.rect(58,10,140,52);
-  g2.fill();
-  g2.font='bold 34px sans-serif';g2.fillStyle='#1587c9';g2.textAlign='center';g2.textBaseline='middle';
-  g2.fillText(s.name,128,37);
+const _sv='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">';
+const IC_EYE=_sv+'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+const IC_SCISS=_sv+'<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/></svg>';
+const IC_HATCH=_sv+'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12 12 4M8 20 20 8M14 21 21 14"/></svg>';
+const IC_ALIGN=_sv+'<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
+const IC_FLIP=_sv+'<path d="M8 3 4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4"/></svg>';
+const IC_TRASH=_sv+'<path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
+// marcador de sección de arquitecto (círculo + triángulo a la derecha + letra),
+// pequeño, en la esquina inferior izquierda del plano
+function secLetterOf(s){return (s.name||'A').replace(/[-\s].*$/,'')||'A';}
+function makeSecMarker(s){
+  const act=(s===secActive), ac=act?'#ff8f1f':'#5b6570';
+  const cv=document.createElement('canvas');cv.width=cv.height=128;const g2=cv.getContext('2d');
+  g2.clearRect(0,0,128,128);
+  g2.beginPath();g2.arc(58,72,32,0,7);g2.fillStyle='rgba(255,255,255,.94)';g2.fill();
+  g2.lineWidth=4;g2.strokeStyle=ac;g2.stroke();
+  g2.beginPath();g2.moveTo(84,44);g2.lineTo(116,72);g2.lineTo(84,100);g2.closePath();g2.fillStyle=ac;g2.fill();
+  g2.strokeStyle=ac;g2.lineWidth=3;g2.beginPath();g2.moveTo(58,42);g2.lineTo(58,102);g2.stroke();
+  g2.fillStyle='#1c1c1e';g2.font='bold 40px -apple-system,sans-serif';g2.textAlign='center';g2.textBaseline='middle';
+  g2.fillText(secLetterOf(s),40,72);
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false,transparent:true}));
-  sp.scale.set(R*0.42,R*0.12,1); sp.renderOrder=12; return sp;
+  sp.scale.set(R*0.2,R*0.2,1); sp.renderOrder=13; return sp;
 }
 function secBrackets(h,col){
-  const Lb=h*0.34, pts=[];
+  const Lb=h*0.3, pts=[];
   const corners=[[-h,-h],[h,-h],[h,h],[-h,h]], dirs=[[1,1],[-1,1],[-1,-1],[1,-1]];
   corners.forEach((c,i)=>{const d=dirs[i];
     pts.push(c[0],c[1],0, c[0]+d[0]*Lb,c[1],0, c[0],c[1],0, c[0],c[1]+d[1]*Lb,0);});
   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
-  return new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:col}));
+  return new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.9}));
+}
+// flecha fina que indica hacia dónde MIRA la sección (dirección de vista, +normal)
+function secArrow(){
+  const a=new THREE.Group();
+  const sh=new THREE.Mesh(new THREE.CylinderGeometry(R*0.006,R*0.006,R*0.11,6),
+    new THREE.MeshBasicMaterial({depthTest:false,transparent:true}));
+  sh.rotation.x=Math.PI/2; sh.position.z=R*0.055;
+  const hd=new THREE.Mesh(new THREE.ConeGeometry(R*0.022,R*0.055,10),
+    new THREE.MeshBasicMaterial({depthTest:false,transparent:true}));
+  hd.rotation.x=Math.PI/2; hd.position.z=R*0.135;
+  a.add(sh,hd); a.userData.arrowMats=[sh.material,hd.material];
+  a.traverse(o=>o.userData.flipCone=true);   // tocar la flecha invierte el sentido
+  return a;
 }
 function buildSecWidget(s){
-  const g=new THREE.Group(), h=R*0.85;
-  const quad=new THREE.Mesh(new THREE.PlaneGeometry(h*2,h*2),
-    new THREE.MeshBasicMaterial({color:0x8a9099,transparent:true,opacity:.04,side:THREE.DoubleSide,depthWrite:false}));
+  const g=new THREE.Group(), h=R*0.5; s._h=h;
+  const quad=new THREE.Mesh(new THREE.PlaneGeometry(h*2,h*2),   // invisible: solo para picar el plano
+    new THREE.MeshBasicMaterial({transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));
   const bord=new THREE.LineSegments(new THREE.EdgesGeometry(quad.geometry),
-    new THREE.LineBasicMaterial({color:0x8a9099,transparent:true,opacity:.28}));
-  const brk=secBrackets(h,0x8a9099); brk.renderOrder=11;
-  const cone=new THREE.Mesh(new THREE.ConeGeometry(R*0.05,R*0.13,12),
-    new THREE.MeshBasicMaterial({color:0x8a9099,depthTest:false,transparent:true,opacity:.95}));
-  cone.rotation.x=Math.PI/2; cone.position.z=R*0.09; cone.renderOrder=12; cone.userData.flipCone=true;
-  const lab=makeSecLabel(s); lab.position.set(0,0,R*0.22);
-  g.add(quad,bord,brk,cone,lab);
-  g.traverse(o=>{o.userData.secRef=s;});
-  s.widget=g; s.quad=quad; s.bord=bord; s.brk=brk; s.cone=cone; s.lab=lab;
+    new THREE.LineBasicMaterial({color:0x5b6570,transparent:true,opacity:.32}));
+  const brk=secBrackets(h,0x5b6570); brk.renderOrder=11;
+  const a1=secArrow(), a2=secArrow();
+  a1.position.set(-h*0.42,-h*0.7,0); a2.position.set(h*0.42,-h*0.7,0);
+  const marker=makeSecMarker(s); marker.position.set(-h*0.82,-h*0.82,0);
+  g.add(quad,bord,brk,a1,a2,marker);
+  g.traverse(o=>{if(o.userData.secRef===undefined)o.userData.secRef=s;});
+  s.widget=g; s.quad=quad; s.bord=bord; s.brk=brk; s.arrows=[a1,a2]; s.marker=marker;
   scene.add(g); styleSecWidget(s); syncSecWidget(s);
 }
 function styleSecWidget(s){
   if(!s.widget)return;
-  const act=(s===secActive), col=act?0xff8f1f:0x8a9099;
+  const act=(s===secActive), col=act?0xff8f1f:0x5b6570;
   s.bord.material.color.setHex(col); s.brk.material.color.setHex(col);
-  s.cone.material.color.setHex(col); s.quad.material.color.setHex(col);
-  s.quad.material.opacity=act?0.08:0.04;
+  s.arrows.forEach(a=>a.userData.arrowMats.forEach(m=>m.color.setHex(col)));
+  refreshMarker(s);
   s.widget.visible=secShowPlanes;
 }
 function syncSecWidget(s){
@@ -1486,22 +1530,23 @@ function syncSecWidget(s){
   s.widget.position.copy(s.pt);
   s.widget.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),s.normal);
 }
-function refreshSecLabel(s){
-  if(!s.widget)return; s.widget.remove(s.lab);
-  s.lab=makeSecLabel(s); s.lab.position.set(0,0,R*0.22);
-  s.lab.userData.secRef=s; s.widget.add(s.lab);
+function refreshMarker(s){
+  if(!s.widget)return; const h=s._h||R*0.5;
+  if(s.marker)s.widget.remove(s.marker);
+  s.marker=makeSecMarker(s); s.marker.position.set(-h*0.82,-h*0.82,0);
+  s.marker.userData.secRef=s; s.widget.add(s.marker);
 }
+function refreshSecLabel(s){refreshMarker(s);}
 function restyleAllSec(){sections.forEach(styleSecWidget);}
 function renderSecList(){
   const d=document.getElementById('secList'); d.innerHTML='';
   sections.forEach((s,i)=>{
     const row=document.createElement('div'); row.className='secrow';
-    row.innerHTML='<button data-a="'+i+'" title="activar como corte (o doble-toque en el plano)" style="border:0;border-radius:6px;padding:3px 7px;cursor:pointer;background:'+
-        (s===secActive?'#ff8f1f':'#eee')+';color:'+(s===secActive?'#fff':'#1c1c1e')+'">✂</button>'+
+    row.innerHTML='<button data-a="'+i+'" class="secbtn'+(s===secActive?' on':'')+'" title="activar corte (o doble-toque el plano)">'+IC_SCISS+'</button>'+
       '<span data-s="'+i+'" style="flex:1;cursor:pointer;font-weight:600;color:'+(s===secActive?'#c96a00':'inherit')+'">'+escH(s.name)+'</span>'+
-      '<button data-g="'+i+'" title="alinear vista (elevación)" style="border:0;background:#eee;border-radius:6px;padding:3px 7px;cursor:pointer">⊞</button>'+
-      '<button data-f="'+i+'" title="invertir sentido" style="border:0;background:#eee;border-radius:6px;padding:3px 7px;cursor:pointer">⇄</button>'+
-      '<button data-x="'+i+'" title="eliminar" style="border:0;background:#ffebee;color:#c62828;border-radius:6px;padding:3px 7px;cursor:pointer">✕</button>';
+      '<button data-g="'+i+'" class="secbtn" title="alinear vista (elevación)">'+IC_ALIGN+'</button>'+
+      '<button data-f="'+i+'" class="secbtn" title="invertir sentido">'+IC_FLIP+'</button>'+
+      '<button data-x="'+i+'" class="secbtn del" title="eliminar">'+IC_TRASH+'</button>';
     d.appendChild(row);});
   if(!sections.length)d.innerHTML='<span style="color:var(--mut);font-size:11px">Sin secciones. Crea con Cara · +X · +Y · +Z</span>';
 }
@@ -1553,10 +1598,18 @@ document.getElementById('secList').addEventListener('click',e=>{
 });
 renderSecList();
 // menú de secciones flotante, sigue a la barra de vistas
+function dropFromIcon(menu,icon,width){
+  const r=icon.getBoundingClientRect();
+  const left=Math.max(6,Math.min(W-width-6, r.left+r.width/2-width/2));
+  menu.style.left=left+'px'; menu.style.top=(r.bottom+9)+'px'; menu.style.transform='none';
+  const car=menu.querySelector('.menucaret');
+  if(car)car.style.left=(r.left+r.width/2-left-6)+'px';
+}
 document.getElementById('secTool').onclick=()=>{const d=document.getElementById('secmenu');
   const show=(d.style.display==='none'||!d.style.display);
-  if(show){const r=document.getElementById('views').getBoundingClientRect();
-    d.style.left=Math.max(6,Math.min(W-244,r.left))+'px'; d.style.top=(r.bottom+6)+'px'; d.style.transform='none';}
+  if(show){dropFromIcon(d,document.getElementById('secTool'),236);
+    document.getElementById('secTool').classList.add('on');}
+  else document.getElementById('secTool').classList.remove('on');
   d.style.display=show?'flex':'none';};
 tglPlanes.onclick=()=>{secShowPlanes=!secShowPlanes; tglPlanes.classList.toggle('on',secShowPlanes); restyleAllSec();};
 tglCut.onclick=()=>{secShowCut=!secShowCut; tglCut.classList.toggle('on',secShowCut); applySec();};
@@ -1572,7 +1625,9 @@ document.getElementById('secRen').onclick=()=>{if(!(selected&&selected.kind==='s
 // distinto de 0 hay material cortado y se pinta el plano-tapa.
 let pocheCap=null;
 (function buildPoche(){
-  const mk=(side,op)=>new THREE.MeshBasicMaterial({side,colorWrite:false,depthWrite:false,
+  // depthTest OFF: el conteo de contorno (winding) cuenta TODAS las caras del semiespacio
+  // conservado, no solo las visibles → sin moiré y con relleno correcto en solapes/intersecciones.
+  const mk=(side,op)=>new THREE.MeshBasicMaterial({side,colorWrite:false,depthWrite:false,depthTest:false,
     clippingPlanes:[secPlane],stencilWrite:true,stencilFunc:THREE.AlwaysStencilFunc,
     stencilFail:op,stencilZFail:op,stencilZPass:op});
   const mB=mk(THREE.BackSide,THREE.IncrementWrapStencilOp);
@@ -1699,7 +1754,7 @@ lzN.oninput=e=>{if(!(selected&&selected.kind==='laser'))return;
 lzSp.addEventListener('change',e=>{if(!(selected&&selected.kind==='laser'))return;
   selected.ref.sp=Math.max(1,+e.target.value||20); updateLasers();});
 function exPick(){const a2=[];lasers.forEach(L=>a2.push(L.mesh));
-  sections.forEach(s=>{if(s.cone)a2.push(s.cone);if(s.lab)a2.push(s.lab);});return a2;}
+  sections.forEach(s=>{if(s.widget&&s.widget.visible)a2.push(s.widget);});return a2;}
 function showOpsFor(kind){
   const $=id=>document.getElementById(id);
   $('strokeOps').style.display=(kind==='trazo')?'flex':'none';
