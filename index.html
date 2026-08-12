@@ -61,10 +61,18 @@
    text-align:center;color:var(--mut);font-size:14px;padding:30px}
  #err{display:none;position:fixed;inset:0;z-index:50;background:#fff;color:var(--ink);padding:30px;font-size:15px}
  #fileImg,#fileJson{display:none}
- #views button{width:42px;height:34px;border:0;background:transparent;border-radius:10px;font-size:12px;
-   font-weight:600;color:var(--ink);cursor:pointer}
+ #views button{width:36px;height:34px;border:0;background:transparent;border-radius:10px;font-size:12px;
+   font-weight:600;color:var(--ink);cursor:pointer;display:flex;align-items:center;justify-content:center}
  #views button:active{background:rgba(0,0,0,.06)}
  #views button.on,#vmodes button.on{background:var(--acc);color:#fff}
+ #views .vsep{width:1px;height:22px;background:rgba(0,0,0,.08);margin:0 3px;flex:none}
+ /* orientación vertical al acoplar a un borde lateral */
+ #views.vert{flex-direction:column!important}
+ #views.vert .vsep{width:22px;height:1px;margin:3px 0}
+ /* orientación horizontal del dock al acoplar arriba/abajo */
+ #dock.horiz{flex-direction:row}
+ #dock.horiz .row{flex-direction:row}
+ #dock.horiz #dock2{max-height:none;max-width:70vw}
  #vmodes button{width:auto;padding:0 12px;height:34px;border:0;background:transparent;border-radius:10px;
    font-size:12px;font-weight:600;color:var(--ink);cursor:pointer}
  .axbtn{width:30px!important}
@@ -73,13 +81,21 @@
  #strokeOps button{border:0;background:#eee;color:#1c1c1e;border-radius:9px;min-width:30px;height:32px;cursor:pointer;font-size:13px;padding:0 6px}
  #strokeOps button.on{background:var(--acc);color:#fff}
  #strokeOps input{font-size:13px;padding:6px;border:1px solid #ddd;border-radius:8px}
+ /* asa de arrastre de menús flotantes */
+ .grip{align-self:center;display:flex;align-items:center;justify-content:center;
+   width:16px;min-width:16px;height:26px;color:var(--mut);cursor:grab;touch-action:none;
+   opacity:.55;border-radius:6px;flex:none}
+ .grip:active{cursor:grabbing;background:rgba(0,0,0,.06)}
+ #dock .grip{height:16px;width:26px;min-width:26px}
+ .snaphint{position:fixed;z-index:8;pointer-events:none;border:2px dashed var(--acc);
+   border-radius:14px;opacity:.5;display:none}
 </style>
 </head>
 <body>
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v5.3 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v5.4 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -108,6 +124,7 @@
 </div>
 
 <div id="dock">
+ <div class="grip pill" data-grip title="Mover herramientas" style="padding:2px"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
  <div id="dock2" class="row pill hide">
   <button id="mText" title="Nota"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></button>
   <button id="mImg" title="Imagen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg></button>
@@ -133,14 +150,21 @@
 </div>
 
 <div id="views" class="pill" style="position:fixed;top:calc(26px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10;display:flex;flex-direction:row;align-items:center;padding:5px;gap:2px">
- <button id="v34">3/4</button><button id="vAlz">Alz</button><button id="vPla">Pla</button><button id="vPer">Per</button>
- <div style="width:1px;height:22px;background:rgba(0,0,0,.08);margin:0 3px"></div>
- <button id="vEye" title="Modo de visión" style="width:42px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+ <div class="grip" data-grip title="Mover este menú"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
+ <button id="vProj" title="Proyección: perspectiva / ortográfica"></button>
+ <div class="vsep"></div>
+ <button id="v34" title="Vista 3/4 (isométrica)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5Z"/><path d="M12 3 12 12M4 7.5 12 12 20 7.5"/></svg></button>
+ <button id="vAlz" title="Alzado (vista frontal)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="13" rx="1.6"/><line x1="3" y1="21" x2="21" y2="21"/></svg></button>
+ <button id="vPer" title="Perfil (vista lateral)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="1.6"/><line x1="9.5" y1="5" x2="9.5" y2="19"/></svg></button>
+ <button id="vPla" title="Planta (vista superior)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8.5" width="12" height="11" rx="1.6"/><polyline points="8.5 4.5 12 7 15.5 4.5"/></svg></button>
+ <button id="vPlaInv" title="Planta invertida (vista inferior)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4.5" width="12" height="11" rx="1.6"/><polyline points="8.5 19.5 12 17 15.5 19.5"/></svg></button>
+ <div class="vsep"></div>
+ <button id="vEye" title="Modo de visión"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
 </div>
 <div id="vmodes" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:row;padding:5px;gap:2px">
  <button data-m="somb" class="on">Sombra</button><button data-m="blanco">Blanco</button><button data-m="malla">Malla</button><button data-m="wire">Wire</button><button data-m="xray">X-Ray</button><button data-m="tecnico">Técnico</button><button data-m="oculto">Oculto</button>
 </div>
-<div id="side" class="pill"><b>Piezas</b><div id="pieces"></div>
+<div id="side" class="pill"><div class="grip" data-grip title="Mover panel" style="width:100%;height:14px;margin:-4px 0 4px"><svg width="20" height="10" viewBox="0 0 40 12" fill="currentColor"><circle cx="14" cy="6" r="1.5"/><circle cx="20" cy="6" r="1.5"/><circle cx="26" cy="6" r="1.5"/></svg></div><b>Piezas</b><div id="pieces"></div>
  <div style="margin-top:8px"><b>Opacidad</b><br><input type="range" id="op" min="15" max="100" value="100"></div>
  <div style="margin-top:6px"><b>Grosor trazo</b><br><input type="range" id="lw" min="0.3" max="3" step="0.1" value="0.8"> mm</div>
  <div style="margin-top:6px"><b>Tam. imagen</b><br><input type="range" id="imsc" min="10" max="200" value="60"> mm</div>
@@ -173,6 +197,8 @@ Las líneas se alinean solas a los ejes (±12°); con una línea seleccionada, t
 Selección: X/Y/Z bloquea un eje (mover, dibujar y girar solo sobre él) · Δmm desplaza exacto · ∠° gira exacto · ⎘ duplica · 🔗 agrupa/desagrupa · 🧲 pega el trazo a la superficie y lo deja fijo. ⿻ (junto a la flecha) suma/resta trazos a la selección. ⊙ cian = contacto con una pieza.<br>
 GIZMO: al seleccionar una forma o una PIEZA aparecen flechas X/Y/Z (arrastrar = desplazar en ese eje) y anillos finos (arrastrar = girar sobre ese eje). Los aros pequeños ◦ siguen siendo los puntos de control de la forma. Al mover una pieza, las intersecciones se recalculan al soltar.<br>
 👁 Oculto = líneas vistas + ocultas en discontinuo gris. Las curvas grises = intersección entre volúmenes.<br>
+Vistas (iconos): proyección perspectiva/ortográfica (izquierda) · 3/4 · alzado · perfil · planta · planta invertida.<br>
+Menús flotantes: arrástralos por el asa ⣿; se pegan a los bordes (vertical a los lados, horizontal arriba/abajo) y entre sí; se recuerda la posición.<br>
   Copiar = JSON al portapapeles para pegarlo en el chat.</div>
 </div>
 <div id="toast"></div>
@@ -194,7 +220,8 @@ catch(e){let d=document.getElementById('err');d.style.display='block';
   throw e;}
 renderer.setSize(W,H); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.localClippingEnabled=true; document.body.appendChild(renderer.domElement);
 function fitSize(){let w=vw(),h=vh();
-  if(Math.abs(w-W)>2||Math.abs(h-H)>2){W=w;H=h;cam.aspect=W/Math.max(H,1);cam.updateProjectionMatrix();renderer.setSize(W,H);}}
+  if(Math.abs(w-W)>2||Math.abs(h-H)>2){W=w;H=h;applyProj();renderer.setSize(W,H);
+    if(window._reclampFloat)window._reclampFloat();}}
 if(window.ResizeObserver)new ResizeObserver(fitSize).observe(document.body);
 let _fits=0,_fitIv=setInterval(()=>{fitSize();if(++_fits>25)clearInterval(_fitIv);},200);
 if(vw()<700)document.getElementById('side').style.display='none';
@@ -368,7 +395,11 @@ function applyMode(){
   document.querySelectorAll('#vmodes button').forEach(b=>b.classList.toggle('on',b.dataset.m===viewMode));
 }
 vEye.onclick=()=>{const d=document.getElementById('vmodes');
-  d.style.display=(d.style.display==='none'||!d.style.display)?'flex':'none';};
+  const show=(d.style.display==='none'||!d.style.display);
+  if(show){const r=document.getElementById('views').getBoundingClientRect();
+    d.style.left=Math.max(6,Math.min(W-270,r.left))+'px'; d.style.top=(r.bottom+6)+'px';
+    d.style.transform='none';}
+  d.style.display=show?'flex':'none';};
 document.getElementById('vmodes').addEventListener('click',e=>{
   if(e.target.dataset.m){viewMode=e.target.dataset.m;applyMode();
     document.getElementById('vmodes').style.display='none';}});
@@ -403,19 +434,43 @@ secPos.oninput=applySec;
 secRange();
 let axes=new THREE.AxesHelper(40); axes.position.copy(bbox.min.clone().add(new THREE.Vector3(-8,-8,0))); scene.add(axes);
 
-// ---- camara orbital (Z arriba) ----
+// ---- camara orbital (Z arriba) — perspectiva u ortografica ----
 let target=C.clone(), sph={r:R*(vh()>vw()?3.2:2.2),th:-1.05,ph:1.15};
-let camFrame=0;
+let camFrame=0, ortho=false;
+const camP=cam;                                  // perspectiva (la existente)
+const camO=new THREE.OrthographicCamera(-1,1,1,-1,0.1,100000);
+const ORTHO_DIST=Math.max(R*8,500);              // en ortho la distancia es fija: el zoom lo da el frustum
+function applyProj(){
+  const asp=W/Math.max(H,1);
+  if(ortho){const hH=sph.r*Math.tan(45*Math.PI/360), hW=hH*asp;
+    camO.left=-hW;camO.right=hW;camO.top=hH;camO.bottom=-hH;camO.updateProjectionMatrix();}
+  else{camP.aspect=asp;camP.updateProjectionMatrix();}
+}
 function updCam(){
-  cam.position.set(target.x+sph.r*Math.sin(sph.ph)*Math.cos(sph.th),
-                   target.y+sph.r*Math.sin(sph.ph)*Math.sin(sph.th),
-                   target.z+sph.r*Math.cos(sph.ph));
-  cam.up.set(0,0,1); cam.lookAt(target); camFrame++;
+  const dist=ortho?ORTHO_DIST:sph.r;
+  cam.position.set(target.x+dist*Math.sin(sph.ph)*Math.cos(sph.th),
+                   target.y+dist*Math.sin(sph.ph)*Math.sin(sph.th),
+                   target.z+dist*Math.cos(sph.ph));
+  cam.up.set(0,0,1); cam.lookAt(target); applyProj(); camFrame++;
 }
 updCam();
+const ICON_PERSP='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6 16 6 20 19 4 19Z"/><path d="M8 6 8 11M16 6 16 11"/></svg>';
+const ICON_ORTHO='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="12" height="12" rx="1"/><path d="M8 8 8 4 20 4 20 16 16 16"/></svg>';
+function setProj(o){
+  ortho=!!o; cam=ortho?camO:camP;
+  const b=document.getElementById('vProj');
+  b.classList.toggle('on',ortho); b.innerHTML=ortho?ICON_ORTHO:ICON_PERSP;
+  b.title='Proyección: '+(ortho?'ortográfica → toca para perspectiva':'perspectiva → toca para ortográfica');
+  updCam(); toast(ortho?'Proyección ortográfica (paralela)':'Proyección en perspectiva');
+}
+document.getElementById('vProj').innerHTML=ICON_PERSP;
+document.getElementById('vProj').onclick=()=>setProj(!ortho);
 function setView(th,ph){sph.th=th;sph.ph=ph;updCam();}
-vAlz.onclick=()=>setView(-Math.PI/2,Math.PI/2); vPla.onclick=()=>setView(-Math.PI/2,0.01);
-vPer.onclick=()=>setView(0,Math.PI/2); v34.onclick=()=>setView(-1.05,1.15);
+vAlz.onclick=()=>setView(-Math.PI/2,Math.PI/2);        // alzado (frontal)
+vPer.onclick=()=>setView(0,Math.PI/2);                 // perfil (lateral)
+vPla.onclick=()=>setView(-Math.PI/2,0.01);             // planta (superior)
+vPlaInv.onclick=()=>setView(-Math.PI/2,Math.PI-0.01);  // planta invertida (inferior)
+v34.onclick=()=>setView(-1.05,1.15);                   // 3/4 (isométrica)
 
 // ---- estado UI ----
 let mode='orbit', color='#d500f9', mag=true, lineW=0.8, penSeen=false, drawLock=false, selDrag=null;
@@ -1386,6 +1441,75 @@ function updateSilh(){
     sd.lineHid.visible=(viewMode==='oculto');
   }
 }
+// ================= MENÚS FLOTANTES / ACOPLABLES =================
+// Patrón inspirado en toolbars de SketchUp y paneles acoplables de Photoshop/Illustrator:
+// se arrastran por un asa, recuerdan su sitio, se reorientan al pegarse a un borde lateral
+// (vertical) o superior/inferior (horizontal) y se acoplan a los bordes o a otro menú.
+(function(){
+  const GAP=8, EDGE=64, SNAP=20;
+  const store=(()=>{try{return window.localStorage}catch(e){return null}})();
+  let saved=(()=>{try{return JSON.parse((store&&store.getItem('tectosUI'))||'{}')||{}}catch(e){return{}}})();
+  const items=[];
+  function reg(id,opts){const el=document.getElementById(id);if(el)items.push({el,opts:opts||{}});}
+  reg('views',{orient:'h'});
+  reg('dock',{orient:'v'});
+  reg('side',{orient:'v',fixedOrient:true});
+  const R=el=>el.getBoundingClientRect();
+  function setPos(el,l,t){el.style.left=l+'px';el.style.top=t+'px';
+    el.style.right='auto';el.style.bottom='auto';el.style.transform='none';}
+  function orient(it){
+    if(it.opts.fixedOrient)return; const r=R(it.el);
+    if(it.opts.orient==='h'){const cx=r.left+r.width/2;
+      it.el.classList.toggle('vert',cx<EDGE||cx>W-EDGE);}
+    else{const cy=r.top+r.height/2;
+      it.el.classList.toggle('horiz',cy<EDGE||cy>H-EDGE);}
+  }
+  function clamp(el){const r=R(el);
+    const l=Math.max(4,Math.min(W-r.width-4,r.left)), t=Math.max(4,Math.min(H-r.height-4,r.top));
+    if(l!==r.left||t!==r.top)setPos(el,l,t);}
+  function snapTo(it){
+    const el=it.el; const r=R(el); let l=r.left,t=r.top,ch=false;
+    if(l<SNAP){l=6;ch=true;} else if(W-(l+r.width)<SNAP){l=W-r.width-6;ch=true;}
+    if(H-(t+r.height)<SNAP){t=H-r.height-6;ch=true;}
+    items.forEach(o=>{if(o===it||!o.el.offsetParent)return; const Q=R(o.el);
+      const vOv=!(t>Q.bottom||t+r.height<Q.top), hOv=!(l>Q.right||l+r.width<Q.left);
+      if(vOv){ if(Math.abs(l-Q.right)<SNAP){l=Q.right+GAP;ch=true;}
+        else if(Math.abs((l+r.width)-Q.left)<SNAP){l=Q.left-r.width-GAP;ch=true;}
+        if(Math.abs(t-Q.top)<SNAP){t=Q.top;ch=true;} }
+      if(hOv){ if(Math.abs(t-Q.bottom)<SNAP){t=Q.bottom+GAP;ch=true;}
+        else if(Math.abs((t+r.height)-Q.top)<SNAP){t=Q.top-r.height-GAP;ch=true;}
+        if(Math.abs(l-Q.left)<SNAP){l=Q.left;ch=true;} }});
+    if(ch)setPos(el,l,t);
+  }
+  function persist(){items.forEach(it=>{const el=it.el; if(!el.style.left)return;
+    saved[el.id]={left:parseFloat(el.style.left),top:parseFloat(el.style.top),
+      vert:el.classList.contains('vert'),horiz:el.classList.contains('horiz')};});
+    try{store&&store.setItem('tectosUI',JSON.stringify(saved));}catch(e){}}
+  function startDrag(it,grip,e){
+    e.preventDefault();e.stopPropagation();
+    try{grip.setPointerCapture(e.pointerId);}catch(_){}
+    const el=it.el; el.style.zIndex=40;
+    const r=R(el); setPos(el,r.left,r.top);
+    const ox=e.clientX-r.left, oy=e.clientY-r.top;
+    const move=ev=>{setPos(el,ev.clientX-ox,ev.clientY-oy);orient(it);};
+    const up=()=>{try{grip.releasePointerCapture(e.pointerId);}catch(_){}
+      grip.removeEventListener('pointermove',move);grip.removeEventListener('pointerup',up);
+      grip.removeEventListener('pointercancel',up);
+      clamp(el);snapTo(it);orient(it);clamp(el);persist();};
+    grip.addEventListener('pointermove',move);
+    grip.addEventListener('pointerup',up);
+    grip.addEventListener('pointercancel',up);
+  }
+  items.forEach(it=>{const grip=it.el.querySelector('[data-grip]'); if(!grip)return;
+    grip.addEventListener('pointerdown',e=>{try{startDrag(it,grip,e);}catch(err){}});});
+  // restaurar posiciones guardadas
+  items.forEach(it=>{const s=saved[it.el.id]; if(!s)return; try{
+    if(it.opts.orient==='h')it.el.classList.toggle('vert',!!s.vert);
+    else if(!it.opts.fixedOrient)it.el.classList.toggle('horiz',!!s.horiz);
+    setPos(it.el,s.left,s.top);clamp(it.el);}catch(err){}});
+  window._reclampFloat=()=>items.forEach(it=>{if(it.el.style.left)try{clamp(it.el);}catch(e){}});
+})();
+
 (function loop(){requestAnimationFrame(loop);checkHold();
   for(const n in pieces){const ud=pieces[n].userData;
     if(ud&&ud.edges)ud.edges.visible=pieces[n].visible&&edgesWanted();
