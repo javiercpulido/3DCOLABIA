@@ -132,7 +132,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.1 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.2 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -483,7 +483,7 @@ function setDark(on){
   // el laser gana contraste: verde mas brillante y halo mas presente en oscuro
   lasers.forEach(L=>{L.matA.color.setHex(darkView?0x00e676:0x00c853);
     L.matB.opacity=darkView?0.38:0.25;});
-  if(typeof pocheCap!=='undefined'&&pocheCap)pocheCap.material.color.setHex(darkView?0xaab0b7:0x3c4046);
+  if(typeof pocheColor!=='undefined'){pocheColor=darkView?0xaab0b7:0x3c4046; if(typeof updatePoche==='function')updatePoche();}
   applyMode();
   try{localStorage.setItem('tectosDark',darkView?'1':'0');}catch(e){}
 }
@@ -499,16 +499,18 @@ document.getElementById('vmodes').addEventListener('click',e=>{
 // ================= SECCIONES (estilo SketchUp: plano nombrado A-A, poché, flip) =================
 // El nombre se genera automaticamente como lo hace el arquitecto (A-A, B-B...) y es editable.
 // El sentido del corte es el de la flecha; ⇄ o tocar el cono lo invierte.
-const secPlane=new THREE.Plane(new THREE.Vector3(-1,0,0),0);
-let sections=[],secActive=null,secLetters=0;
+let sections=[],secLetters=0;   // multi-corte: cada sección tiene s.active y s.plane
 let secShowPlanes=true,secShowCut=true,secPoche=true,secPlaceMode=false,secPlacing=null,secMoveDrag=null;
 var lasers=[];
-function updSecPlane(){if(!secActive)return;
-  secPlane.normal.copy(secActive.normal).negate();
-  secPlane.constant=secActive.normal.dot(secActive.pt);}
-function curClipPlanes(){return (secShowCut&&secActive)?[secPlane]:[];}
+function activeSecs(){return sections.filter(s=>s.active);}
+function curClipPlanes(){
+  if(!secShowCut)return [];
+  const ps=[];
+  activeSecs().forEach(s=>{s.plane.normal.copy(s.normal).negate();
+    s.plane.constant=s.normal.dot(s.pt); ps.push(s.plane);});
+  return ps;
+}
 function applySec(){
-  if(secActive)updSecPlane();
   const planes=curClipPlanes();
   for(const n in pieces){const ud=pieces[n].userData;
     ud.matShaded.clippingPlanes=planes; ud.matFlat.clippingPlanes=planes;
@@ -545,9 +547,13 @@ function updCam(){
 updCam();
 const ICON_PERSP='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6 16 6 20 19 4 19Z"/><path d="M8 6 8 11M16 6 16 11"/></svg>';
 const ICON_ORTHO='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="12" height="12" rx="1"/><path d="M8 8 8 4 20 4 20 16 16 16"/></svg>';
+const ICON_V34_ORTHO='<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5Z"/><path d="M12 3 12 12M4 7.5 12 12 20 7.5"/></svg>';
+const ICON_V34_PERSP='<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10 14 10 14 18 6 18Z"/><path d="M6 10 9 7 18 7 14 10M14 10 18 7 18 14 14 18"/></svg>';
 function setProj(o){
   ortho=!!o; cam=ortho?camO:camP;
   document.querySelectorAll('#projmenu button').forEach(b=>b.classList.toggle('on',(b.dataset.p==='ortho')===ortho));
+  const vb=document.getElementById('v34');   // el icono del cubo refleja el modo activo
+  if(vb)vb.innerHTML=ortho?ICON_V34_ORTHO:ICON_V34_PERSP;
   updCam();
 }
 function setView(th,ph){sph.th=th;sph.ph=ph;updCam();}
@@ -557,6 +563,7 @@ v34.onclick=()=>{const d=document.getElementById('projmenu');
   if(show){dropFromIcon(d,document.getElementById('v34'),96);
     document.querySelectorAll('#projmenu button').forEach(b=>b.classList.toggle('on',(b.dataset.p==='ortho')===ortho));}
   d.style.display=show?'flex':'none';};
+document.getElementById('v34').innerHTML=ICON_V34_PERSP;   // arranque en perspectiva
 document.querySelectorAll('#projmenu button').forEach(b=>b.onclick=()=>{
   setProj(b.dataset.p==='ortho'); setView(-1.05,1.15);          // proyección elegida + vista 3/4
   document.getElementById('projmenu').style.display='none';
@@ -1095,7 +1102,7 @@ addEventListener('pointermove',e=>{
   if(secPlacing){moveSecPlacement(e);return;}          // colocación en vivo (no corta hasta soltar)
   if(secMoveDrag){ndc(e);const t=axisParam(secMoveDrag.pt0,secMoveDrag.u);
     secMoveDrag.s.pt.copy(secMoveDrag.pt0).addScaledVector(secMoveDrag.u,t-secMoveDrag.t0);
-    syncSecWidget(secMoveDrag.s); if(secActive===secMoveDrag.s)applySec(); updateGizmo();
+    syncSecWidget(secMoveDrag.s); if(secMoveDrag.s.active)applySec(); updateGizmo();
     document.getElementById('hud').textContent='Δ '+(t-secMoveDrag.t0).toFixed(1)+' mm · '+secMoveDrag.s.name;
     return;}
   if(gizDrag){ndc(e);moveGizDrag();redraw();return;}
@@ -1517,6 +1524,7 @@ const IC_HATCH=_sv+'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4
 const IC_ALIGN=_sv+'<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
 const IC_FLIP=_sv+'<path d="M8 3 4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4"/></svg>';
 const IC_TRASH=_sv+'<path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
+const IC_RESET=_sv+'<path d="M3 12a9 9 0 1 0 2.6-6.3M3 4v5h5"/></svg>';
 // marcador de sección de arquitecto (círculo + triángulo a la derecha + letra),
 // pequeño, en la esquina inferior izquierda del plano
 function secLetterOf(s){return (s.name||'A').replace(/[-\s].*$/,'')||'A';}
@@ -1578,7 +1586,7 @@ function buildSecWidget(s){
 }
 function styleSecWidget(s){
   if(!s.widget)return;
-  const act=(s===secActive), col=act?0xff8f1f:0x5b6570;
+  const act=s.active, col=act?0xff8f1f:0x5b6570;
   s.bord.material.color.setHex(col); s.brk.material.color.setHex(col);
   s.arrows.forEach(a=>a.userData.arrowMats.forEach(m=>m.color.setHex(col)));
   refreshMarker(s);
@@ -1601,35 +1609,31 @@ function renderSecList(){
   const d=document.getElementById('secList'); d.innerHTML='';
   sections.forEach((s,i)=>{
     const row=document.createElement('div'); row.className='secrow';
-    row.innerHTML='<button data-a="'+i+'" class="secbtn'+(s===secActive?' on':'')+'" title="activar corte (o doble-toque el plano)">'+IC_SCISS+'</button>'+
-      '<span data-s="'+i+'" style="flex:1;cursor:pointer;font-weight:600;color:'+(s===secActive?'#c96a00':'inherit')+'">'+escH(s.name)+'</span>'+
+    row.innerHTML='<button data-a="'+i+'" class="secbtn'+(s.active?' on':'')+'" title="activar/desactivar corte (varias a la vez)">'+IC_SCISS+'</button>'+
+      '<span data-s="'+i+'" style="flex:1;cursor:pointer;font-weight:600;color:'+(s.active?'#c96a00':'inherit')+'">'+escH(s.name)+'</span>'+
       '<button data-g="'+i+'" class="secbtn" title="alinear vista (elevación)">'+IC_ALIGN+'</button>'+
       '<button data-f="'+i+'" class="secbtn" title="invertir sentido">'+IC_FLIP+'</button>'+
+      '<button data-r="'+i+'" class="secbtn" title="restablecer posición y ángulo">'+IC_RESET+'</button>'+
       '<button data-x="'+i+'" class="secbtn del" title="eliminar">'+IC_TRASH+'</button>';
     d.appendChild(row);});
   if(!sections.length)d.innerHTML='<span style="color:var(--mut);font-size:11px">Sin secciones. Elige Cara o X/Y/Z y toca el modelo.</span>';
 }
-function newSectionObj(name,pt,normal){const s={name,pt:pt.clone(),normal:normal.clone().normalize()};
+function newSectionObj(name,pt,normal){
+  const s={name,pt:pt.clone(),normal:normal.clone().normalize(),active:false,
+    plane:new THREE.Plane(new THREE.Vector3(-1,0,0),0)};
+  s.pt0=s.pt.clone(); s.n0=s.normal.clone();   // estado inicial para "restablecer"
   buildSecWidget(s); sections.push(s); return s;}
 function nextLetter(){const Lt=String.fromCharCode(65+(secLetters%26));secLetters++;return Lt+'-'+Lt;}
-function addSection(axis){
-  const n=axis==='x'?new THREE.Vector3(1,0,0):axis==='y'?new THREE.Vector3(0,1,0):new THREE.Vector3(0,0,1);
-  const s=newSectionObj(nextLetter(),C.clone(),n); secActive=s; restyleAllSec();
-  applySec(); renderSecList(); select('section',s,s.name);
-  toast('Sección '+s.name+' activa · flechas: mover · anillos: inclinar · ⇄: sentido');
-}
-function addSectionOnFace(hit){
-  const nm=new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld);
-  const n=hit.face.normal.clone().applyMatrix3(nm).normalize();
-  const s=newSectionObj(nextLetter(),hit.point.clone(),n); secActive=s; restyleAllSec();
-  applySec(); renderSecList(); select('section',s,s.name);
-  toast('Sección '+s.name+' sobre la cara');
-}
-function activateSection(s){secActive=s; restyleAllSec(); applySec(); renderSecList();
-  if(!(selected&&selected.ref===s))select('section',s,s.name); toast('Corte activo: '+s.name);}
-function toggleActive(s){secActive=(secActive===s)?null:s; restyleAllSec(); applySec(); renderSecList();}
+function activateSection(s){toggleActive(s);
+  if(!(selected&&selected.ref===s))select('section',s,s.name);}
+function toggleActive(s){s.active=!s.active; restyleAllSec(); applySec(); renderSecList();
+  toast(s.active?('Corte '+s.name+' activo ('+activeSecs().length+' activo(s))'):(s.name+' desactivado'));}
+function resetSection(s){
+  s.pt.copy(s.pt0); s.normal.copy(s.n0); syncSecWidget(s);
+  if(s.active)applySec(); if(selected&&selected.ref===s)updateGizmo();
+  toast(s.name+': posición y ángulo restablecidos');}
 function flipSection(s){s.normal.negate();syncSecWidget(s);
-  if(secActive===s)applySec(); toast(s.name+': sentido invertido');}
+  if(s.active)applySec(); toast(s.name+': sentido invertido');}
 function alignToSection(s){
   const n=s.normal.clone().normalize();
   let ph=Math.acos(Math.max(-1,Math.min(1,n.z))), th=Math.atan2(n.y,n.x);
@@ -1640,7 +1644,6 @@ function alignToSection(s){
 function removeSection(s){
   if(s.widget)scene.remove(s.widget);
   sections=sections.filter(x=>x!==s);
-  if(secActive===s)secActive=null;
   renderSecList(); applySec();
 }
 // ---- MODOS DE COLOCACIÓN (SketchUp iPad): por defecto CARA; X/Y/Z = por punto según eje ----
@@ -1675,16 +1678,18 @@ function moveSecPlacement(e){
 }
 function finishSecPlacement(){
   if(!secPlacing)return; const s=secPlacing.s; secPlacing=null;
-  secActive=s; restyleAllSec(); applySec(); renderSecList(); select('section',s,s.name);
+  s.pt0=s.pt.clone(); s.n0=s.normal.clone();   // fija el estado inicial en el punto soltado
+  s.active=true; restyleAllSec(); applySec(); renderSecList(); select('section',s,s.name);
   secPlaceMode=false; updSecModeBtns();
   toast('Sección '+s.name+' creada · arrastra las flechas o el gizmo para moverla');
 }
 document.getElementById('secList').addEventListener('click',e=>{
-  const t=e.target.dataset, i=+(t.a??t.s??t.g??t.f??t.x);
+  const t=e.target.dataset, i=+(t.a??t.s??t.g??t.f??t.r??t.x);
   if(t.a!==undefined)toggleActive(sections[i]);
-  else if(t.s!==undefined){activateSection(sections[i]);}
+  else if(t.s!==undefined){select('section',sections[i],sections[i].name);}
   else if(t.g!==undefined)alignToSection(sections[i]);
   else if(t.f!==undefined)flipSection(sections[i]);
+  else if(t.r!==undefined)resetSection(sections[i]);
   else if(t.x!==undefined){const s=sections[i]; if(selected&&selected.ref===s)deselect(); removeSection(s);}
 });
 renderSecList();
@@ -1713,37 +1718,51 @@ document.getElementById('secRen').onclick=()=>{if(!(selected&&selected.kind==='s
   askText(t=>{s.name=t;refreshSecLabel(s);renderSecList();
     document.getElementById('selname').textContent=t;});};
 
-// POCHÉ de la cara cortada (relleno oscuro, como el "section fill" de SketchUp),
-// via stencil: caras traseras incrementan, delanteras decrementan; donde queda
-// distinto de 0 hay material cortado y se pinta el plano-tapa.
-let pocheCap=null;
+// POCHÉ (section fill) por stencil, con soporte de VARIOS cortes a la vez.
+// Las caras de las piezas cuentan winding (back +1 / front -1, depthTest OFF) recortadas
+// por TODOS los planos activos; una tapa por plano activo pinta el relleno donde winding≠0.
+let pocheColor=0x3c4046, pochePool=[], pocheMats=null;
+const pocheClear=new THREE.Mesh(new THREE.PlaneGeometry(0.01,0.01),
+  new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false,depthTest:false}));
+pocheClear.renderOrder=3; pocheClear.frustumCulled=false; pocheClear.visible=false;
+pocheClear.onAfterRender=r=>r.clearStencil();
+scene.add(pocheClear);
 (function buildPoche(){
-  // depthTest OFF: el conteo de contorno (winding) cuenta TODAS las caras del semiespacio
-  // conservado, no solo las visibles → sin moiré y con relleno correcto en solapes/intersecciones.
   const mk=(side,op)=>new THREE.MeshBasicMaterial({side,colorWrite:false,depthWrite:false,depthTest:false,
-    clippingPlanes:[secPlane],stencilWrite:true,stencilFunc:THREE.AlwaysStencilFunc,
+    stencilWrite:true,stencilFunc:THREE.AlwaysStencilFunc,
     stencilFail:op,stencilZFail:op,stencilZPass:op});
   const mB=mk(THREE.BackSide,THREE.IncrementWrapStencilOp);
   const mF=mk(THREE.FrontSide,THREE.DecrementWrapStencilOp);
+  pocheMats={mB,mF};
   for(const n in pieces){const m=pieces[n];
     const b=new THREE.Mesh(m.geometry,mB), f=new THREE.Mesh(m.geometry,mF);
     b.renderOrder=1; f.renderOrder=1; b.visible=f.visible=false;
     m.add(b); m.add(f); m.userData.stB=b; m.userData.stF=f;}
-  pocheCap=new THREE.Mesh(new THREE.PlaneGeometry(R*8,R*8),
-    new THREE.MeshBasicMaterial({color:0x3c4046,side:THREE.DoubleSide,
-      stencilWrite:true,stencilRef:0,stencilFunc:THREE.NotEqualStencilFunc,
-      stencilFail:THREE.ReplaceStencilOp,stencilZFail:THREE.ReplaceStencilOp,stencilZPass:THREE.ReplaceStencilOp}));
-  pocheCap.renderOrder=2; pocheCap.visible=false; pocheCap.frustumCulled=false;
-  pocheCap.onAfterRender=r=>{r.clearStencil();};
-  scene.add(pocheCap);
 })();
+function makePocheCap(){
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(R*8,R*8),
+    new THREE.MeshBasicMaterial({color:pocheColor,side:THREE.DoubleSide,depthWrite:false,
+      stencilWrite:true,stencilRef:0,stencilFunc:THREE.NotEqualStencilFunc,
+      stencilFail:THREE.KeepStencilOp,stencilZFail:THREE.KeepStencilOp,stencilZPass:THREE.KeepStencilOp}));
+  m.renderOrder=2; m.frustumCulled=false; scene.add(m); return m;
+}
 function updatePoche(){
-  const on=!!secActive&&secShowCut&&secPoche;
+  const A=(secShowCut&&secPoche)?activeSecs():[];
+  const on=A.length>0;
+  const planes=A.map(s=>s.plane);   // ya actualizados por curClipPlanes en applySec
   for(const n in pieces){const ud=pieces[n].userData;
     if(ud.stB){ud.stB.visible=on;ud.stF.visible=on;}}
-  if(pocheCap){pocheCap.visible=on;
-    if(on){pocheCap.position.copy(secActive.pt);
-      pocheCap.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),secActive.normal);}}
+  if(pocheMats){pocheMats.mB.clippingPlanes=planes; pocheMats.mF.clippingPlanes=planes;}
+  while(pochePool.length<A.length)pochePool.push(makePocheCap());
+  pochePool.forEach((cap,i)=>{
+    if(i<A.length){const s=A[i];
+      cap.visible=true; cap.material.color.setHex(pocheColor);
+      cap.position.copy(s.pt);
+      cap.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),s.normal);
+      cap.material.clippingPlanes=planes.filter(p=>p!==s.plane);   // recortado por los OTROS cortes
+    } else cap.visible=false;
+  });
+  pocheClear.visible=on;
 }
 
 // ================= LÁSER DE OBRA =================
@@ -1892,7 +1911,8 @@ function buildExport(){
       points:s.points.map(p=>p.map(x=>+x.toFixed(2)))})),
     piezas:Object.keys(pieces).map(n=>({name:n,visible:pieces[n].visible,
       pos:pieces[n].position.toArray(),quat:pieces[n].quaternion.toArray()})),
-    secciones:sections.map(s=>({name:s.name,pt:s.pt.toArray(),normal:s.normal.toArray(),active:s===secActive})),
+    secciones:sections.map(s=>({name:s.name,pt:s.pt.toArray(),normal:s.normal.toArray(),active:!!s.active,
+      pt0:s.pt0.toArray(),n0:s.n0.toArray()})),
     lasers:lasers.map(L=>({pos:L.mesh.position.toArray(),quat:L.mesh.quaternion.toArray(),
       h:L.on.h,v:L.on.v,v2:L.on.v2,n:L.n,sp:L.sp,off:L.off||undefined})),
     textos:texts,
@@ -1926,7 +1946,8 @@ fileJson.onchange=ev=>{
     if(d.secciones){sections.slice().forEach(removeSection);
       d.secciones.forEach(sd=>{if(!sd.pt||!sd.normal)return;
         const s=newSectionObj(sd.name||nextLetter(),new THREE.Vector3(...sd.pt),new THREE.Vector3(...sd.normal));
-        if(sd.active)secActive=s;});
+        if(sd.pt0)s.pt0=new THREE.Vector3(...sd.pt0); if(sd.n0)s.n0=new THREE.Vector3(...sd.n0);
+        s.active=!!sd.active;});
       restyleAllSec();renderSecList();applySec();}
     if(d.lasers){lasers.slice().forEach(L=>{scene.remove(L.mesh);scene.remove(L.linesA);scene.remove(L.linesB);
         lasers=lasers.filter(x=>x!==L);});
