@@ -13,7 +13,8 @@
 </script>
 <style>
  :root{--ink:#1c1c1e;--mut:#8e8e93;--acc:#0a84ff;--glass:rgba(255,255,255,.88)}
- html,body{margin:0;height:100%;overflow:hidden;font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif;background:#f4f5f7}
+ html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;position:fixed;inset:0;width:100%;font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif;background:#f4f5f7}
+ #selbar #selScroll::-webkit-scrollbar{display:none}
  canvas{touch-action:none;display:block}
  button{-webkit-tap-highlight-color:transparent}
  .pill{background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
@@ -80,7 +81,8 @@
    font-size:12px;font-weight:600;color:var(--ink);cursor:pointer}
  .axbtn{width:30px!important}
  svg{pointer-events:none}
- #strokeOps,#xformOps,#laserOps,#secOps{display:none;align-items:center;gap:4px;flex-wrap:wrap}
+ #strokeOps,#xformOps,#laserOps,#secOps{display:none;align-items:center;gap:4px;flex-wrap:nowrap}
+ #strokeOps,#xformOps,#laserOps,#secOps{flex:0 0 auto}
  #strokeOps button,#xformOps button,#laserOps button,#secOps button{border:0;background:#eee;color:#1c1c1e;border-radius:9px;min-width:30px;height:32px;cursor:pointer;font-size:13px;padding:0 6px}
  #strokeOps button.on,#xformOps button.on,#laserOps button.on,#secOps button.on{background:var(--acc);color:#fff}
  #strokeOps input,#xformOps input,#laserOps input,#secOps input{font-size:13px;padding:6px;border:1px solid #ddd;border-radius:8px}
@@ -132,12 +134,13 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.8 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.9 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
-<div id="selbar" class="pill" style="position:fixed;bottom:calc(14px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:12;display:none;align-items:center;gap:6px;padding:6px 10px;font-size:13px;flex-wrap:wrap;max-width:94vw;justify-content:center">
- <span id="selname" style="font-weight:600"></span>
+<div id="selbar" class="pill" style="position:fixed;bottom:calc(14px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:12;display:none;align-items:center;gap:6px;padding:6px 10px;font-size:13px;flex-wrap:nowrap;max-width:96vw;justify-content:flex-start">
+ <div id="selScroll" style="display:flex;align-items:center;gap:6px;overflow-x:auto;flex:1 1 auto;min-width:0;scrollbar-width:none">
+ <span id="selname" style="font-weight:600;white-space:nowrap"></span>
  <input id="selLen" type="number" step="0.1" style="width:64px;display:none;font-size:13px;padding:6px;border:1px solid #ddd;border-radius:8px"><span id="selLenU" style="display:none;color:var(--mut);font-size:12px">mm</span>
  <span id="strokeOps">
   <button id="selMag" title="Imán fijo: pegar el trazo a la superficie y bloquearlo">🧲</button>
@@ -160,8 +163,9 @@
   <button id="secFlip" title="Invertir sentido del corte">⇄</button>
   <button id="secRen" title="Renombrar sección">✎</button>
  </span>
- <button id="selDel" style="border:0;background:#ffebee;color:#c62828;border-radius:9px;width:36px;height:36px;cursor:pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
- <button id="selClose" style="border:0;background:#eee;color:#333;border-radius:9px;width:36px;height:36px;cursor:pointer">✕</button>
+ </div>
+ <button id="selDel" style="flex:0 0 auto;border:0;background:#ffebee;color:#c62828;border-radius:9px;width:34px;height:34px;cursor:pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
+ <button id="selClose" style="flex:0 0 auto;border:0;background:#eee;color:#333;border-radius:9px;width:34px;height:34px;cursor:pointer">✕</button>
 </div>
 <div id="hud">x — · y — · z — mm</div>
 
@@ -202,9 +206,9 @@
 <div id="views" class="pill" style="position:fixed;top:calc(26px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10;display:flex;flex-direction:row;align-items:center;padding:5px;gap:2px;flex-wrap:wrap;max-width:96vw;justify-content:center">
  <div class="grip" data-grip title="Mover este menú"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
  <button id="mOrbit" class="on" title="Orbitar"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><path d="M10.4 21.9a10 10 0 0 0 9.9-15.4"/><path d="M13.5 2.1a10 10 0 0 0-9.8 15.4"/></svg></button>
- <button id="vLook" title="Girar la cabeza · look around (3 dedos en iPad)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.4"/><path d="M5 8.5a8 8 0 0 1 13 0"/><path d="M19 15.5a8 8 0 0 1-13 0"/><path d="M18 4.5v3.2h-3.2M6 19.5v-3.2h3.2"/></svg></button>
- <button id="vOrtho" title="Proyección ortográfica (paralela)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="12" height="12" rx="1"/><path d="M8 8 8 4 20 4 20 16 16 16"/></svg></button>
- <button id="vPersp" class="on" title="Proyección en perspectiva"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6 16 6 20 19 4 19Z"/><path d="M8 6 8 11M16 6 16 11"/></svg></button>
+ <button id="vLook" title="Mirar alrededor · look around (3 dedos en iPad)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+ <button id="vOrtho" title="Proyección ortográfica (isométrica / paralela)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5Z"/><path d="M12 3 12 12M4 7.5 12 12 20 7.5"/></svg></button>
+ <button id="vPersp" class="on" title="Proyección en perspectiva (cónica)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8 13 8 13 17 4 17Z"/><path d="M4 8 8 4 20 5 13 8"/><path d="M13 8 20 5 19 15 13 17"/></svg></button>
  <div class="vsep"></div>
  <button id="vAlz" title="Alzado frontal (se mira desde delante)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="6" width="10" height="10" rx="1.5"/><polyline points="9.5 21.5 12 19 14.5 21.5"/></svg></button>
  <button id="vAlzP" title="Alzado posterior (se mira desde detrás)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="8" width="10" height="10" rx="1.5"/><polyline points="9.5 2.5 12 5 14.5 2.5"/></svg></button>
@@ -213,11 +217,11 @@
  <button id="vPla" title="Planta (vista superior)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8.5" width="12" height="11" rx="1.6"/><polyline points="8.5 4.5 12 7 15.5 4.5"/></svg></button>
  <button id="vPlaInv" title="Planta invertida (vista inferior)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4.5" width="12" height="11" rx="1.6"/><polyline points="8.5 19.5 12 17 15.5 19.5"/></svg></button>
  <div class="vsep"></div>
- <button id="vEye" title="Modo de visión"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+ <button id="vEye" title="Estilo de visualización (sombreado)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17 6.4 6.4 0 0 0 0-17Z" fill="currentColor" stroke="none"/></svg></button>
  <button id="vDark" title="Modo oscuro (mejora el contraste del láser)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg></button>
  <button id="vInv" title="Modo invertido: fondo oscuro con volúmenes claros"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/></svg></button>
  <button id="secTool" title="Secciones"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="6"/><path d="M9 6 9 18"/><path d="M15 7 21 12 15 17Z" fill="currentColor" stroke="none"/></svg></button>
- <button id="barPlanes" class="on" title="Mostrar/ocultar planos de sección (todas)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+ <button id="barPlanes" class="on" title="Mostrar/ocultar planos de sección (todas)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9 13 5 21 9 11 13Z"/><path d="M11 13 11 20M3 9 3 15 11 20M21 9 21 15 11 20" opacity=".38"/></svg></button>
  <button id="barCut" class="on" title="Mostrar/ocultar el corte (todas)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/></svg></button>
  <button id="barPoche" class="on" title="Mostrar/ocultar el poché (todas)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12 12 4M8 20 20 8M14 21 21 14"/></svg></button>
 </div>
@@ -240,10 +244,10 @@
 <div id="vmodes" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:row;padding:5px;gap:2px">
  <button data-m="somb" class="on">Sombra</button><button data-m="blanco">Blanco</button><button data-m="wire">Wire</button><button data-m="xray">X-Ray</button><button data-m="tecnico">Técnico</button><button data-m="oculto">Oculto</button>
 </div>
-<div id="lasermenu" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:column;padding:8px;gap:6px;width:214px;max-width:92vw;font-size:12.5px;color:var(--ink)">
+<div id="lasermenu" class="pill" style="position:fixed;top:76px;left:12px;z-index:11;display:none;flex-direction:column;padding:7px;gap:5px;width:150px;max-width:60vw;font-size:12.5px;color:var(--ink)">
  <div class="menucaret"></div>
- <b style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Láseres</b>
- <button class="secTgl" id="lzNew" title="Insertar un nuevo láser"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/><rect x="9" y="9" width="6" height="6" rx="1.3"/></svg>Nuevo láser</button>
+ <b style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Láseres</b>
+ <button id="lzNew" title="Nuevo láser" style="width:100%;height:32px;border:0;border-radius:9px;background:#e7f7ee;color:#0a9f57;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0a9f57" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
  <div id="laserList"></div>
 </div>
 <div id="side" class="pill"><div class="grip" data-grip title="Mover panel" style="width:100%;height:14px;margin:-4px 0 4px"><svg width="20" height="10" viewBox="0 0 40 12" fill="currentColor"><circle cx="14" cy="6" r="1.5"/><circle cx="20" cy="6" r="1.5"/><circle cx="26" cy="6" r="1.5"/></svg></div><b>Piezas</b><div id="pieces"></div>
@@ -1839,6 +1843,16 @@ function dropFromIcon(menu,icon){
   menu.style.left=left+'px'; menu.style.top=(r.bottom+9)+'px';
   if(car)car.style.left=Math.max(6,r.left+r.width/2-left-6)+'px';
 }
+// Para botones del dock IZQUIERDO: el submenú surge A LA DERECHA, alineado con el
+// botón y vertical, sin tapar el menú principal.
+function rightOfIcon(menu,icon){
+  const car=menu.querySelector('.menucaret'); if(car)car.style.display='none';
+  menu.style.display='flex'; menu.style.bottom='auto'; menu.style.transform='none';
+  const r=icon.getBoundingClientRect(), w=menu.offsetWidth, h=menu.offsetHeight;
+  let left=r.right+8; if(left+w>W-6)left=Math.max(6,r.left-w-8);   // si no cabe, a la izquierda
+  let top=r.top; if(top+h>H-6)top=Math.max(6,H-h-6);
+  menu.style.left=left+'px'; menu.style.top=top+'px';
+}
 document.getElementById('secTool').onclick=()=>{const d=document.getElementById('secmenu');
   const show=(d.style.display==='none'||!d.style.display);
   if(show){dropFromIcon(d,document.getElementById('secTool'),170);
@@ -2063,7 +2077,7 @@ function addLaser(silent){
   const lA=new THREE.LineSegments(geo,matA), lB=new THREE.LineSegments(geo,matB);
   lA.frustumCulled=lB.frustumCulled=false; lA.renderOrder=3; lB.renderOrder=9;
   const L={mesh:g,on:{h:true,v:true,v2:false},n:1,sp:20,off:false,geo,matA,matB,
-    linesA:lA,linesB:lB,cubeMat,topMat,name:'Láser '+(++laserCount)};
+    linesA:lA,linesB:lB,cubeMat,topMat,name:'L'+(++laserCount)};
   L.pos0=g.position.clone(); L.quat0=g.quaternion.clone();
   L.on0=Object.assign({},L.on); L.n0=L.n; L.sp0=L.sp;   // estado inicial para "restablecer"
   {const cp=curClipPlanes();matA.clippingPlanes=cp;matB.clippingPlanes=cp;}
@@ -2128,7 +2142,7 @@ document.getElementById('laserList').addEventListener('click',e=>{
 document.getElementById('lzNew').onclick=()=>{addLaser(false);renderLaserList();};
 document.getElementById('mLaser').onclick=()=>{const d=document.getElementById('lasermenu');
   const show=(d.style.display==='none'||!d.style.display);
-  if(show){renderLaserList();dropFromIcon(d,document.getElementById('mLaser'));document.getElementById('mLaser').classList.add('on');}
+  if(show){renderLaserList();rightOfIcon(d,document.getElementById('mLaser'));document.getElementById('mLaser').classList.add('on');}
   else{d.style.display='none';document.getElementById('mLaser').classList.remove('on');}};
 renderLaserList();
 function syncLaserOps(L){
