@@ -139,7 +139,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.15 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.16 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -228,6 +228,7 @@
  <button id="vInv" title="Modo invertido: fondo oscuro con volúmenes claros"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/></svg></button>
  <div class="vsep"></div>
  <button id="secTool" title="Secciones"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="6"/><path d="M9 6 9 18"/><path d="M15 7 21 12 15 17Z" fill="currentColor" stroke="none"/></svg></button>
+ <button id="paperTool" title="Papel / plano de dibujo (dibujar restringido a un plano, como Morpholio pero en 3D)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8 12 4.5 20 8 12 11.5Z" fill="#f2d98a" stroke="#c8a63f"/><path d="M15.5 13.5l3.4-3.4a1.4 1.4 0 0 1 2 2l-3.4 3.4-2.6.6.6-2.6Z"/></svg></button>
  <button id="barPlanes" class="on" title="Mostrar/ocultar planos de sección (todas)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9 13 5 21 9 11 13Z"/><path d="M11 13 11 20M3 9 3 15 11 20M21 9 21 15 11 20" opacity=".38"/></svg></button>
  <button id="barCut" class="on" title="Mostrar/ocultar el corte (todas)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/></svg></button>
  <button id="barPoche" class="on" title="Mostrar/ocultar el poché (todas)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12 12 4M8 20 20 8M14 21 21 14"/></svg></button>
@@ -247,6 +248,18 @@
   <button class="secTgl on" id="tglPoche" title="Mostrar/ocultar el relleno de corte"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12 12 4M8 20 20 8M14 21 21 14"/></svg>Poché</button>
  </div>
  <div id="secList"></div>
+</div>
+<div id="papermenu" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:column;padding:8px;gap:6px;width:250px;max-width:94vw;font-size:12.5px;color:var(--ink)">
+ <div class="menucaret"></div>
+ <b style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Papeles de dibujo</b>
+ <div class="secrow" style="flex-wrap:nowrap">
+  <button class="secmk" id="paperAddFace" style="flex:1" title="Papel sobre la cara que toques (por defecto)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px;vertical-align:-3px"><path d="M4 9 14 5 20 9 10 13Z"/><path d="M12 12 12 20"/></svg>Cara</button>
+  <button class="secmk axmk" id="paperAddX" style="flex:0 0 auto" title="Papel según eje X"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 9 15 5 19 12 9 16Z" fill="#e5433c" opacity=".9"/><path d="M12 10 12 20" stroke="#e5433c" stroke-width="2"/></svg><b>X</b></button>
+  <button class="secmk axmk" id="paperAddY" style="flex:0 0 auto" title="Papel según eje Y"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 9 15 5 19 12 9 16Z" fill="#2ca24c" opacity=".9"/><path d="M12 10 12 20" stroke="#2ca24c" stroke-width="2"/></svg><b>Y</b></button>
+  <button class="secmk axmk" id="paperAddZ" style="flex:0 0 auto" title="Papel según eje Z"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 9 15 5 19 12 9 16Z" fill="#3a6ff0" opacity=".9"/><path d="M12 10 12 20" stroke="#3a6ff0" stroke-width="2"/></svg><b>Z</b></button>
+ </div>
+ <div style="font-size:10.5px;color:var(--mut);line-height:1.35">Activa un papel (doble toque) y dibuja: el trazo queda vinculado y restringido a ese plano.</div>
+ <div id="paperList"></div>
 </div>
 <div id="vmodes" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:row;padding:5px;gap:2px">
  <button data-m="somb" class="on">Sombra</button><button data-m="blanco">Blanco</button><button data-m="wire">Wire</button><button data-m="xray">X-Ray</button><button data-m="tecnico">Técnico</button><button data-m="oculto">Oculto</button>
@@ -556,12 +569,39 @@ document.getElementById('vmodes').addEventListener('click',e=>{
 // El sentido del corte es el de la flecha; ⇄ o tocar el cono lo invierte.
 let sections=[],secLetters=0;   // multi-corte: cada sección tiene s.active y s.plane
 let secShowPlanes=true,secShowCut=true,secPoche=true,secPlaceMode=false,secPlacing=null,secMoveDrag=null;
+// ---- PLANOS/PAPELES DE DIBUJO (viven en `sections` con s.paper=true, reutilizan toda la maquinaria) ----
+let activePaper=null, paperNext=false, paperLetters=0;
+function papers(){return sections.filter(s=>s.paper);}
+// marco local del papel: origen=pt, N=normal, U/V en el plano (misma convención que los trazos)
+function paperFrame(s){const N=s.normal.clone().normalize();
+  const U=(Math.abs(N.z)>0.9?new THREE.Vector3(1,0,0):new THREE.Vector3(0,0,1).cross(N).normalize());
+  const V=N.clone().cross(U).normalize();
+  return {O:s.pt.clone(),N,U,V};}
+function paperUV(s,p){const f=paperFrame(s),d=new THREE.Vector3(...(p.toArray?p.toArray():p)).sub(f.O);return [d.dot(f.U),d.dot(f.V)];}
+function paperXY(s,u,v){const f=paperFrame(s);return f.O.clone().addScaledVector(f.U,u).addScaledVector(f.V,v);}
+// intersección del rayo del puntero con el plano del papel (dibujo restringido)
+function rayToPaper(e,s){ndc(e);const pl=new THREE.Plane().setFromNormalAndCoplanarPoint(s.normal.clone().normalize(),s.pt);
+  const hit=ray.ray.intersectPlane(pl,new THREE.Vector3());return hit;}
+// al crear/mover/girar un papel, recoloca sus trazos vinculados (guardados en uv locales)
+function updatePaperStrokes(s){
+  if(!s||!s.paper)return; let any=false;
+  strokes.forEach(st=>{if(st.paperRef===s&&st.uv){st.points=st.uv.map(q=>paperXY(s,q[0],q[1]).toArray());
+    if(st.reg&&st.reg.c){/* el reg se recalculará al editar; para mover basta points */}
+    any=true;}});
+  if(any)redraw();
+}
+function setActivePaper(s){
+  if(activePaper===s){activePaper=null; toast((s?s.name:'')+': papel desactivado');}
+  else{activePaper=s; s.active=true; setMode('draw'); toast(s.name+': papel activo · dibuja sobre él');}
+  restyleAllSec(); renderPaperList();
+}
 var lasers=[]; let laserCount=0;
 function activeSecs(){return sections.filter(s=>s.active);}
+function activeCuts(){return sections.filter(s=>s.active&&!s.paper);}   // papeles NO cortan
 function curClipPlanes(){
   if(!secShowCut)return [];
   const ps=[];
-  activeSecs().forEach(s=>{s.plane.normal.copy(s.normal).negate();
+  activeCuts().forEach(s=>{s.plane.normal.copy(s.normal).negate();
     s.plane.constant=s.normal.dot(s.pt); ps.push(s.plane);});
   return ps;
 }
@@ -747,7 +787,8 @@ function strokeLine(s){
     for(let i=1;i<pts.length;i++)path.add(new THREE.LineCurve3(pts[i-1],pts[i]));
     const selMe=(selected&&selected.ref===s)||selSet.includes(s);
     let g=new THREE.TubeGeometry(path,Math.max(2,pts.length*2),(selMe?1.6:1)*(s.w||0.8)/2,6,false);
-    obj=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:selMe?'#0a84ff':s.color,depthTest:false,transparent:true}));
+    const op=(s.paperRef&&s.paperRef.lineAlpha!=null)?s.paperRef.lineAlpha:1;   // transparencia de líneas del papel
+    obj=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:selMe?'#0a84ff':s.color,depthTest:false,transparent:true,opacity:op}));
   }
   obj.userData.rec=s; obj.renderOrder=10; return obj;
 }
@@ -859,7 +900,7 @@ function makeHandles(){
 }
 function redraw(){
   while(annGroup.children.length)annGroup.remove(annGroup.children[0]);
-  strokes.forEach(s=>annGroup.add(strokeLine(s)));
+  strokes.forEach(s=>{if(s.paperRef&&s.paperRef.paperHidden)return; annGroup.add(strokeLine(s));});
   texts.forEach(t=>{const o=makeText(t); if(Array.isArray(o))o.forEach(x=>annGroup.add(x)); else annGroup.add(o);});
   images.forEach(im=>annGroup.add(im.mesh));
   makeHandles(); handles.forEach(h=>annGroup.add(h.mesh));
@@ -1148,12 +1189,18 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     if(drawMode==='note'){placeCallout(e);return;}   // nota con flecha: un toque coloca la punta + abre el texto
     ndc(e); let hh=ray.intersectObjects(handles.map(h=>h.mesh));
     if(hh.length){handDrag=handles.find(h=>h.mesh===hh[0].object);handDrag.dist=hh[0].distance;return;}
-    let h=mag?castAt(e):null;
-    if(h){drawing={points:[offPt(h).toArray()],
-                   color,sobre:h.object.name,w:lineW};drawDist=h.distance;
-      if(mag){const sn=snapPt(drawing.points[0],null);if(sn)drawing.points[0]=sn;}}
-    else{let d=mag?sph.r:cam.position.distanceTo(target);let p=planePoint(e,d);
-         drawing={points:[p.toArray()],color,sobre:'aire',w:lineW};drawDist=d;}
+    if(activePaper){   // DIBUJO RESTRINGIDO al papel activo (proyecta sobre su plano)
+      const pp=rayToPaper(e,activePaper)||planePoint(e,sph.r);
+      drawing={points:[pp.toArray()],color,sobre:'papel',w:lineW,paperRef:activePaper};
+      drawDist=cam.position.distanceTo(pp);
+    }else{
+      let h=mag?castAt(e):null;
+      if(h){drawing={points:[offPt(h).toArray()],
+                     color,sobre:h.object.name,w:lineW};drawDist=h.distance;
+        if(mag){const sn=snapPt(drawing.points[0],null);if(sn)drawing.points[0]=sn;}}
+      else{let d=mag?sph.r:cam.position.distanceTo(target);let p=planePoint(e,d);
+           drawing={points:[p.toArray()],color,sobre:'aire',w:lineW};drawDist=d;}
+    }
     if(drawMode==='line')drawing.straight=drawing.points[0].slice();   // recta: sólo inicio→fin
     lastMoveT=performance.now();
   } else if(em==='sel'&&e.button===0){
@@ -1208,7 +1255,9 @@ renderer.domElement.addEventListener('pointerdown',e=>{
         if(o&&o.userData.secRef){const s3=o.userData.secRef;
           const now=performance.now();
           if(window._secTap&&window._secTap.s===s3&&now-window._secTap.t<380){
-            window._secTap=null; activateSection(s3); return;}   // doble-toque = activar corte
+            window._secTap=null;
+            if(s3.paper)setActivePaper(s3); else activateSection(s3);   // doble-toque = activar (papel: capa · sección: corte)
+            return;}
           window._secTap={s:s3,t:now};
           select('section',s3,s3.name);return;}}}}
     // anotaciones / piezas
@@ -1349,19 +1398,21 @@ addEventListener('pointermove',e=>{
       if(reg.tipo==='linea'&&drawing.points.length>1){const a=new THREE.Vector3(...drawing.points[0]),b=new THREE.Vector3(...drawing.points[drawing.points.length-1]);showDrawTag(p,a.distanceTo(b).toFixed(1)+' mm');}
       redraw(); annGroup.add(strokeLine(drawing)); return;}
     if(drawing.straight){   // MODO RECTA: sólo inicio→punto actual, con longitud en vivo
-      let h=mag?castAt(e):null; let p=h?offPt(h):planePoint(e,drawDist);
-      if(mag){const lq=laserSnap(p);if(lq)p.copy(lq);}
+      let p; if(drawing.paperRef){p=rayToPaper(e,drawing.paperRef)||planePoint(e,drawDist);}
+      else{let h=mag?castAt(e):null; p=h?offPt(h):planePoint(e,drawDist); if(mag){const lq=laserSnap(p);if(lq)p.copy(lq);}}
       drawing.points=[drawing.straight.slice(),p.toArray()];
       const A=new THREE.Vector3(...drawing.straight);
       const Lstr=A.distanceTo(p).toFixed(1)+' mm';
       document.getElementById('hud').textContent='Longitud '+Lstr;
       showDrawTag(p,Lstr);   // cifra pequeña en el extremo
       redraw(); annGroup.add(strokeLine(drawing)); return;}
-    let h=mag?castAt(e):null,p;
-    if(h){p=offPt(h);drawDist=h.distance;
-      if(drawing.sobre==='aire')drawing.sobre=h.object.name;}
-    else p=planePoint(e,drawDist);
-    if(mag){const lq=laserSnap(p);if(lq)p.copy(lq);}   // alinear con las líneas láser
+    let p;
+    if(drawing.paperRef){p=rayToPaper(e,drawing.paperRef)||planePoint(e,drawDist);}   // restringido al papel
+    else{let h=mag?castAt(e):null;
+      if(h){p=offPt(h);drawDist=h.distance;
+        if(drawing.sobre==='aire')drawing.sobre=h.object.name;}
+      else p=planePoint(e,drawDist);
+      if(mag){const lq=laserSnap(p);if(lq)p.copy(lq);}}   // alinear con las líneas láser
     let lp=drawing.points[drawing.points.length-1];
     if(p.distanceToSquared(new THREE.Vector3(...lp))>0.15){
       drawing.points.push(p.toArray()); lastMoveT=performance.now();
@@ -1395,7 +1446,7 @@ function endPointer(e){
   if(pointers.size<2){pinch=null;
     if(wasPinch)pointers.forEach((_,id)=>deadPointers.add(id));} // el dedo restante no orbita/pinta
   if(drawing&&drawing.points.length>1){
-    if(mag){const sn=snapPt(drawing.points[drawing.points.length-1],drawing);
+    if(mag&&!drawing.paperRef){const sn=snapPt(drawing.points[drawing.points.length-1],drawing);
       if(sn)drawing.points[drawing.points.length-1]=sn;}
     let selLine=null;
     if(drawing.straight){   // RECTA → línea regular (con tiradores y longitud editable)
@@ -1408,8 +1459,10 @@ function endPointer(e){
         drawing.points=genPoints(drawing.reg); selLine=drawing;}
       delete drawing.straight;
     }
+    if(drawing.paperRef){   // vincular al papel: guardar coords locales (uv) para que siga al plano
+      const s=drawing.paperRef; drawing.uv=drawing.points.map(p=>paperUV(s,p));}
     strokes.push(drawing);
-    if(mode==='draw'&&!drawLock&&!wasPen)setMode('orbit');   // lapiz de UN trazo
+    if(mode==='draw'&&!drawLock&&!wasPen&&!activePaper)setMode('orbit');   // lapiz de UN trazo (en papel: sigue dibujando)
     if(selLine){setMode('sel');select('trazo',selLine,'trazo linea');}  // recta: lista para teclear la longitud exacta
   }
   if(selDrag&&mag&&!axLock){
@@ -1851,8 +1904,10 @@ function secArrow(k){
 }
 function buildSecWidget(s){
   const g=new THREE.Group(), h=R*0.5; s._h=h;
-  const quad=new THREE.Mesh(new THREE.PlaneGeometry(h*2,h*2),   // invisible: solo para picar el plano
-    new THREE.MeshBasicMaterial({transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));
+  const paper=!!s.paper;
+  const quad=new THREE.Mesh(new THREE.PlaneGeometry(h*2,h*2),   // sección: invisible (solo picar) · papel: hoja tintada
+    new THREE.MeshBasicMaterial({transparent:true,opacity:paper?(s.paperAlpha||0.14):0,
+      color:paper?(s.color||0xe0b83a):0xffffff,side:THREE.DoubleSide,depthWrite:false}));
   const bord=new THREE.LineSegments(new THREE.EdgesGeometry(quad.geometry),
     new THREE.LineBasicMaterial({color:0x5b6570,transparent:true,opacity:.6}));   // contorno un pelín más marcado
   const brk=secBrackets(h,0x5b6570); brk.renderOrder=11;
@@ -1865,11 +1920,22 @@ function buildSecWidget(s){
   g.add(quad,bord,brk,...arrows,marker);
   g.traverse(o=>{if(o.userData.secRef===undefined)o.userData.secRef=s;});
   s.widget=g; s.quad=quad; s.bord=bord; s.brk=brk; s.arrows=arrows; s.marker=marker;
+  if(paper){brk.visible=false;}   // hoja limpia; las flechas de esquina sirven para arrastrar/mover
   scene.add(g); styleSecWidget(s); syncSecWidget(s);
 }
 function secColHex(s){return '#'+((s.color||0xff8f1f)>>>0).toString(16).padStart(6,'0');}
 function styleSecWidget(s){
   if(!s.widget)return;
+  if(s.paper){   // PAPEL: hoja tintada, contorno del color del papel; activo = borde más vivo
+    const on=(activePaper===s), col=s.color||0xe0b83a;
+    s.quad.material.color.setHex(col);
+    s.quad.material.opacity=(s.paperAlpha!=null?s.paperAlpha:0.14);
+    s.bord.material.color.setHex(col); s.bord.material.opacity=on?1:0.7;
+    s.arrows.forEach(a=>a.userData.arrowMats.forEach(m=>m.color.setHex(on?col:0xa8aeb6)));
+    refreshMarker(s);
+    s.widget.visible=!s.paperHidden;
+    return;
+  }
   const act=s.active, col=act?(s.color||0xff8f1f):0xa8aeb6;   // inactivo = gris claro
   s.bord.material.color.setHex(col); s.brk.material.color.setHex(col);
   s.arrows.forEach(a=>a.userData.arrowMats.forEach(m=>m.color.setHex(col)));
@@ -1880,6 +1946,7 @@ function syncSecWidget(s){
   if(!s.widget)return;
   s.widget.position.copy(s.pt);
   s.widget.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),s.normal);
+  if(s.paper)updatePaperStrokes(s);   // los trazos vinculados siguen al papel
 }
 function refreshMarker(s){
   if(!s.widget)return;
@@ -1892,6 +1959,7 @@ function restyleAllSec(){sections.forEach(styleSecWidget);}
 function renderSecList(){
   const d=document.getElementById('secList'); d.innerHTML='';
   sections.forEach((s,i)=>{
+    if(s.paper)return;   // los papeles tienen su propia lista
     const row=document.createElement('div'); row.className='secrow';
     const chex=secColHex(s);
     row.innerHTML='<button data-a="'+i+'" class="secbtn'+(s.active?' on':'')+'" title="activar/desactivar corte (varias a la vez)"'+(s.active?' style="background:'+chex+';color:#fff"':'')+'>'+IC_SCISS+'</button>'+
@@ -1902,15 +1970,16 @@ function renderSecList(){
       '<button data-r="'+i+'" class="secbtn" title="restablecer posición y ángulo">'+IC_RESET+'</button>'+
       '<button data-x="'+i+'" class="secbtn del" title="eliminar">'+IC_TRASH+'</button>';
     d.appendChild(row);});
-  if(!sections.length)d.innerHTML='<span style="color:var(--mut);font-size:11px">Sin secciones. Elige Cara o X/Y/Z y toca el modelo.</span>';
+  if(!sections.some(s=>!s.paper))d.innerHTML='<span style="color:var(--mut);font-size:11px">Sin secciones. Elige Cara o X/Y/Z y toca el modelo.</span>';
 }
 // paleta: cada sección estrena un color propio (naranja, azul, verde, morado…)
 const SEC_PALETTE=[0xff8f1f,0x2f7df0,0x2ca24c,0xb44cff,0xe5433c,0x00b3b3,0xff5aa0,0xc9a000];
 let secColorIdx=0;
-function newSectionObj(name,pt,normal){
+function newSectionObj(name,pt,normal,paper){
   const s={name,pt:pt.clone(),normal:normal.clone().normalize(),active:false,
-    color:SEC_PALETTE[secColorIdx++%SEC_PALETTE.length],
+    color:paper?0xe0b83a:SEC_PALETTE[secColorIdx++%SEC_PALETTE.length],
     plane:new THREE.Plane(new THREE.Vector3(-1,0,0),0)};
+  if(paper){s.paper=true; s.paperAlpha=0.14; s.lineAlpha=1; s.paperHidden=false;}
   s.pt0=s.pt.clone(); s.n0=s.normal.clone();   // estado inicial para "restablecer"
   buildSecWidget(s); sections.push(s); return s;}
 function nextLetter(){const Lt=String.fromCharCode(65+(secLetters%26));secLetters++;return Lt+'-'+Lt;}
@@ -1956,11 +2025,80 @@ function updSecModeBtns(){['face','x','y','z'].forEach(m=>{
   const b=document.getElementById('secAdd'+(m==='face'?'Face':m.toUpperCase()));
   if(b)b.classList.toggle('on',secPlaceMode===m);});}
 function armSecMode(m){
+  paperNext=false; updPaperModeBtns();
   secPlaceMode=(secPlaceMode===m)?false:m; updSecModeBtns();
   if(secPlaceMode==='face')toast('Toca una cara (mantén y arrastra para colocar; suelta para activar)');
   else if(secPlaceMode)toast('Toca cualquier punto del modelo · eje '+secPlaceMode.toUpperCase());}
 secAddFace.onclick=()=>armSecMode('face');
 secAddX.onclick=()=>armSecMode('x'); secAddY.onclick=()=>armSecMode('y'); secAddZ.onclick=()=>armSecMode('z');
+// ---- PAPELES: colocación (reutiliza secPlaceMode con paperNext) ----
+function nextPaperLetter(){const n=(paperLetters++);return 'P'+(n+1);}
+function updPaperModeBtns(){['face','x','y','z'].forEach(m=>{
+  const b=document.getElementById('paperAdd'+(m==='face'?'Face':m.toUpperCase()));
+  if(b)b.classList.toggle('on',paperNext&&secPlaceMode===m);});}
+function armPaperMode(m){
+  const same=(paperNext&&secPlaceMode===m);
+  paperNext=!same; secPlaceMode=same?false:m; updSecModeBtns(); updPaperModeBtns();
+  if(paperNext&&m==='face')toast('Toca una cara para crear el papel (mantén y arrastra; suelta para activarlo)');
+  else if(paperNext)toast('Toca un punto del modelo · papel según eje '+m.toUpperCase());}
+paperAddFace.onclick=()=>armPaperMode('face');
+paperAddX.onclick=()=>armPaperMode('x'); paperAddY.onclick=()=>armPaperMode('y'); paperAddZ.onclick=()=>armPaperMode('z');
+const IC_PAPER='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9 14 5 20 9 10 13Z"/><path d="M10 13 10 20"/></svg>';
+const IC_EYEOFF='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 5.1A9.6 9.6 0 0 1 12 5c6.5 0 10 7 10 7a13 13 0 0 1-2.2 2.9M6.1 6.1A13 13 0 0 0 2 12s3.5 7 10 7a9.3 9.3 0 0 0 4.2-1M3 3l18 18"/></svg>';
+function renderPaperList(){
+  const d=document.getElementById('paperList'); if(!d)return; d.innerHTML='';
+  const ps=papers();
+  ps.forEach(s=>{
+    const i=sections.indexOf(s), chex=secColHex(s), on=(activePaper===s);
+    const row=document.createElement('div'); row.className='secrow'; row.style.flexWrap='nowrap';
+    row.innerHTML=
+      '<button data-pa="'+i+'" class="secbtn'+(on?' on':'')+'" title="activar como capa de dibujo (doble toque en el papel)"'+(on?' style="background:'+chex+';color:#fff"':'')+'>'+IC_PAPER+'</button>'+
+      '<span data-ps="'+i+'" style="flex:1;cursor:pointer;font-weight:600;color:'+(on?chex:'inherit')+'">'+escH(s.name)+'</span>'+
+      '<input data-pc="'+i+'" type="color" value="'+chex+'" title="color del papel" style="width:22px;height:22px;border:0;background:none;padding:0;cursor:pointer">'+
+      '<button data-pe="'+i+'" class="secbtn" title="mostrar/ocultar">'+(s.paperHidden?IC_EYEOFF:IC_EYE)+'</button>'+
+      '<button data-po="'+i+'" class="secbtn'+(secRotate===s?' on':'')+'" title="girar el papel">'+IC_ORBIT+'</button>'+
+      '<button data-pr="'+i+'" class="secbtn" title="restablecer">'+IC_RESET+'</button>'+
+      '<button data-px="'+i+'" class="secbtn del" title="eliminar">'+IC_TRASH+'</button>';
+    const ctl=document.createElement('div');
+    ctl.style.cssText='display:flex;align-items:center;gap:6px;font-size:10px;color:var(--mut);margin:-1px 0 3px';
+    ctl.innerHTML='papel<input data-pp="'+i+'" type="range" min="0" max="0.6" step="0.02" value="'+(s.paperAlpha!=null?s.paperAlpha:0.14)+'" style="flex:1">'+
+      'líneas<input data-pl="'+i+'" type="range" min="0.1" max="1" step="0.05" value="'+(s.lineAlpha!=null?s.lineAlpha:1)+'" style="flex:1">';
+    d.appendChild(row); d.appendChild(ctl);
+  });
+  if(!ps.length)d.innerHTML='<span style="color:var(--mut);font-size:11px">Sin papeles. Elige Cara o X/Y/Z y toca el modelo.</span>';
+}
+function setPaperColor(s,hex){s.color=parseInt(hex.slice(1),16); styleSecWidget(s); refreshStrokesOf(s); renderPaperList();}
+function refreshStrokesOf(s){ /* recolorea/opacidad de líneas del papel */ redraw(); }
+document.getElementById('paperList').addEventListener('input',e=>{
+  const t=e.target.dataset;
+  if(t.pp!==undefined){const s=sections[+t.pp]; s.paperAlpha=+e.target.value; styleSecWidget(s);}
+  else if(t.pl!==undefined){const s=sections[+t.pl]; s.lineAlpha=+e.target.value; redraw();}
+  else if(t.pc!==undefined){setPaperColor(sections[+t.pc],e.target.value);}
+});
+document.getElementById('paperList').addEventListener('click',e=>{
+  const t=e.target.closest('[data-pa],[data-ps],[data-pe],[data-po],[data-pr],[data-px]'); if(!t)return;
+  const ds=t.dataset;
+  if(ds.pa!==undefined)setActivePaper(sections[+ds.pa]);
+  else if(ds.ps!==undefined){setMode('sel');select('section',sections[+ds.ps],sections[+ds.ps].name);}
+  else if(ds.pe!==undefined){const s=sections[+ds.pe]; s.paperHidden=!s.paperHidden; styleSecWidget(s); redraw(); renderPaperList();}
+  else if(ds.po!==undefined)toggleSecRotate(sections[+ds.po]);
+  else if(ds.pr!==undefined)resetSection(sections[+ds.pr]);
+  else if(ds.px!==undefined){const s=sections[+ds.px]; if(activePaper===s)activePaper=null; if(selected&&selected.ref===s)deselect(); removePaper(s);}
+});
+function removePaper(s){
+  strokes.forEach(st=>{if(st.paperRef===s){st.paperRef=null;st.uv=null;}});   // desvincula sus trazos (no los borra)
+  if(secRotate===s)secRotate=null;
+  if(s.widget)scene.remove(s.widget);
+  sections=sections.filter(x=>x!==s);
+  renderPaperList(); redraw();
+}
+document.getElementById('paperTool').onclick=()=>{const d=document.getElementById('papermenu');
+  const show=(d.style.display==='none'||!d.style.display);
+  if(show){dropFromIcon(d,document.getElementById('paperTool')); document.getElementById('paperTool').classList.add('on');
+    armPaperMode('face'); renderPaperList();}
+  else{document.getElementById('paperTool').classList.remove('on');
+    if(paperNext){paperNext=false;secPlaceMode=false;updSecModeBtns();updPaperModeBtns();}}
+  d.style.display=show?'flex':'none';};
 function placeSample(e){
   const h=castAt(e);
   if(secPlaceMode==='face'){
@@ -1973,20 +2111,27 @@ function placeSample(e){
 function startSecPlacement(e){
   const s0=placeSample(e);
   if(!s0){toast('Toca una cara del modelo'); return;}
-  if(!secShowPlanes&&typeof setSecPlanes==='function')setSecPlanes(true);   // al crear se ven todos los planos
-  const s=newSectionObj(nextLetter(),s0.pt,s0.normal);
-  secPlacing={s}; syncSecWidget(s);   // vista previa: aún NO corta
+  if(!paperNext&&!secShowPlanes&&typeof setSecPlanes==='function')setSecPlanes(true);   // al crear se ven todos los planos
+  const s=paperNext?newSectionObj(nextPaperLetter(),s0.pt,s0.normal,true)
+                   :newSectionObj(nextLetter(),s0.pt,s0.normal);
+  secPlacing={s,paper:paperNext}; syncSecWidget(s);   // vista previa
 }
 function moveSecPlacement(e){
   if(!secPlacing)return; const s0=placeSample(e); if(!s0)return;
   const s=secPlacing.s; s.pt.copy(s0.pt); s.normal.copy(s0.normal); syncSecWidget(s);
 }
 function finishSecPlacement(){
-  if(!secPlacing)return; const s=secPlacing.s; secPlacing=null;
+  if(!secPlacing)return; const s=secPlacing.s, wasPaper=secPlacing.paper; secPlacing=null;
   s.pt0=s.pt.clone(); s.n0=s.normal.clone();   // fija el estado inicial en el punto soltado
+  secPlaceMode=false; paperNext=false; updSecModeBtns(); updPaperModeBtns();
+  if(wasPaper){
+    setActivePaper(s); renderPaperList();
+    setMode('sel'); select('section',s,s.name);
+    toast('Papel '+s.name+' creado y activo · dibuja sobre él (queda restringido al plano)');
+    return;
+  }
   if(!secShowPlanes)setSecPlanes(true);        // al crear una sección se ven TODOS los planos
   s.active=true; restyleAllSec(); applySec(); renderSecList();
-  secPlaceMode=false; updSecModeBtns();
   setMode('sel'); select('section',s,s.name);   // modo selección: ya se pueden arrastrar las flechas
   toast('Sección '+s.name+' creada · arrastra las flechas de las esquinas para moverla');
 }
@@ -2000,7 +2145,7 @@ document.getElementById('secList').addEventListener('click',e=>{
   else if(t.r!==undefined)resetSection(sections[i]);
   else if(t.x!==undefined){const s=sections[i]; if(selected&&selected.ref===s)deselect(); removeSection(s);}
 });
-renderSecList();
+renderSecList(); renderPaperList();
 // menú de secciones flotante, sigue a la barra de vistas
 function dropFromIcon(menu,icon){
   // La ventana emergente surge de SU botón, esté donde esté (los menús flotan).
@@ -2092,7 +2237,7 @@ function makePocheCap(){
   m.renderOrder=2; m.frustumCulled=false; scene.add(m); return m;
 }
 function updatePoche(){
-  const A=(secShowCut&&secPoche)?activeSecs():[];
+  const A=(secShowCut&&secPoche)?activeCuts():[];
   const on=A.length>0;
   const planes=A.map(s=>s.plane);   // ya actualizados por curClipPlanes en applySec
   for(const n in pieces){const ud=pieces[n].userData;
@@ -2341,18 +2486,22 @@ function buildExport(){
     camara:{pos:cam.position.toArray(),target:target.toArray()},
     trazos:strokes.map(s=>({color:s.color,sobre:s.sobre,grosor:s.w||0.8,tipo:s.reg?s.reg.tipo:'mano',
       grp:s.grp,magLock:s.magLock||undefined,
+      paperIdx:s.paperRef?papers().indexOf(s.paperRef):undefined,
+      uv:s.uv?s.uv.map(q=>q.map(x=>+x.toFixed(2))):undefined,
       points:s.points.map(p=>p.map(x=>+x.toFixed(2)))})),
     piezas:Object.keys(pieces).map(n=>({name:n,visible:pieces[n].visible,
       pos:pieces[n].position.toArray(),quat:pieces[n].quaternion.toArray()})),
     secciones:sections.map(s=>({name:s.name,pt:s.pt.toArray(),normal:s.normal.toArray(),active:!!s.active,
-      pt0:s.pt0.toArray(),n0:s.n0.toArray()})),
+      pt0:s.pt0.toArray(),n0:s.n0.toArray(),
+      paper:s.paper||undefined,color:s.paper?s.color:undefined,
+      paperAlpha:s.paper?s.paperAlpha:undefined,lineAlpha:s.paper?s.lineAlpha:undefined,paperHidden:s.paper?!!s.paperHidden:undefined})),
     lasers:lasers.map(L=>({name:L.name,pos:L.mesh.position.toArray(),quat:L.mesh.quaternion.toArray(),
       h:L.on.h,v:L.on.v,v2:L.on.v2,n:L.n,sp:L.sp,off:L.off||undefined})),
     textos:texts,
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
-window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},redraw,makeText};
+window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},setActivePaper,newSectionObj,paperUV,paperXY,syncSecWidget,updatePaperStrokes,redraw,makeText};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());
@@ -2367,7 +2516,7 @@ fileJson.onchange=ev=>{
   let f=ev.target.files[0];if(!f)return;let rd=new FileReader();
   rd.onload=()=>{let d=JSON.parse(rd.result);
     strokes=(d.trazos||[]).map(s=>({points:s.points,color:s.color,sobre:s.sobre,w:s.grosor||0.8,
-      grp:s.grp,magLock:s.magLock}));
+      grp:s.grp,magLock:s.magLock,_paperIdx:(s.paperIdx!=null?s.paperIdx:undefined),uv:s.uv}));
     grpN=strokes.reduce((m,s)=>Math.max(m,s.grp||0),grpN);
     if(d.piezas){d.piezas.forEach(pz=>{const m=pieces[pz.name];if(!m)return;
         if(pz.pos)m.position.set(...pz.pos);
@@ -2376,12 +2525,18 @@ fileJson.onchange=ev=>{
           const cb=document.querySelector('input[data-n="'+pz.name+'"]');
           if(cb)cb.checked=pz.visible;}});
       computeIntersections();applySec();_silhFrame=-1;}
-    if(d.secciones){sections.slice().forEach(removeSection);
+    if(d.secciones){sections.slice().forEach(s=>{if(s.widget)scene.remove(s.widget);}); sections=[]; activePaper=null;
       d.secciones.forEach(sd=>{if(!sd.pt||!sd.normal)return;
-        const s=newSectionObj(sd.name||nextLetter(),new THREE.Vector3(...sd.pt),new THREE.Vector3(...sd.normal));
+        const s=newSectionObj(sd.name||(sd.paper?nextPaperLetter():nextLetter()),
+          new THREE.Vector3(...sd.pt),new THREE.Vector3(...sd.normal),!!sd.paper);
         if(sd.pt0)s.pt0=new THREE.Vector3(...sd.pt0); if(sd.n0)s.n0=new THREE.Vector3(...sd.n0);
-        s.active=!!sd.active;});
-      restyleAllSec();renderSecList();applySec();}
+        if(sd.paper){if(sd.color!=null)s.color=sd.color; if(sd.paperAlpha!=null)s.paperAlpha=sd.paperAlpha;
+          if(sd.lineAlpha!=null)s.lineAlpha=sd.lineAlpha; s.paperHidden=!!sd.paperHidden; styleSecWidget(s);}
+        else s.active=!!sd.active;});
+      // revincular trazos a sus papeles (por índice de papel)
+      const pl=papers();
+      strokes.forEach(st=>{if(st._paperIdx!=null&&pl[st._paperIdx]){st.paperRef=pl[st._paperIdx]; delete st._paperIdx;}});
+      restyleAllSec();renderSecList();renderPaperList();applySec();}
     if(d.lasers){lasers.slice().forEach(L=>{scene.remove(L.mesh);scene.remove(L.linesA);scene.remove(L.linesB);
         lasers=lasers.filter(x=>x!==L);});
       laserCount=0;
