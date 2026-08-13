@@ -139,7 +139,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.12 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.13 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -255,6 +255,7 @@
  <button class="secTgl on" data-dm="geo" title="Dibuja pegado a la geometría y a las guías láser"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/><circle cx="18.5" cy="18.5" r="2.4"/></svg>Pegado a geometría</button>
  <button class="secTgl" data-dm="free" title="Dibujo libre a mano alzada"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Libre</button>
  <button class="secTgl" data-dm="line" title="Línea recta con longitud en vivo (tipo SketchUp)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2" fill="currentColor"/><circle cx="20" cy="4" r="2" fill="currentColor"/></svg>Recta</button>
+ <button class="secTgl" data-dm="note" title="Nota con flecha: toca un punto de la superficie y escribe una explicación (tipo SketchUp)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 21.5l1.2-3.9L13 8.3l2.7 2.7L6.4 20.3 2.5 21.5z"/><path d="M14.2 7.1l1.6-1.6a1.5 1.5 0 0 1 2.1 0l.5.5a1.5 1.5 0 0 1 0 2.1l-1.6 1.6"/><text x="14.5" y="21" font-size="10" stroke="none" fill="currentColor" font-weight="800">A</text></svg>Nota con flecha</button>
  <button class="secTgl" id="dmLock" title="Seguir dibujando sin volver a orbitar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Continuo (candado)</button>
 </div>
 <div id="lasermenu" class="pill" style="position:fixed;top:76px;left:12px;z-index:11;display:none;flex-direction:column;padding:7px;gap:5px;width:150px;max-width:60vw;font-size:12.5px;color:var(--ink)">
@@ -624,12 +625,13 @@ vPla.onclick=()=>setView(-Math.PI/2,0.01);             // planta (superior)
 vPlaInv.onclick=()=>setView(-Math.PI/2,Math.PI-0.01);  // planta invertida (inferior)
 
 // ---- estado UI ----
-let mode='orbit', color='#d500f9', mag=true, lineW=0.35, penSeen=false, drawLock=false, selDrag=null;
-let drawMode='geo';   // 'geo'=pegado a geometría/láser (por defecto) · 'free'=libre · 'line'=recta
+let mode='orbit', color='#d500f9', mag=true, lineW=0.35, penSeen=false, drawLock=false, selDrag=null, textDrag=null;
+let drawMode='geo';   // 'geo'=pegado a geometría/láser (por defecto) · 'free'=libre · 'line'=recta · 'note'=nota con flecha
 const PEN_ICONS={
   geo:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/><circle cx="18.5" cy="18.5" r="2.6"/></svg>',
   free:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
-  line:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2.2" fill="currentColor"/><circle cx="20" cy="4" r="2.2" fill="currentColor"/></svg>'};
+  line:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2.2" fill="currentColor"/><circle cx="20" cy="4" r="2.2" fill="currentColor"/></svg>',
+  note:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 21.5l1.2-3.9L13 8.3l2.7 2.7L6.4 20.3 2.5 21.5z"/><path d="M14.2 7.1l1.6-1.6a1.5 1.5 0 0 1 2.1 0l.5.5a1.5 1.5 0 0 1 0 2.1l-1.6 1.6"/><text x="14.5" y="21" font-size="10" stroke="none" fill="currentColor" font-weight="800">A</text></svg>'};
 function setPenIcon(){const b=document.getElementById('mDraw'); if(!b)return;
   b.innerHTML=PEN_ICONS[drawMode]+'<span id="lockDot" style="position:absolute;top:2px;right:4px;font-size:9px;line-height:1;display:'+(drawLock?'block':'none')+'">🔒</span>';}
 function applyDrawMode(){
@@ -653,7 +655,7 @@ document.getElementById('drawmenu').addEventListener('click',e=>{
   if(b){drawMode=b.dataset.dm; applyDrawMode(); setMode('draw');
     document.querySelectorAll('#drawmenu [data-dm]').forEach(x=>x.classList.toggle('on',x.dataset.dm===drawMode));
     document.getElementById('drawmenu').style.display='none';
-    toast('Lápiz: '+({geo:'pegado a geometría/láser',free:'libre',line:'recta'}[drawMode]));}});
+    toast('Lápiz: '+({geo:'pegado a geometría/láser',free:'libre',line:'recta',note:'nota con flecha'}[drawMode]));}});
 document.getElementById('dmLock').onclick=function(){drawLock=!drawLock;
   this.classList.toggle('on',drawLock); const ld=document.getElementById('lockDot'); if(ld)ld.style.display=drawLock?'block':'none';
   toast(drawLock?'Lápiz continuo 🔒':'Un trazo y vuelve a orbitar');};
@@ -751,7 +753,38 @@ function makeText(t){
   g.fillStyle=t.color;g.font='bold 44px sans-serif';g.textBaseline='middle';g.fillText(t.text,14,64);
   let sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false}));
   sp.position.set(...t.pos); let s=t.size||14; sp.scale.set(s*3.2,s*0.8,1);
-  sp.userData.rec=t; sp.renderOrder=12; return sp;
+  sp.userData.rec=t; sp.renderOrder=12;
+  if(!t.anchor)return sp;
+  // NOTA CON FLECHA (llamada 3D): guía fina desde el cuadro de texto hasta el punto de la superficie
+  const out=[sp];
+  const A=new THREE.Vector3(...t.pos), B=new THREE.Vector3(...t.anchor);
+  const dir=new THREE.Vector3().subVectors(B,A), len=Math.max(dir.length(),1e-3), u=dir.clone().divideScalar(len);
+  const headL=Math.min(len*0.5,Math.max(handleSize()*1.5,len*0.16)), headR=headL*0.42;
+  const lineEnd=B.clone().addScaledVector(u,-headL);
+  const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([A,lineEnd]),
+    new THREE.LineBasicMaterial({color:t.color,depthTest:false,transparent:true}));
+  line.renderOrder=11; line.userData.rec=t; out.push(line);
+  const cone=new THREE.Mesh(new THREE.ConeGeometry(headR,headL,12),
+    new THREE.MeshBasicMaterial({color:t.color,depthTest:false}));
+  cone.position.copy(B).addScaledVector(u,-headL/2);
+  cone.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),u);
+  cone.renderOrder=11; cone.userData.rec=t; out.push(cone);
+  return out;
+}
+function placeCallout(e){
+  // la PUNTA de la flecha queda exactamente sobre el punto de la superficie tocado
+  let h=castAt(e);
+  let anchor=h?h.point.clone():planePoint(e,mag?sph.r:cam.position.distanceTo(target));
+  // el cuadro de texto arranca desplazado (arriba-derecha) para que se vea la guía
+  const right=new THREE.Vector3().setFromMatrixColumn(cam.matrix,0);
+  const up=new THREE.Vector3().setFromMatrixColumn(cam.matrix,1);
+  const off=Math.max(sph.r*0.11,10);
+  let pos=anchor.clone().addScaledVector(right,off*1.5).addScaledVector(up,off);
+  askText(txt=>{const s=(txt||'').trim(); if(!s)return;
+    const rec={text:s,pos:pos.toArray(),anchor:anchor.toArray(),color,size:14};
+    texts.push(rec); redraw();
+    setMode('sel'); select('texto',rec,'nota "'+rec.text+'"');
+    toast('Nota con flecha · arrastra el cuadro para moverlo');});
 }
 function handleSize(){return Math.max(0.7,sph.r*0.008);}
 let _ringTex=null;
@@ -786,7 +819,7 @@ function makeHandles(){
 function redraw(){
   while(annGroup.children.length)annGroup.remove(annGroup.children[0]);
   strokes.forEach(s=>annGroup.add(strokeLine(s)));
-  texts.forEach(t=>annGroup.add(makeText(t)));
+  texts.forEach(t=>{const o=makeText(t); if(Array.isArray(o))o.forEach(x=>annGroup.add(x)); else annGroup.add(o);});
   images.forEach(im=>annGroup.add(im.mesh));
   makeHandles(); handles.forEach(h=>annGroup.add(h.mesh));
   if(gizmo)updateGizmo();
@@ -1070,6 +1103,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     return;}
   lastX=e.clientX;lastY=e.clientY;button=e.button;
   if(em==='draw'&&e.button===0){
+    if(drawMode==='note'){placeCallout(e);return;}   // nota con flecha: un toque coloca la punta + abre el texto
     ndc(e); let hh=ray.intersectObjects(handles.map(h=>h.mesh));
     if(hh.length){handDrag=handles.find(h=>h.mesh===hh[0].object);handDrag.dist=hh[0].distance;return;}
     let h=mag?castAt(e):null;
@@ -1139,7 +1173,11 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     {let hits=ray.intersectObjects([...annGroup.children,...pickables.filter(p=>p.visible)],false);
       if(hits.length){
         const o=hits[0].object, rec=o.userData.rec;
-        if(rec&&texts.includes(rec)){select('texto',rec,'nota "'+rec.text+'"');return;}
+        if(rec&&texts.includes(rec)){
+          if(selected&&selected.kind==='texto'&&selected.ref===rec){ // ya seleccionada → arrastrar el cuadro (el ancla queda fija)
+            const depth=new THREE.Vector3(...rec.pos).sub(cam.position).dot(cam.getWorldDirection(new THREE.Vector3()));
+            textDrag={rec,depth,start:planePoint(e,depth),orig:rec.pos.slice()};return;}
+          select('texto',rec,'nota "'+rec.text+'"');return;}
         else if(rec&&images.includes(rec)){select('imagen',rec,'imagen '+rec.name);return;}
         else if(o.name&&pieces[o.name]){select('pieza',o,o.name);return;}
       }}
@@ -1203,6 +1241,12 @@ addEventListener('pointermove',e=>{
     document.getElementById('hud').textContent='Δ '+(t-secMoveDrag.t0).toFixed(1)+' mm · '+secMoveDrag.s.name;
     return;}
   if(gizDrag){ndc(e);moveGizDrag();redraw();return;}
+  if(textDrag){const cur=planePoint(e,textDrag.depth);
+    const d=new THREE.Vector3().subVectors(cur,textDrag.start);
+    if(axLock){const v=d[axLock];d.set(0,0,0);d[axLock]=v;}
+    textDrag.rec.pos=[textDrag.orig[0]+d.x,textDrag.orig[1]+d.y,textDrag.orig[2]+d.z];
+    document.getElementById('hud').textContent='Δ '+d.length().toFixed(1)+' mm · nota';
+    redraw();return;}
   let hud=document.getElementById('hud');
   if(!drawing&&!handDrag&&e.pointerType==='mouse'){let h=castAt(e);
     if(h)hud.textContent='x '+h.point.x.toFixed(1)+' · y '+h.point.y.toFixed(1)+' · z '+h.point.z.toFixed(1)+' mm · '+h.object.name;}
@@ -1337,7 +1381,7 @@ function endPointer(e){
     if(gizDrag.t==='pieza'){computeIntersections();applySec();_silhFrame=-1;updateLasers();}
     gizDrag=null;hideContact();hideMagHi();updateGizmo();}
   if(_tapDeselect){if(!_tapDeselect.moved)deselect(); _tapDeselect=null;}   // toque en vacío = deseleccionar
-  drawing=null;handDrag=null;imgDrag=null;selDrag=null;dragging=false;redraw();
+  drawing=null;handDrag=null;imgDrag=null;selDrag=null;textDrag=null;dragging=false;redraw();
 }
 addEventListener('pointerup',endPointer);
 addEventListener('pointercancel',endPointer);
@@ -2262,7 +2306,7 @@ function buildExport(){
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
-window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes}};
+window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},redraw,makeText};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());
