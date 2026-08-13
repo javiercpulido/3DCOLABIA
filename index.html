@@ -94,10 +94,11 @@
  .axmk{display:inline-flex;align-items:center;gap:3px;padding:3px 6px}
  .axmk b{font-size:12px}
  body.dark .axmk{background:#2b2f34;color:var(--ink)}
- .secbtn{border:0;background:#eee;color:#1c1c1e;border-radius:6px;width:28px;height:26px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+ .secbtn{border:0;background:#eee;color:#1c1c1e;border-radius:6px;width:26px;height:26px;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
  .secbtn.on{background:#ff8f1f;color:#fff}
  .secbtn.del{background:#ffebee;color:#c62828}
- #secmenu .secrow{display:flex;align-items:center;gap:4px;margin:2px 0}
+ #secmenu .secrow{display:flex;align-items:center;gap:3px;margin:2px 0}
+ #secmenu #secList .secrow span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
  #secmenu.vert,#vmodes.vert{max-width:200px}
  .menucaret{position:absolute;top:-6px;left:12px;width:11px;height:11px;background:var(--glass);
    border-left:1px solid rgba(0,0,0,.07);border-top:1px solid rgba(0,0,0,.07);transform:rotate(45deg)}
@@ -134,7 +135,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.9 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.10 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -208,7 +209,7 @@
  <button id="mOrbit" class="on" title="Orbitar"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><path d="M10.4 21.9a10 10 0 0 0 9.9-15.4"/><path d="M13.5 2.1a10 10 0 0 0-9.8 15.4"/></svg></button>
  <button id="vLook" title="Mirar alrededor · look around (3 dedos en iPad)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
  <button id="vOrtho" title="Proyección ortográfica (isométrica / paralela)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5Z"/><path d="M12 3 12 12M4 7.5 12 12 20 7.5"/></svg></button>
- <button id="vPersp" class="on" title="Proyección en perspectiva (cónica)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8 13 8 13 17 4 17Z"/><path d="M4 8 8 4 20 5 13 8"/><path d="M13 8 20 5 19 15 13 17"/></svg></button>
+ <button id="vPersp" class="on" title="Proyección en perspectiva (cónica)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1"/><rect x="9.5" y="9" width="5" height="5" rx="0.5"/><path d="M3 4 9.5 9M21 4 14.5 9M3 20 9.5 14M21 20 14.5 14"/></svg></button>
  <div class="vsep"></div>
  <button id="vAlz" title="Alzado frontal (se mira desde delante)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="6" width="10" height="10" rx="1.5"/><polyline points="9.5 21.5 12 19 14.5 21.5"/></svg></button>
  <button id="vAlzP" title="Alzado posterior (se mira desde detrás)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="8" width="10" height="10" rx="1.5"/><polyline points="9.5 2.5 12 5 14.5 2.5"/></svg></button>
@@ -220,24 +221,25 @@
  <button id="vEye" title="Estilo de visualización (sombreado)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17 6.4 6.4 0 0 0 0-17Z" fill="currentColor" stroke="none"/></svg></button>
  <button id="vDark" title="Modo oscuro (mejora el contraste del láser)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg></button>
  <button id="vInv" title="Modo invertido: fondo oscuro con volúmenes claros"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/></svg></button>
+ <div class="vsep"></div>
  <button id="secTool" title="Secciones"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="6"/><path d="M9 6 9 18"/><path d="M15 7 21 12 15 17Z" fill="currentColor" stroke="none"/></svg></button>
  <button id="barPlanes" class="on" title="Mostrar/ocultar planos de sección (todas)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9 13 5 21 9 11 13Z"/><path d="M11 13 11 20M3 9 3 15 11 20M21 9 21 15 11 20" opacity=".38"/></svg></button>
  <button id="barCut" class="on" title="Mostrar/ocultar el corte (todas)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/></svg></button>
  <button id="barPoche" class="on" title="Mostrar/ocultar el poché (todas)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12 12 4M8 20 20 8M14 21 21 14"/></svg></button>
 </div>
-<div id="secmenu" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:column;padding:8px;gap:6px;width:170px;max-width:92vw;font-size:12.5px;color:var(--ink)">
+<div id="secmenu" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:column;padding:8px;gap:6px;width:248px;max-width:94vw;font-size:12.5px;color:var(--ink)">
  <div class="menucaret"></div>
  <b style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Secciones</b>
- <div class="secrow" style="flex-wrap:wrap">
-  <button class="secmk" id="secAddFace" title="Sección sobre la cara que toques (por defecto)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;vertical-align:-3px"><path d="M4 9 14 5 20 9 10 13Z"/><path d="M12 12 12 20"/></svg>Cara</button>
-  <button class="secmk axmk" id="secAddX" title="Sección según eje X (tócala y luego cualquier punto)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 9 15 5 19 12 9 16Z" fill="#e5433c" opacity=".9"/><path d="M12 10 12 20" stroke="#e5433c" stroke-width="2"/></svg><b>X</b></button>
-  <button class="secmk axmk" id="secAddY" title="Sección según eje Y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 9 15 5 19 12 9 16Z" fill="#2ca24c" opacity=".9"/><path d="M12 10 12 20" stroke="#2ca24c" stroke-width="2"/></svg><b>Y</b></button>
-  <button class="secmk axmk" id="secAddZ" title="Sección según eje Z"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 9 15 5 19 12 9 16Z" fill="#3a6ff0" opacity=".9"/><path d="M12 10 12 20" stroke="#3a6ff0" stroke-width="2"/></svg><b>Z</b></button>
+ <div class="secrow" style="flex-wrap:nowrap">
+  <button class="secmk" id="secAddFace" style="flex:1" title="Sección sobre la cara que toques (por defecto)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px;vertical-align:-3px"><path d="M4 9 14 5 20 9 10 13Z"/><path d="M12 12 12 20"/></svg>Cara</button>
+  <button class="secmk axmk" id="secAddX" style="flex:0 0 auto" title="Sección según eje X (tócala y luego cualquier punto)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 9 15 5 19 12 9 16Z" fill="#e5433c" opacity=".9"/><path d="M12 10 12 20" stroke="#e5433c" stroke-width="2"/></svg><b>X</b></button>
+  <button class="secmk axmk" id="secAddY" style="flex:0 0 auto" title="Sección según eje Y"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 9 15 5 19 12 9 16Z" fill="#2ca24c" opacity=".9"/><path d="M12 10 12 20" stroke="#2ca24c" stroke-width="2"/></svg><b>Y</b></button>
+  <button class="secmk axmk" id="secAddZ" style="flex:0 0 auto" title="Sección según eje Z"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 9 15 5 19 12 9 16Z" fill="#3a6ff0" opacity=".9"/><path d="M12 10 12 20" stroke="#3a6ff0" stroke-width="2"/></svg><b>Z</b></button>
  </div>
- <div class="seccol">
-  <button class="secTgl on" id="tglPlanes" title="Mostrar/ocultar los planos de sección"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>Planos</button>
-  <button class="secTgl on" id="tglCut" title="Mostrar/ocultar el corte"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/></svg>Corte</button>
-  <button class="secTgl on" id="tglPoche" title="Mostrar/ocultar el relleno de corte"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12 12 4M8 20 20 8M14 21 21 14"/></svg>Poché</button>
+ <div class="secrow" style="flex-wrap:nowrap">
+  <button class="secTgl on" id="tglPlanes" title="Mostrar/ocultar los planos de sección"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>Planos</button>
+  <button class="secTgl on" id="tglCut" title="Mostrar/ocultar el corte"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/></svg>Corte</button>
+  <button class="secTgl on" id="tglPoche" title="Mostrar/ocultar el relleno de corte"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12 12 4M8 20 20 8M14 21 21 14"/></svg>Poché</button>
  </div>
  <div id="secList"></div>
 </div>
@@ -250,7 +252,7 @@
  <button id="lzNew" title="Nuevo láser" style="width:100%;height:32px;border:0;border-radius:9px;background:#e7f7ee;color:#0a9f57;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0a9f57" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
  <div id="laserList"></div>
 </div>
-<div id="side" class="pill"><div class="grip" data-grip title="Mover panel" style="width:100%;height:14px;margin:-4px 0 4px"><svg width="20" height="10" viewBox="0 0 40 12" fill="currentColor"><circle cx="14" cy="6" r="1.5"/><circle cx="20" cy="6" r="1.5"/><circle cx="26" cy="6" r="1.5"/></svg></div><b>Piezas</b><div id="pieces"></div>
+<div id="side" class="pill"><div class="grip" data-grip title="Mover panel" style="width:100%;height:14px;margin:-4px 0 4px"><svg width="20" height="10" viewBox="0 0 40 12" fill="currentColor"><circle cx="14" cy="6" r="1.5"/><circle cx="20" cy="6" r="1.5"/><circle cx="26" cy="6" r="1.5"/></svg></div><div style="display:flex;align-items:center;justify-content:space-between"><b>Piezas</b><button id="pieceAlphaTgl" title="Transparencia por pieza" style="border:0;background:transparent;color:var(--mut);cursor:pointer;padding:2px;border-radius:7px;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z"/><path d="M9 14a3 3 0 0 0 3 3" opacity=".5"/></svg></button></div><div id="pieces"></div>
  <div style="margin-top:8px"><b>Opacidad</b><br><input type="range" id="op" min="15" max="100" value="100"></div>
  <div id="invARow" style="margin-top:6px;display:none"><b>Transparencia volúmenes (invertido)</b><br><input type="range" id="invA" min="10" max="100" value="85"></div>
  <div style="margin-top:6px"><b>Grosor trazo</b><br><input type="range" id="lw" min="0.3" max="3" step="0.1" value="0.8"> mm</div>
@@ -318,12 +320,13 @@ MESHES.forEach(m=>{
   g.setAttribute('position',new THREE.Float32BufferAttribute(m.v,3));
   g.setIndex(m.f); g.computeVertexNormals();
   let mesh=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:m.color,side:THREE.DoubleSide,
-      transparent:true,opacity:1,metalness:.15,roughness:.55,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));
+      transparent:true,opacity:1,metalness:.15,roughness:.55,depthFunc:THREE.LessEqualDepth,
+      polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));
   mesh.name=m.name; scene.add(mesh); pieces[m.name]=mesh; pickables.push(mesh); bbox.expandByObject(mesh);
   mesh.userData.baseColor=new THREE.Color(m.color).getHex();
   mesh.userData.matShaded=mesh.material;
   mesh.userData.matFlat=new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide,transparent:true,
-      opacity:1,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1});
+      opacity:1,depthFunc:THREE.LessEqualDepth,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1});
   mesh.userData.edges=new THREE.LineSegments(new THREE.EdgesGeometry(g,25),
       new THREE.LineBasicMaterial({color:0x1c1c1e}));
   mesh.userData.edges.visible=false; mesh.add(mesh.userData.edges);
@@ -371,8 +374,11 @@ MESHES.forEach(m=>{
       for(let k=0;k<3;k++){const p=f[i+k]*3;t[k*3]=v[p];t[k*3+1]=v[p+1];t[k*3+2]=v[p+2];}
       arr.push(t);}
     mesh.userData.ltris=arr;})();
+  mesh.userData.alpha=1;
   let lab=document.createElement('label');
-  lab.innerHTML='<input type="checkbox" checked data-n="'+m.name+'"> <span style="color:'+m.color+'">■</span> '+m.name;
+  lab.style.display='flex'; lab.style.alignItems='center'; lab.style.gap='5px';
+  lab.innerHTML='<input type="checkbox" checked data-n="'+m.name+'"> <span style="color:'+m.color+'">■</span> <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+m.name+'</span>'+
+    '<input class="pieceAlpha" type="range" min="8" max="100" value="100" data-na="'+m.name+'" title="Transparencia de esta pieza" style="width:60px;display:none">';
   document.getElementById('pieces').appendChild(lab);
 });
 let C=new THREE.Vector3(); bbox.getCenter(C);
@@ -501,7 +507,12 @@ function applyMode(){
       ud.edges.material.color.setHex(0x2a2d31);
       if(ud.silh)ud.silh.line.material.color.setHex(0x2a2d31);}
   }
-  if(typeof refreshPocheMode==='function')refreshPocheMode();  // opacidad/stencil del poché
+  // TRANSPARENCIA POR PIEZA: multiplica la opacidad del estilo actual. Las piezas
+  // siguen siendo translúcidas (como siempre); el poché NO depende de esto gracias
+  // al prepass de profundidad.
+  for(const n in pieces){const ud=pieces[n].userData; const a=(ud.alpha!==undefined?ud.alpha:1);
+    if(!invView&&(viewMode==='tecnico'||viewMode==='oculto')){ud.matFlat.opacity=a;}
+    else{ud.matShaded.opacity*=a;}}
   _silhFrame=-1; // recalcular siluetas aunque la camara no se haya movido
   document.querySelectorAll('#vmodes button').forEach(b=>b.classList.toggle('on',b.dataset.m===viewMode));
 }
@@ -1297,6 +1308,13 @@ function checkHold(){
 undo.onclick=()=>{strokes.pop();redraw();};
 document.getElementById('pieces').addEventListener('change',e=>{
   let n=e.target.dataset.n;if(n){pieces[n].visible=e.target.checked;_silhFrame=-1;updateLasers();}});
+// transparencia POR PIEZA: el icono revela un deslizante en cada fila
+document.getElementById('pieceAlphaTgl').onclick=function(){
+  const show=document.querySelectorAll('.pieceAlpha')[0]&&document.querySelectorAll('.pieceAlpha')[0].style.display==='none';
+  document.querySelectorAll('.pieceAlpha').forEach(s=>s.style.display=show?'inline-block':'none');
+  this.style.color=show?'var(--acc)':'var(--mut)';};
+document.getElementById('pieces').addEventListener('input',e=>{
+  const na=e.target.dataset.na; if(na&&pieces[na]){pieces[na].userData.alpha=Math.max(0.08,(+e.target.value)/100);applyMode();}});
 
 // ---- AYUDAS DE DIBUJO: multi-seleccion, ejes, duplicar, grupos, iman fijo, contacto ----
 document.getElementById('mMulti').onclick=e=>{
@@ -1632,9 +1650,9 @@ function makeSecMarker(s){
   g2.lineWidth=2.4;g2.strokeStyle=col;g2.stroke();
   g2.beginPath();g2.moveTo(74,32);g2.lineTo(124,48);g2.lineTo(74,64);g2.closePath();g2.lineWidth=2.4;g2.strokeStyle=col;g2.stroke();
   g2.beginPath();g2.moveTo(52,28);g2.lineTo(52,68);g2.lineWidth=2;g2.stroke();
-  g2.fillStyle=col;g2.font='600 19px -apple-system,sans-serif';g2.textAlign='center';g2.textBaseline='middle';
+  g2.fillStyle=col;g2.font='700 30px -apple-system,sans-serif';g2.textAlign='center';g2.textBaseline='middle';
   g2.fillText(secLetterOf(s),24,49);
-  const W=R*0.075, H=W*96/128;           // aún más pequeño
+  const W=R*0.09, H=W*96/128;            // pequeño pero con la letra legible
   const sp=new THREE.Mesh(new THREE.PlaneGeometry(W,H),
     new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),depthTest:false,transparent:true,side:THREE.DoubleSide}));
   sp.userData.mw=W; sp.renderOrder=13; return sp;
@@ -1769,12 +1787,20 @@ function toggleSecRotate(s){
   renderSecList(); updateGizmo();}
 function flipSection(s){s.normal.negate();syncSecWidget(s);
   if(s.active)applySec(); toast(s.name+': sentido invertido');}
+let _viewBeforeAlign=null;
 function alignToSection(s){
+  if(_viewBeforeAlign&&_viewBeforeAlign.s===s){   // 2º toque = deshacer, vuelve a la vista anterior
+    const v=_viewBeforeAlign; _viewBeforeAlign=null;
+    if(ortho!==v.ortho)setProj(v.ortho);
+    setView(v.th,v.ph); toast('Vista anterior restaurada');
+    return;
+  }
+  _viewBeforeAlign={s,th:sph.th,ph:sph.ph,ortho};   // recuerda la vista actual
   const n=s.normal.clone().normalize();
   let ph=Math.acos(Math.max(-1,Math.min(1,n.z))), th=Math.atan2(n.y,n.x);
   ph=Math.max(0.02,Math.min(Math.PI-0.02,ph));
   if(!ortho)setProj(true);
-  setView(th,ph); toast('Vista alineada a '+s.name+' (ortográfica)');
+  setView(th,ph); toast('Vista alineada a '+s.name+' · toca de nuevo para volver');
 }
 function removeSection(s){
   if(secRotate===s)secRotate=null;
@@ -1893,61 +1919,44 @@ const pocheClear=new THREE.Mesh(new THREE.PlaneGeometry(0.01,0.01),
 pocheClear.renderOrder=3; pocheClear.frustumCulled=false; pocheClear.visible=false;
 pocheClear.onAfterRender=r=>r.clearStencil();
 scene.add(pocheClear);
+// POCHÉ robusto en CUALQUIER estilo (opaco, translúcido o híbrido):
+//  1) un PREPASS de profundidad escribe el z de las piezas recortadas (aunque el
+//     material visible sea translúcido) — así el stencil siempre tiene z de referencia;
+//  2) el stencil es consciente de la profundidad (cuenta caras traseras DETRÁS del z),
+//     de modo que sólo se rellena la SECCIÓN real; y
+//  3) las piezas visibles usan depthFunc<= para dibujarse sobre el prepass coplanar.
+// Ya NO hace falta forzar las piezas a opacas (los estilos se ven igual que siempre).
 (function buildPoche(){
-  const mk=(side,op)=>new THREE.MeshBasicMaterial({side,colorWrite:false,depthWrite:false,depthTest:false,
+  // MISMO polygonOffset que las piezas visibles → el prepass y el stencil quedan
+  // coplanares con la geometría (imprescindible para el conteo por profundidad).
+  const PO={polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1};
+  const mk=(side,op)=>new THREE.MeshBasicMaterial(Object.assign({side,colorWrite:false,depthWrite:false,depthTest:true,
     stencilWrite:true,stencilFunc:THREE.AlwaysStencilFunc,
-    stencilFail:op,stencilZFail:op,stencilZPass:op});
+    stencilFail:THREE.KeepStencilOp,stencilZFail:op,stencilZPass:THREE.KeepStencilOp},PO));
   const mB=mk(THREE.BackSide,THREE.IncrementWrapStencilOp);
   const mF=mk(THREE.FrontSide,THREE.DecrementWrapStencilOp);
-  pocheMats={mB,mF};
+  const mD=new THREE.MeshBasicMaterial(Object.assign({colorWrite:false,depthWrite:true,depthTest:true,side:THREE.DoubleSide},PO));
+  pocheMats={mB,mF,mD};
   for(const n in pieces){const m=pieces[n];
-    const b=new THREE.Mesh(m.geometry,mB), f=new THREE.Mesh(m.geometry,mF);
-    b.renderOrder=1; f.renderOrder=1; b.visible=f.visible=false;
-    m.add(b); m.add(f); m.userData.stB=b; m.userData.stF=f;}
+    const b=new THREE.Mesh(m.geometry,mB), f=new THREE.Mesh(m.geometry,mF), d=new THREE.Mesh(m.geometry,mD);
+    d.renderOrder=-1; b.renderOrder=1; f.renderOrder=1; b.visible=f.visible=d.visible=false;
+    m.add(d); m.add(b); m.add(f); m.userData.stB=b; m.userData.stF=f; m.userData.stD=d;}
 })();
-// El poché se calcula por stencil de dos maneras según el modo:
-//  · OPACO (Sombra/Blanco/Técnico/Oculto): stencil consciente de profundidad
-//    (cuenta caras traseras DETRÁS del z-buffer) → sólo se rellena la sección real.
-//  · TRANSLÚCIDO (Wire/X-Ray): winding puro (sin test de profundidad) → se ve el
-//    volumen relleno a través de las piezas.
-function setPocheMode(depthAware){
-  for(const n in pieces){const ud=pieces[n].userData; if(!ud.stB)continue;
-    [[ud.stB,THREE.IncrementWrapStencilOp],[ud.stF,THREE.DecrementWrapStencilOp]].forEach(([mesh,op])=>{
-      const m=mesh.material;
-      if(depthAware){m.depthTest=true; m.stencilFail=THREE.KeepStencilOp; m.stencilZPass=THREE.KeepStencilOp; m.stencilZFail=op;}
-      else{m.depthTest=false; m.stencilFail=op; m.stencilZPass=op; m.stencilZFail=op;}
-      m.needsUpdate=true;});}
-}
-// Las piezas sólo pasan a OPACAS cuando hay un corte con poché que mostrar en un
-// estilo opaco; el resto del tiempo se comportan EXACTAMENTE como antes (translúcidas
-// a plena opacidad), para que Sombra/Blanco/Técnico/Oculto se vean igual que siempre.
-function refreshPocheMode(){
-  const hasCut = secShowCut && secPoche && (typeof activeSecs==='function') && activeSecs().length>0;
-  const activeOpaque = invView ? (invAlpha>=0.999)
-    : (viewMode==='tecnico'||viewMode==='oculto') ? true
-    : (viewMode==='wire'||viewMode==='xray') ? false
-    : (baseOpacity>=0.999);          // Sombra / Blanco
-  const needOpaque = activeOpaque && hasCut, wantT=!needOpaque;
-  for(const n in pieces){const ud=pieces[n].userData;
-    if(ud.matShaded.transparent!==wantT){ud.matShaded.transparent=wantT;ud.matShaded.needsUpdate=true;}
-    if(ud.matFlat.transparent!==wantT){ud.matFlat.transparent=wantT;ud.matFlat.needsUpdate=true;}}
-  setPocheMode(needOpaque);
-}
 function makePocheCap(){
   const m=new THREE.Mesh(new THREE.PlaneGeometry(R*8,R*8),
-    new THREE.MeshBasicMaterial({color:pocheColor,side:THREE.DoubleSide,depthWrite:false,
+    new THREE.MeshBasicMaterial({color:pocheColor,side:THREE.DoubleSide,depthWrite:true,
       stencilWrite:true,stencilRef:0,stencilFunc:THREE.NotEqualStencilFunc,
       stencilFail:THREE.KeepStencilOp,stencilZFail:THREE.KeepStencilOp,stencilZPass:THREE.KeepStencilOp}));
   m.renderOrder=2; m.frustumCulled=false; scene.add(m); return m;
 }
 function updatePoche(){
-  refreshPocheMode();   // ajusta opacidad de piezas + modo de stencil según haya corte o no
   const A=(secShowCut&&secPoche)?activeSecs():[];
   const on=A.length>0;
   const planes=A.map(s=>s.plane);   // ya actualizados por curClipPlanes en applySec
   for(const n in pieces){const ud=pieces[n].userData;
-    if(ud.stB){ud.stB.visible=on;ud.stF.visible=on;}}
-  if(pocheMats){pocheMats.mB.clippingPlanes=planes; pocheMats.mF.clippingPlanes=planes;}
+    if(ud.stB){ud.stB.visible=on;ud.stF.visible=on;} if(ud.stD)ud.stD.visible=on;}
+  if(pocheMats){pocheMats.mB.clippingPlanes=planes; pocheMats.mF.clippingPlanes=planes;
+    pocheMats.mD.clippingPlanes=planes;}
   while(pochePool.length<A.length)pochePool.push(makePocheCap());
   pochePool.forEach((cap,i)=>{
     if(i<A.length){const s=A[i];
