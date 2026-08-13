@@ -132,7 +132,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.7 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.8 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -497,16 +497,7 @@ function applyMode(){
       ud.edges.material.color.setHex(0x2a2d31);
       if(ud.silh)ud.silh.line.material.color.setHex(0x2a2d31);}
   }
-  // opacidad → flag de transparencia (a plena opacidad, cola OPACA: escribe
-  // profundidad y así el poché de la sección se ve en Sombra/Blanco/Técnico/Oculto)
-  for(const n in pieces){const ud=pieces[n].userData;
-    ud.matShaded.transparent=ud.matShaded.opacity<0.999;
-    ud.matFlat.transparent=ud.matFlat.opacity<0.999;}
-  const activeOpaque = invView ? (invAlpha>=0.999)
-    : (viewMode==='tecnico'||viewMode==='oculto') ? true
-    : (viewMode==='wire'||viewMode==='xray') ? false
-    : (baseOpacity>=0.999);          // Sombra / Blanco
-  if(typeof setPocheMode==='function')setPocheMode(activeOpaque);
+  if(typeof refreshPocheMode==='function')refreshPocheMode();  // opacidad/stencil del poché
   _silhFrame=-1; // recalcular siluetas aunque la camara no se haya movido
   document.querySelectorAll('#vmodes button').forEach(b=>b.classList.toggle('on',b.dataset.m===viewMode));
 }
@@ -1913,6 +1904,21 @@ function setPocheMode(depthAware){
       else{m.depthTest=false; m.stencilFail=op; m.stencilZPass=op; m.stencilZFail=op;}
       m.needsUpdate=true;});}
 }
+// Las piezas sólo pasan a OPACAS cuando hay un corte con poché que mostrar en un
+// estilo opaco; el resto del tiempo se comportan EXACTAMENTE como antes (translúcidas
+// a plena opacidad), para que Sombra/Blanco/Técnico/Oculto se vean igual que siempre.
+function refreshPocheMode(){
+  const hasCut = secShowCut && secPoche && (typeof activeSecs==='function') && activeSecs().length>0;
+  const activeOpaque = invView ? (invAlpha>=0.999)
+    : (viewMode==='tecnico'||viewMode==='oculto') ? true
+    : (viewMode==='wire'||viewMode==='xray') ? false
+    : (baseOpacity>=0.999);          // Sombra / Blanco
+  const needOpaque = activeOpaque && hasCut, wantT=!needOpaque;
+  for(const n in pieces){const ud=pieces[n].userData;
+    if(ud.matShaded.transparent!==wantT){ud.matShaded.transparent=wantT;ud.matShaded.needsUpdate=true;}
+    if(ud.matFlat.transparent!==wantT){ud.matFlat.transparent=wantT;ud.matFlat.needsUpdate=true;}}
+  setPocheMode(needOpaque);
+}
 function makePocheCap(){
   const m=new THREE.Mesh(new THREE.PlaneGeometry(R*8,R*8),
     new THREE.MeshBasicMaterial({color:pocheColor,side:THREE.DoubleSide,depthWrite:false,
@@ -1921,6 +1927,7 @@ function makePocheCap(){
   m.renderOrder=2; m.frustumCulled=false; scene.add(m); return m;
 }
 function updatePoche(){
+  refreshPocheMode();   // ajusta opacidad de piezas + modo de stencil según haya corte o no
   const A=(secShowCut&&secPoche)?activeSecs():[];
   const on=A.length>0;
   const planes=A.map(s=>s.plane);   // ya actualizados por curClipPlanes en applySec
