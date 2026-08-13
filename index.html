@@ -139,7 +139,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.11 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.12 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -250,6 +250,13 @@
 <div id="vmodes" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:row;padding:5px;gap:2px">
  <button data-m="somb" class="on">Sombra</button><button data-m="blanco">Blanco</button><button data-m="wire">Wire</button><button data-m="xray">X-Ray</button><button data-m="tecnico">Técnico</button><button data-m="oculto">Oculto</button>
 </div>
+<div id="drawmenu" class="pill" style="position:fixed;top:76px;left:12px;z-index:11;display:none;flex-direction:column;padding:7px;gap:5px;width:186px;max-width:64vw;font-size:12.5px;color:var(--ink)">
+ <b style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Modo de lápiz</b>
+ <button class="secTgl on" data-dm="geo" title="Dibuja pegado a la geometría y a las guías láser"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/><circle cx="18.5" cy="18.5" r="2.4"/></svg>Pegado a geometría</button>
+ <button class="secTgl" data-dm="free" title="Dibujo libre a mano alzada"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Libre</button>
+ <button class="secTgl" data-dm="line" title="Línea recta con longitud en vivo (tipo SketchUp)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2" fill="currentColor"/><circle cx="20" cy="4" r="2" fill="currentColor"/></svg>Recta</button>
+ <button class="secTgl" id="dmLock" title="Seguir dibujando sin volver a orbitar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Continuo (candado)</button>
+</div>
 <div id="lasermenu" class="pill" style="position:fixed;top:76px;left:12px;z-index:11;display:none;flex-direction:column;padding:7px;gap:5px;width:150px;max-width:60vw;font-size:12.5px;color:var(--ink)">
  <div class="menucaret"></div>
  <b style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Láseres</b>
@@ -259,7 +266,7 @@
 <div id="side" class="pill"><div class="grip" data-grip title="Mover panel" style="width:100%;height:14px;margin:-4px 0 4px"><svg width="20" height="10" viewBox="0 0 40 12" fill="currentColor"><circle cx="14" cy="6" r="1.5"/><circle cx="20" cy="6" r="1.5"/><circle cx="26" cy="6" r="1.5"/></svg></div><div style="display:flex;align-items:center;justify-content:space-between"><b>Piezas</b><button id="pieceAlphaTgl" title="Transparencia por pieza" style="border:0;background:transparent;color:var(--mut);cursor:pointer;padding:2px;border-radius:7px;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z"/><path d="M9 14a3 3 0 0 0 3 3" opacity=".5"/></svg></button></div><div id="pieces"></div>
  <div style="margin-top:8px"><b>Opacidad</b><br><input type="range" id="op" min="15" max="100" value="100"></div>
  <div id="invARow" style="margin-top:6px;display:none"><b>Transparencia volúmenes (invertido)</b><br><input type="range" id="invA" min="10" max="100" value="85"></div>
- <div style="margin-top:6px"><b>Grosor trazo</b><br><input type="range" id="lw" min="0.3" max="3" step="0.1" value="0.8"> mm</div>
+ <div style="margin-top:6px"><b>Grosor trazo</b><br><input type="range" id="lw" min="0.2" max="3" step="0.05" value="0.35"> mm</div>
  <div style="margin-top:6px"><b>Tam. imagen</b><br><input type="range" id="imsc" min="10" max="200" value="60"> mm</div>
  <label><input type="checkbox" id="meshChk"> Malla (aristas de triángulos)</label>
  <label><input type="checkbox" id="grid" checked> Rejilla 10 mm</label>
@@ -617,7 +624,17 @@ vPla.onclick=()=>setView(-Math.PI/2,0.01);             // planta (superior)
 vPlaInv.onclick=()=>setView(-Math.PI/2,Math.PI-0.01);  // planta invertida (inferior)
 
 // ---- estado UI ----
-let mode='orbit', color='#d500f9', mag=true, lineW=0.8, penSeen=false, drawLock=false, selDrag=null;
+let mode='orbit', color='#d500f9', mag=true, lineW=0.35, penSeen=false, drawLock=false, selDrag=null;
+let drawMode='geo';   // 'geo'=pegado a geometría/láser (por defecto) · 'free'=libre · 'line'=recta
+const PEN_ICONS={
+  geo:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/><circle cx="18.5" cy="18.5" r="2.6"/></svg>',
+  free:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
+  line:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2.2" fill="currentColor"/><circle cx="20" cy="4" r="2.2" fill="currentColor"/></svg>'};
+function setPenIcon(){const b=document.getElementById('mDraw'); if(!b)return;
+  b.innerHTML=PEN_ICONS[drawMode]+'<span id="lockDot" style="position:absolute;top:2px;right:4px;font-size:9px;line-height:1;display:'+(drawLock?'block':'none')+'">🔒</span>';}
+function applyDrawMode(){
+  if(drawMode==='geo'){mag=true;const mb=document.getElementById('mag');if(mb)mb.classList.add('on');}
+  setPenIcon();}
 const btns={orbit:'mOrbit',sel:'mSel',draw:'mDraw',erase:'mErase',text:'mText',img:'mImg'};
 function setMode(m){mode=m;for(let k in btns)document.getElementById(btns[k]).classList.toggle('on',k===m);
   const vl=document.getElementById('vLook'); if(vl)vl.classList.toggle('on',m==='look');
@@ -626,10 +643,21 @@ function setMode(m){mode=m;for(let k in btns)document.getElementById(btns[k]).cl
     if(multiSel){multiSel=false;document.getElementById('mMulti').classList.remove('on');}}}
 for(let k in btns)document.getElementById(btns[k]).onclick=()=>setMode(k);
 document.getElementById('mDraw').onclick=()=>{
-  if(mode==='draw'){drawLock=!drawLock;
-    document.getElementById('lockDot').style.display=drawLock?'block':'none';
-    toast(drawLock?'Lápiz continuo 🔒':'Lápiz: un trazo y vuelve a orbitar');}
-  else setMode('draw');};
+  const d=document.getElementById('drawmenu');
+  if(mode!=='draw'){setMode('draw');applyDrawMode();d.style.display='none';}
+  else{ // ya en modo lápiz → abrir el submenú de modos (estilo Photoshop)
+    const show=(d.style.display==='none'||!d.style.display);
+    if(show)rightOfIcon(d,document.getElementById('mDraw')); else d.style.display='none';}};
+document.getElementById('drawmenu').addEventListener('click',e=>{
+  const b=e.target.closest('[data-dm]');
+  if(b){drawMode=b.dataset.dm; applyDrawMode(); setMode('draw');
+    document.querySelectorAll('#drawmenu [data-dm]').forEach(x=>x.classList.toggle('on',x.dataset.dm===drawMode));
+    document.getElementById('drawmenu').style.display='none';
+    toast('Lápiz: '+({geo:'pegado a geometría/láser',free:'libre',line:'recta'}[drawMode]));}});
+document.getElementById('dmLock').onclick=function(){drawLock=!drawLock;
+  this.classList.toggle('on',drawLock); const ld=document.getElementById('lockDot'); if(ld)ld.style.display=drawLock?'block':'none';
+  toast(drawLock?'Lápiz continuo 🔒':'Un trazo y vuelve a orbitar');};
+setPenIcon();
 document.getElementById('mag').onclick=e=>{mag=!mag;e.currentTarget.classList.toggle('on',mag);};
 colBtn.onclick=()=>document.getElementById('colors').classList.toggle('show');
 document.querySelectorAll('.sw').forEach(s=>s.onclick=()=>{
@@ -1050,6 +1078,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
       if(mag){const sn=snapPt(drawing.points[0],null);if(sn)drawing.points[0]=sn;}}
     else{let d=mag?sph.r:cam.position.distanceTo(target);let p=planePoint(e,d);
          drawing={points:[p.toArray()],color,sobre:'aire',w:lineW};drawDist=d;}
+    if(drawMode==='line')drawing.straight=drawing.points[0].slice();   // recta: sólo inicio→fin
     lastMoveT=performance.now();
   } else if(em==='sel'&&e.button===0){
     ndc(e);
@@ -1231,6 +1260,13 @@ addEventListener('pointermove',e=>{
       if(mag&&drawing.sobre!=='aire')drawing.points=glue(drawing.points);
       drawing.points=postLine(drawing,drawing.points);
       redraw(); annGroup.add(strokeLine(drawing)); return;}
+    if(drawing.straight){   // MODO RECTA: sólo inicio→punto actual, con longitud en vivo
+      let h=mag?castAt(e):null; let p=h?offPt(h):planePoint(e,drawDist);
+      if(mag){const lq=laserSnap(p);if(lq)p.copy(lq);}
+      drawing.points=[drawing.straight.slice(),p.toArray()];
+      const A=new THREE.Vector3(...drawing.straight);
+      document.getElementById('hud').textContent='Longitud '+A.distanceTo(p).toFixed(1)+' mm';
+      redraw(); annGroup.add(strokeLine(drawing)); return;}
     let h=mag?castAt(e):null,p;
     if(h){p=offPt(h);drawDist=h.distance;
       if(drawing.sobre==='aire')drawing.sobre=h.object.name;}
@@ -1271,8 +1307,20 @@ function endPointer(e){
   if(drawing&&drawing.points.length>1){
     if(mag){const sn=snapPt(drawing.points[drawing.points.length-1],drawing);
       if(sn)drawing.points[drawing.points.length-1]=sn;}
+    let selLine=null;
+    if(drawing.straight){   // RECTA → línea regular (con tiradores y longitud editable)
+      const A=new THREE.Vector3(...drawing.points[0]), B=new THREE.Vector3(...drawing.points[drawing.points.length-1]);
+      const U2=B.clone().sub(A), Lw=U2.length();
+      if(Lw>1e-6){U2.normalize();
+        drawing.reg={c:A.clone(),U:U2,
+          V:(Math.abs(U2.z)>0.9?new THREE.Vector3(1,0,0):new THREE.Vector3(0,0,1).cross(U2).normalize()),
+          tipo:'linea',pts2:[[0,0],[Lw,0]]};
+        drawing.points=genPoints(drawing.reg); selLine=drawing;}
+      delete drawing.straight;
+    }
     strokes.push(drawing);
     if(mode==='draw'&&!drawLock&&!wasPen)setMode('orbit');   // lapiz de UN trazo
+    if(selLine){setMode('sel');select('trazo',selLine,'trazo linea');}  // recta: lista para teclear la longitud exacta
   }
   if(selDrag&&mag&&!axLock){
     // al soltar un MOVER: si un extremo queda junto a otro extremo, toda la
