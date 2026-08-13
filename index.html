@@ -139,7 +139,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.18 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.19 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -802,8 +802,7 @@ function strokeLine(s){
   }
   obj.userData.rec=s; obj.renderOrder=10; return obj;
 }
-// Texto a canvas SIN caja de fondo: sólo las letras con un halo sutil para que
-// se lean sobre fondo claro u oscuro (como el texto de pantalla de SketchUp).
+// Texto a canvas SIN caja de fondo y SIN contorno: solo las letras (tipo SketchUp).
 function noteCanvas(t){
   const fs=52, pad=6;
   let cv=document.createElement('canvas'), g=cv.getContext('2d');
@@ -811,11 +810,11 @@ function noteCanvas(t){
   g.font=font; const tw=Math.max(2,Math.ceil(g.measureText(t.text).width));
   cv.width=tw+pad*2; cv.height=fs+pad*2;
   g=cv.getContext('2d'); g.font=font; g.textBaseline='middle';
-  g.lineJoin='round'; g.lineWidth=fs*0.16; g.strokeStyle='rgba(255,255,255,.92)';
-  g.strokeText(t.text,pad,cv.height/2);
   g.fillStyle=t.color||'#111'; g.fillText(t.text,pad,cv.height/2);
   return cv;
 }
+// tinta por defecto de notas/flechas: gris claro sobre fondo oscuro, negro sobre claro
+function noteInk(){return (darkView||invView)?'#d2d2d2':'#111';}
 function makeText(t){
   const cv=noteCanvas(t);
   const map=new THREE.CanvasTexture(cv); map.minFilter=THREE.LinearFilter; map.magFilter=THREE.LinearFilter;
@@ -863,20 +862,42 @@ function showDrawTag(p,txt){
   el.style.display='block';
 }
 function hideDrawTag(){const el=document.getElementById('drawTag'); if(el)el.style.display='none';}
-function placeCallout(e){
-  // la PUNTA de la flecha queda exactamente sobre el punto de la superficie tocado
+// NOTA CON FLECHA (tipo SketchUp): se pulsa sobre la superficie (punta de flecha),
+// se arrastra para tender la guía en vivo, y al soltar aparece el cuadro de texto.
+let calloutDrag=null, _calloutPrev=null;
+function startCallout(e){
   let h=castAt(e);
-  let anchor=h?h.point.clone():planePoint(e,mag?sph.r:cam.position.distanceTo(target));
-  // el cuadro de texto arranca desplazado (arriba-derecha) para que se vea la guía
-  const right=new THREE.Vector3().setFromMatrixColumn(cam.matrix,0);
-  const up=new THREE.Vector3().setFromMatrixColumn(cam.matrix,1);
-  const w=wppAt(anchor);   // guía corta y proporcional en pantalla (~55 px)
-  let pos=anchor.clone().addScaledVector(right,46*w).addScaledVector(up,30*w);
+  const anchor=h?h.point.clone():planePoint(e,mag?sph.r:cam.position.distanceTo(target));
+  calloutDrag={anchor,pos:anchor.clone(),depth:cam.position.distanceTo(anchor),color:noteInk()};
+  drawCalloutPreview();
+}
+function drawCalloutPreview(){
+  if(_calloutPrev){scene.remove(_calloutPrev);_calloutPrev=null;}
+  if(!calloutDrag)return;
+  const A=calloutDrag.pos, B=calloutDrag.anchor, col=calloutDrag.color;
+  const g=new THREE.Group();
+  const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([A.clone(),B.clone()]),
+    new THREE.LineBasicMaterial({color:col,depthTest:false,transparent:true,opacity:.95}));
+  line.renderOrder=11;
+  const u=new THREE.Vector3().subVectors(B,A); if(u.lengthSq()<1e-9)u.set(0,0,1); u.normalize();
+  const s=HEAD_PX*wppAt(B);
+  const cone=new THREE.Mesh(new THREE.ConeGeometry(0.42,1,14),new THREE.MeshBasicMaterial({color:col,depthTest:false}));
+  cone.scale.setScalar(s); cone.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),u);
+  cone.position.copy(B).addScaledVector(u,-s/2); cone.renderOrder=11;
+  g.add(line,cone); scene.add(g); _calloutPrev=g;
+}
+function clearCalloutPreview(){calloutDrag=null; if(_calloutPrev){scene.remove(_calloutPrev);_calloutPrev=null;}}
+function finishCallout(cd){
+  let pos=cd.pos.clone();
+  if(pos.distanceTo(cd.anchor)<1e-3){   // toque sin arrastre → guía corta arriba-derecha
+    const right=new THREE.Vector3().setFromMatrixColumn(cam.matrix,0), up=new THREE.Vector3().setFromMatrixColumn(cam.matrix,1);
+    const w=wppAt(cd.anchor); pos=cd.anchor.clone().addScaledVector(right,46*w).addScaledVector(up,30*w);
+  }
   askText(txt=>{const s=(txt||'').trim(); if(!s)return;
-    const rec={text:s,pos:pos.toArray(),anchor:anchor.toArray(),color,size:14};
+    const rec={text:s,pos:pos.toArray(),anchor:cd.anchor.toArray(),color:cd.color,size:14};
     texts.push(rec); redraw();
     setMode('sel'); select('texto',rec,'nota "'+rec.text+'"');
-    toast('Nota con flecha · arrastra el cuadro para moverlo');});
+    toast('Nota con flecha creada · arrastra el cuadro para moverlo');});
 }
 function handleSize(){return Math.max(0.7,sph.r*0.008);}
 let _ringTex=null;
@@ -1187,6 +1208,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     return;}
   if(pointers.size===2){
     if(drawing){drawing=null;redraw();}
+    if(calloutDrag)clearCalloutPreview();
     _tapDeselect=null;   // un pellizco (zoom/giro) no debe deseleccionar
     let ps=[...pointers.values()];
     pinch={d0:Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y),r0:sph.r,
@@ -1196,7 +1218,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
   lastX=e.clientX;lastY=e.clientY;button=e.button;
   if(em==='draw'&&e.button===0){
     {const dm=document.getElementById('drawmenu'); if(dm.style.display&&dm.style.display!=='none')dm.style.display='none';}  // al empezar a dibujar se cierra el submenú
-    if(drawMode==='note'){placeCallout(e);return;}   // nota con flecha: un toque coloca la punta + abre el texto
+    if(drawMode==='note'){startCallout(e);return;}   // nota con flecha: pulsa la punta y arrastra la guía
     ndc(e); let hh=ray.intersectObjects(handles.map(h=>h.mesh));
     if(hh.length){handDrag=handles.find(h=>h.mesh===hh[0].object);handDrag.dist=hh[0].distance;return;}
     _drawEdgeSegs=buildEdgeSegs();   // imán-guía (aristas del modelo) para todo este trazo
@@ -1350,6 +1372,8 @@ addEventListener('pointermove',e=>{
     document.getElementById('hud').textContent='Δ '+(t-secMoveDrag.t0).toFixed(1)+' mm · '+secMoveDrag.s.name;
     return;}
   if(gizDrag){ndc(e);moveGizDrag();redraw();return;}
+  if(calloutDrag){calloutDrag.pos=planePoint(e,calloutDrag.depth); drawCalloutPreview();
+    document.getElementById('hud').textContent='Nota con flecha · suelta para escribir'; return;}
   if(textDrag){const cur=planePoint(e,textDrag.depth);
     const d=new THREE.Vector3().subVectors(cur,textDrag.start);
     if(axLock){const v=d[axLock];d.set(0,0,0);d[axLock]=v;}
@@ -1521,6 +1545,7 @@ function endPointer(e){
     if(gizDrag.t==='pieza'){computeIntersections();applySec();_silhFrame=-1;updateLasers();}
     gizDrag=null;hideContact();hideMagHi();updateGizmo();}
   if(_tapDeselect){if(!_tapDeselect.moved)deselect(); _tapDeselect=null;}   // toque en vacío = deseleccionar
+  if(calloutDrag){const cd=calloutDrag; clearCalloutPreview(); finishCallout(cd);}   // nota: al soltar, cierra la flecha y pide el texto
   drawing=null;handDrag=null;imgDrag=null;selDrag=null;textDrag=null;dragging=false;
   _drawEdgeSegs=null;_laserPolys=null;hideDrawTag();redraw();
 }
