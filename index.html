@@ -139,7 +139,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.14 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.15 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -173,6 +173,7 @@
  <button id="selClose" style="flex:0 0 auto;border:0;background:#eee;color:#333;border-radius:9px;width:34px;height:34px;cursor:pointer">✕</button>
 </div>
 <div id="hud">x — · y — · z — mm</div>
+<div id="drawTag" style="position:fixed;z-index:13;display:none;pointer-events:none;font-size:11px;font-weight:600;line-height:1;padding:2px 5px;border-radius:6px;background:rgba(28,28,30,.82);color:#fff;white-space:nowrap;transform:translate(10px,-50%)">0 mm</div>
 
 <div id="colors" class="pill">
  <span class="sw on" style="background:#d500f9" data-c="#d500f9"></span>
@@ -635,7 +636,10 @@ const PEN_ICONS={
 function setPenIcon(){const b=document.getElementById('mDraw'); if(!b)return;
   b.innerHTML=PEN_ICONS[drawMode]+'<span id="lockDot" style="position:absolute;top:2px;right:4px;font-size:9px;line-height:1;display:'+(drawLock?'block':'none')+'">🔒</span>';}
 function applyDrawMode(){
-  if(drawMode==='geo'){mag=true;const mb=document.getElementById('mag');if(mb)mb.classList.add('on');}
+  const mb=document.getElementById('mag');
+  // cada modo con su significado: pegado = imán ON · libre = imán OFF (mano alzada real)
+  if(drawMode==='geo'){mag=true;if(mb)mb.classList.add('on');}
+  else if(drawMode==='free'){mag=false;if(mb)mb.classList.remove('on');}
   setPenIcon();}
 const btns={orbit:'mOrbit',sel:'mSel',draw:'mDraw',erase:'mErase',text:'mText',img:'mImg'};
 function setMode(m){mode=m;for(let k in btns)document.getElementById(btns[k]).classList.toggle('on',k===m);
@@ -796,6 +800,18 @@ function updateNoteScales(){
       const s=HEAD_PX*wppAt(B); o.scale.setScalar(s); o.position.copy(B).addScaledVector(u,-s/2);}}
 }
 const _nB=new THREE.Vector3(), _nu=new THREE.Vector3();
+// etiqueta flotante con la distancia (cifra pequeña) en el extremo mientras se dibuja
+function showDrawTag(p,txt){
+  const el=document.getElementById('drawTag'); if(!el)return;
+  const v=p.clone().project(cam);
+  if(v.z>1){el.style.display='none';return;}
+  const rct=renderer.domElement.getBoundingClientRect();
+  el.textContent=txt;
+  el.style.left=(rct.left+(v.x*0.5+0.5)*rct.width)+'px';
+  el.style.top=(rct.top+(-v.y*0.5+0.5)*rct.height)+'px';
+  el.style.display='block';
+}
+function hideDrawTag(){const el=document.getElementById('drawTag'); if(el)el.style.display='none';}
 function placeCallout(e){
   // la PUNTA de la flecha queda exactamente sobre el punto de la superficie tocado
   let h=castAt(e);
@@ -1312,6 +1328,7 @@ addEventListener('pointermove',e=>{
     s.points=genPoints(reg)||s.points;
     if((mag||s.magLock)&&s.sobre!=='aire')s.points=glue(s.points);
     s.points=postLine(s,s.points);
+    if(reg.tipo==='linea'&&s.points.length>1){const a=new THREE.Vector3(...s.points[0]),b=new THREE.Vector3(...s.points[s.points.length-1]);showDrawTag(p,a.distanceTo(b).toFixed(1)+' mm');}
     contactProbe(s);
     redraw();return;}
   if(drawing){
@@ -1329,13 +1346,16 @@ addEventListener('pointermove',e=>{
       drawing.points=genPoints(reg)||drawing.points;
       if(mag&&drawing.sobre!=='aire')drawing.points=glue(drawing.points);
       drawing.points=postLine(drawing,drawing.points);
+      if(reg.tipo==='linea'&&drawing.points.length>1){const a=new THREE.Vector3(...drawing.points[0]),b=new THREE.Vector3(...drawing.points[drawing.points.length-1]);showDrawTag(p,a.distanceTo(b).toFixed(1)+' mm');}
       redraw(); annGroup.add(strokeLine(drawing)); return;}
     if(drawing.straight){   // MODO RECTA: sólo inicio→punto actual, con longitud en vivo
       let h=mag?castAt(e):null; let p=h?offPt(h):planePoint(e,drawDist);
       if(mag){const lq=laserSnap(p);if(lq)p.copy(lq);}
       drawing.points=[drawing.straight.slice(),p.toArray()];
       const A=new THREE.Vector3(...drawing.straight);
-      document.getElementById('hud').textContent='Longitud '+A.distanceTo(p).toFixed(1)+' mm';
+      const Lstr=A.distanceTo(p).toFixed(1)+' mm';
+      document.getElementById('hud').textContent='Longitud '+Lstr;
+      showDrawTag(p,Lstr);   // cifra pequeña en el extremo
       redraw(); annGroup.add(strokeLine(drawing)); return;}
     let h=mag?castAt(e):null,p;
     if(h){p=offPt(h);drawDist=h.distance;
@@ -1407,7 +1427,7 @@ function endPointer(e){
     if(gizDrag.t==='pieza'){computeIntersections();applySec();_silhFrame=-1;updateLasers();}
     gizDrag=null;hideContact();hideMagHi();updateGizmo();}
   if(_tapDeselect){if(!_tapDeselect.moved)deselect(); _tapDeselect=null;}   // toque en vacío = deseleccionar
-  drawing=null;handDrag=null;imgDrag=null;selDrag=null;textDrag=null;dragging=false;redraw();
+  drawing=null;handDrag=null;imgDrag=null;selDrag=null;textDrag=null;dragging=false;hideDrawTag();redraw();
 }
 addEventListener('pointerup',endPointer);
 addEventListener('pointercancel',endPointer);
@@ -2332,7 +2352,7 @@ function buildExport(){
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
-window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},redraw,makeText};
+window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},redraw,makeText};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());
