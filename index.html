@@ -139,7 +139,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.13 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.14 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -646,8 +646,8 @@ function setMode(m){mode=m;for(let k in btns)document.getElementById(btns[k]).cl
 for(let k in btns)document.getElementById(btns[k]).onclick=()=>setMode(k);
 document.getElementById('mDraw').onclick=()=>{
   const d=document.getElementById('drawmenu');
-  if(mode!=='draw'){setMode('draw');applyDrawMode();d.style.display='none';}
-  else{ // ya en modo lápiz → abrir el submenú de modos (estilo Photoshop)
+  if(mode!=='draw'){setMode('draw');applyDrawMode();rightOfIcon(d,document.getElementById('mDraw'));} // al entrar muestra los tipos de lápiz
+  else{ // ya en modo lápiz → alterna el submenú de modos (estilo Photoshop)
     const show=(d.style.display==='none'||!d.style.display);
     if(show)rightOfIcon(d,document.getElementById('mDraw')); else d.style.display='none';}};
 document.getElementById('drawmenu').addEventListener('click',e=>{
@@ -747,30 +747,55 @@ function strokeLine(s){
   }
   obj.userData.rec=s; obj.renderOrder=10; return obj;
 }
+// Texto a canvas SIN caja de fondo: sólo las letras con un halo sutil para que
+// se lean sobre fondo claro u oscuro (como el texto de pantalla de SketchUp).
+function noteCanvas(t){
+  const fs=52, pad=6;
+  let cv=document.createElement('canvas'), g=cv.getContext('2d');
+  const font='600 '+fs+'px -apple-system,BlinkMacSystemFont,system-ui,Segoe UI,sans-serif';
+  g.font=font; const tw=Math.max(2,Math.ceil(g.measureText(t.text).width));
+  cv.width=tw+pad*2; cv.height=fs+pad*2;
+  g=cv.getContext('2d'); g.font=font; g.textBaseline='middle';
+  g.lineJoin='round'; g.lineWidth=fs*0.16; g.strokeStyle='rgba(255,255,255,.92)';
+  g.strokeText(t.text,pad,cv.height/2);
+  g.fillStyle=t.color||'#111'; g.fillText(t.text,pad,cv.height/2);
+  return cv;
+}
 function makeText(t){
-  let cv=document.createElement('canvas');cv.width=512;cv.height=128;
-  let g=cv.getContext('2d');g.fillStyle='rgba(255,255,255,.85)';g.fillRect(0,0,512,128);
-  g.fillStyle=t.color;g.font='bold 44px sans-serif';g.textBaseline='middle';g.fillText(t.text,14,64);
-  let sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false}));
-  sp.position.set(...t.pos); let s=t.size||14; sp.scale.set(s*3.2,s*0.8,1);
-  sp.userData.rec=t; sp.renderOrder=12;
+  const cv=noteCanvas(t);
+  const map=new THREE.CanvasTexture(cv); map.minFilter=THREE.LinearFilter; map.magFilter=THREE.LinearFilter;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map,depthTest:false,transparent:true}));
+  sp.position.set(...t.pos);
+  sp.userData.rec=t; sp.userData.noteAspect=cv.width/cv.height; sp.renderOrder=12;
+  // el tamaño en pantalla lo fija updateNoteScales() en el bucle (constante, pequeño)
   if(!t.anchor)return sp;
-  // NOTA CON FLECHA (llamada 3D): guía fina desde el cuadro de texto hasta el punto de la superficie
+  // NOTA CON FLECHA (llamada 3D estilo SketchUp): guía fina 3D + cabeza pequeña
   const out=[sp];
   const A=new THREE.Vector3(...t.pos), B=new THREE.Vector3(...t.anchor);
-  const dir=new THREE.Vector3().subVectors(B,A), len=Math.max(dir.length(),1e-3), u=dir.clone().divideScalar(len);
-  const headL=Math.min(len*0.5,Math.max(handleSize()*1.5,len*0.16)), headR=headL*0.42;
-  const lineEnd=B.clone().addScaledVector(u,-headL);
-  const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([A,lineEnd]),
-    new THREE.LineBasicMaterial({color:t.color,depthTest:false,transparent:true}));
+  const u=new THREE.Vector3().subVectors(B,A); if(u.lengthSq()<1e-9)u.set(0,0,1); u.normalize();
+  const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([A,B.clone()]),
+    new THREE.LineBasicMaterial({color:t.color,depthTest:false,transparent:true,opacity:.9}));
   line.renderOrder=11; line.userData.rec=t; out.push(line);
-  const cone=new THREE.Mesh(new THREE.ConeGeometry(headR,headL,12),
+  const cone=new THREE.Mesh(new THREE.ConeGeometry(0.42,1,14),
     new THREE.MeshBasicMaterial({color:t.color,depthTest:false}));
-  cone.position.copy(B).addScaledVector(u,-headL/2);
   cone.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),u);
-  cone.renderOrder=11; cone.userData.rec=t; out.push(cone);
+  cone.userData.rec=t; cone.userData.noteHead={B:B.toArray(),u:u.toArray()}; cone.renderOrder=11; out.push(cone);
   return out;
 }
+// Tamaño en pantalla CONSTANTE para textos y cabezas de flecha (píxeles CSS).
+const NOTE_PX=15, HEAD_PX=10, _wv=new THREE.Vector3(), _wd=new THREE.Vector3();
+function wppAt(p){   // unidades de mundo por píxel en la posición p
+  if(cam.isOrthographicCamera)return (cam.top-cam.bottom)/Math.max(H,1);
+  const d=Math.max(1e-3,_wv.subVectors(p,cam.position).dot(cam.getWorldDirection(_wd)));
+  return 2*d*Math.tan((cam.fov||45)*Math.PI/360)/Math.max(H,1);
+}
+function updateNoteScales(){
+  for(const o of annGroup.children){const ud=o.userData;
+    if(ud.noteAspect){const h=NOTE_PX*wppAt(o.position); o.scale.set(h*ud.noteAspect,h,1);}
+    else if(ud.noteHead){const B=_nB.fromArray(ud.noteHead.B), u=_nu.fromArray(ud.noteHead.u);
+      const s=HEAD_PX*wppAt(B); o.scale.setScalar(s); o.position.copy(B).addScaledVector(u,-s/2);}}
+}
+const _nB=new THREE.Vector3(), _nu=new THREE.Vector3();
 function placeCallout(e){
   // la PUNTA de la flecha queda exactamente sobre el punto de la superficie tocado
   let h=castAt(e);
@@ -778,8 +803,8 @@ function placeCallout(e){
   // el cuadro de texto arranca desplazado (arriba-derecha) para que se vea la guía
   const right=new THREE.Vector3().setFromMatrixColumn(cam.matrix,0);
   const up=new THREE.Vector3().setFromMatrixColumn(cam.matrix,1);
-  const off=Math.max(sph.r*0.11,10);
-  let pos=anchor.clone().addScaledVector(right,off*1.5).addScaledVector(up,off);
+  const w=wppAt(anchor);   // guía corta y proporcional en pantalla (~55 px)
+  let pos=anchor.clone().addScaledVector(right,46*w).addScaledVector(up,30*w);
   askText(txt=>{const s=(txt||'').trim(); if(!s)return;
     const rec={text:s,pos:pos.toArray(),anchor:anchor.toArray(),color,size:14};
     texts.push(rec); redraw();
@@ -1103,6 +1128,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     return;}
   lastX=e.clientX;lastY=e.clientY;button=e.button;
   if(em==='draw'&&e.button===0){
+    {const dm=document.getElementById('drawmenu'); if(dm.style.display&&dm.style.display!=='none')dm.style.display='none';}  // al empezar a dibujar se cierra el submenú
     if(drawMode==='note'){placeCallout(e);return;}   // nota con flecha: un toque coloca la punta + abre el texto
     ndc(e); let hh=ray.intersectObjects(handles.map(h=>h.mesh));
     if(hh.length){handDrag=handles.find(h=>h.mesh===hh[0].object);handDrag.dist=hh[0].distance;return;}
@@ -2479,7 +2505,7 @@ applyMode();   // asegura la configuración del poché (stencil) tras crear las 
     const on=interOn&&pieces[ip.a]&&pieces[ip.a].visible&&pieces[ip.b]&&pieces[ip.b].visible;
     ip.l1.visible=on; ip.l2.visible=on;});
   if(gizmo&&gizmo.visible){const L=Math.max(10,sph.r*0.12);gizmo.scale.set(L,L,L);}
-  updateSilh(); updateSecMarkers();
+  updateSilh(); updateSecMarkers(); updateNoteScales();
   renderer.render(scene,cam);})();
 </script>
 </body>
