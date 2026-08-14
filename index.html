@@ -139,7 +139,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.19 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.20 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -1222,6 +1222,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     ndc(e); let hh=ray.intersectObjects(handles.map(h=>h.mesh));
     if(hh.length){handDrag=handles.find(h=>h.mesh===hh[0].object);handDrag.dist=hh[0].distance;return;}
     _drawEdgeSegs=buildEdgeSegs();   // imán-guía (aristas del modelo) para todo este trazo
+    _snapPts=mag?buildSnapPts(null):null;   // catálogo OSNAP (extremos·medios·centros·cuadrantes)
     if(drawMode==='laser'){   // LÁPIZ DE ARCO LÁSER: sigue la curva que el láser proyecta
       buildLaserPolys(); const hit=nearestLaserVertexScreen(e);
       if(!hit){toast('Acerca el lápiz a una guía láser'); return;}
@@ -1241,6 +1242,9 @@ renderer.domElement.addEventListener('pointerdown',e=>{
       else{let d=mag?sph.r:cam.position.distanceTo(target);let p=planePoint(e,d);
            drawing={points:[p.toArray()],color,sobre:'aire',w:lineW};drawDist=d;}
     }
+    if(mag&&drawMode!=='free'&&!drawing.paperRef){   // OSNAP del punto inicial
+      const sq=snapQueryWorld(drawing.points[0],16);
+      if(sq){drawing.points[0]=sq.p.slice(); flashSnapFix(sq.p,sq.kind);}}
     if(drawMode==='line')drawing.straight=drawing.points[0].slice();   // recta: sólo inicio→fin
     lastMoveT=performance.now();
   } else if(em==='sel'&&e.button===0){
@@ -1459,13 +1463,38 @@ addEventListener('pointermove',e=>{
       if(reg.tipo==='linea'&&drawing.points.length>1){const a=new THREE.Vector3(...drawing.points[0]),b=new THREE.Vector3(...drawing.points[drawing.points.length-1]);showDrawTag(p,a.distanceTo(b).toFixed(1)+' mm');}
       redraw(); annGroup.add(strokeLine(drawing)); return;}
     if(drawing.straight){   // MODO RECTA: sólo inicio→punto actual, con longitud en vivo
-      let p;
+      let p, badge='';
       if(drawing.paperRef){p=rayToPaper(e,drawing.paperRef)||planePoint(e,drawDist);
         if(mag){const g=paperGuideSnap(p,drawing.paperRef);if(g)p.copy(g);}}   // imán-guía en el plano
-      else{let h=mag?castAt(e):null; p=h?offPt(h):planePoint(e,drawDist); if(mag){const lq=magSnap(p);if(lq)p.copy(lq);}}
+      else{let h=mag?castAt(e):null; p=h?offPt(h):planePoint(e,drawDist);
+        const sq=mag?snapQuery(e):null;
+        if(sq&&sq.d<=14){p.set(sq.p[0],sq.p[1],sq.p[2]); setSnapState(sq,'mag'); badge='◈'; drawing._endMag=true;}   // imán al punto de control
+        else{
+          drawing._endMag=false;   // guías activas: el extremo NO debe re-imantarse al soltar
+          if(sq)setSnapState(sq,'hint'); else clearSnapState();
+          if(mag){const lq=magSnap(p);if(lq)p.copy(lq);}
+          if(mag){   // guías de inferencia: ∥ a otra recta · = misma longitud
+            const A0=new THREE.Vector3(...drawing.straight), d=p.clone().sub(A0), L=d.length();
+            if(L>1){
+              let best=null,ba=7*Math.PI/180; const dn=d.clone().divideScalar(L);
+              for(const st of strokes){ if(!(st.reg&&st.reg.tipo==='linea')||st.points.length<2)continue;
+                const u=new THREE.Vector3(...st.points[st.points.length-1]).sub(new THREE.Vector3(...st.points[0]));
+                const Lo=u.length(); if(Lo<1e-6)continue; u.divideScalar(Lo);
+                const dot=dn.dot(u), ang=Math.acos(Math.min(1,Math.abs(dot)));
+                if(ang<ba){ba=ang;best=u.multiplyScalar(dot<0?-1:1);}}
+              if(best){p.copy(A0).addScaledVector(best,L); badge='∥';}
+              let bl=null,bt=Infinity;
+              for(const st of strokes){ if(!(st.reg&&st.reg.tipo==='linea')||st.points.length<2)continue;
+                const Lo=new THREE.Vector3(...st.points[st.points.length-1]).distanceTo(new THREE.Vector3(...st.points[0]));
+                const dv=Math.abs(L-Lo); if(dv<Math.max(1,Lo*0.02)&&dv<bt){bt=dv;bl=Lo;}}
+              if(bl!=null){const dir=p.clone().sub(A0).normalize(); p.copy(A0).addScaledVector(dir,bl); badge+=(badge?' ':'')+'=';}
+            }
+          }
+        }
+      }
       drawing.points=[drawing.straight.slice(),p.toArray()];
       const A=new THREE.Vector3(...drawing.straight);
-      const Lstr=A.distanceTo(p).toFixed(1)+' mm';
+      const Lstr=A.distanceTo(p).toFixed(1)+' mm'+(badge?'  '+badge:'');
       document.getElementById('hud').textContent='Longitud '+Lstr;
       showDrawTag(p,Lstr);   // cifra pequeña en el extremo
       redraw(); annGroup.add(strokeLine(drawing)); return;}
@@ -1476,7 +1505,8 @@ addEventListener('pointermove',e=>{
       if(h){p=offPt(h);drawDist=h.distance;
         if(drawing.sobre==='aire')drawing.sobre=h.object.name;}
       else p=planePoint(e,drawDist);
-      if(mag){const lq=magSnap(p);if(lq)p.copy(lq);}}   // imán a aristas + papeles + láser
+      if(mag){const lq=magSnap(p);if(lq)p.copy(lq);}
+      if(mag){const sq=snapQuery(e); if(sq)setSnapState(sq,'hint'); else clearSnapState();}}   // glifo insinuado (pasar-y-volver: al soltar cerca, fija)
     let lp=drawing.points[drawing.points.length-1];
     if(p.distanceToSquared(new THREE.Vector3(...lp))>0.15){
       drawing.points.push(p.toArray()); lastMoveT=performance.now();
@@ -1510,8 +1540,10 @@ function endPointer(e){
   if(pointers.size<2){pinch=null;
     if(wasPinch)pointers.forEach((_,id)=>deadPointers.add(id));} // el dedo restante no orbita/pinta
   if(drawing&&drawing.points.length>1){
-    if(mag&&!drawing.paperRef&&!drawing.laserArc){const sn=snapPt(drawing.points[drawing.points.length-1],drawing);
-      if(sn)drawing.points[drawing.points.length-1]=sn;}
+    if(mag&&!drawing.paperRef&&!drawing.laserArc&&drawing._endMag!==false){const sn=snapPt(drawing.points[drawing.points.length-1],drawing);
+      if(sn)drawing.points[drawing.points.length-1]=sn;
+      const q=snapQueryWorld(drawing.points[drawing.points.length-1],16);   // OSNAP del extremo final
+      if(q){drawing.points[drawing.points.length-1]=q.p.slice(); flashSnapFix(q.p,q.kind);}}
     if(drawing.laserArc)delete drawing.laserArc;   // suelta la polilínea de referencia
     let selLine=null;
     if(drawing.straight){   // RECTA → línea regular (con tiradores y longitud editable)
@@ -1547,7 +1579,7 @@ function endPointer(e){
   if(_tapDeselect){if(!_tapDeselect.moved)deselect(); _tapDeselect=null;}   // toque en vacío = deseleccionar
   if(calloutDrag){const cd=calloutDrag; clearCalloutPreview(); finishCallout(cd);}   // nota: al soltar, cierra la flecha y pide el texto
   drawing=null;handDrag=null;imgDrag=null;selDrag=null;textDrag=null;dragging=false;
-  _drawEdgeSegs=null;_laserPolys=null;hideDrawTag();redraw();
+  _drawEdgeSegs=null;_laserPolys=null;_snapPts=null;clearSnapState();hideDrawTag();redraw();
 }
 addEventListener('pointerup',endPointer);
 addEventListener('pointercancel',endPointer);
@@ -2513,6 +2545,106 @@ function nearestLaserVertexScreen(e){   // el vértice de guía láser más cerc
     const d2=(sx-px)**2+(sy-py)**2; if(d2<bd){bd=d2;best={poly,idx:i};}}
   if(best)best.point=best.poly[best.idx].clone(); return best;
 }
+// ================= MOTOR OSNAP (puntos de control tipo CAD, pensado para Pencil) =================
+// Forma = tipo (□ extremo · △ medio · ⊙ centro · ◇ cuadrante) · Color = estado
+// (azul = guía, verde = fijado). Un solo glifo iluminado a la vez; "respira" al
+// insinuarse y muestra un halo al imantarse. Tamaño constante en pantalla.
+let _snapPts=null;
+function buildSnapPts(exclude){
+  const pts=[]; const add=(p,kind)=>pts.push({p:(p.toArray?p.toArray():p.slice?p.slice():p),kind});
+  for(const st of strokes){ if(st===exclude)continue; const n=st.points.length; if(n<2)continue;
+    add(st.points[0],'end'); add(st.points[n-1],'end');
+    if(st.reg&&st.reg.tipo==='circulo'){
+      const cc=st.reg.circ, c3=to3(st.reg,[cc.cx,cc.cy]); add(c3,'center');
+      for(const a of [0,Math.PI/2,Math.PI,1.5*Math.PI])
+        add(to3(st.reg,[cc.cx+cc.r*Math.cos(a),cc.cy+cc.r*Math.sin(a)]),'quad');
+    } else add(st.points[(n/2)|0],'mid');
+  }
+  // LÁSER: cuadrantes y centro de cada circunferencia proyectada (o extremos+medio si es abierta)
+  buildLaserPolys();
+  for(const poly of (_laserPolys||[])){ const n=poly.length; if(n<3)continue;
+    const closed=poly[0].distanceTo(poly[n-1])<Math.max(0.1,sph.r*0.01);
+    if(!closed){ add(poly[0],'end'); add(poly[n-1],'end'); add(poly[(n/2)|0],'mid'); continue; }
+    const N=new THREE.Vector3();
+    for(let i=0;i<n;i++){const a=poly[i],b=poly[(i+1)%n];
+      N.x+=(a.y-b.y)*(a.z+b.z); N.y+=(a.z-b.z)*(a.x+b.x); N.z+=(a.x-b.x)*(a.y+b.y);}
+    if(N.lengthSq()<1e-9)continue; N.normalize();
+    const C=new THREE.Vector3(); poly.forEach(v=>C.add(v)); C.multiplyScalar(1/n); add(C,'center');
+    const up=Math.abs(N.z)>0.9?new THREE.Vector3(1,0,0):new THREE.Vector3(0,0,1);
+    const hA=new THREE.Vector3().crossVectors(up,N).normalize();
+    const vA=new THREE.Vector3().crossVectors(N,hA).normalize();
+    for(const ax of [hA,vA]){ let mn=1/0,mx=-1/0,pmn=null,pmx=null;
+      for(const p of poly){const c=p.dot(ax); if(c<mn){mn=c;pmn=p;} if(c>mx){mx=c;pmx=p;}}
+      if(pmn)add(pmn,'quad'); if(pmx)add(pmx,'quad'); }
+  }
+  return pts;
+}
+function snapQueryScreen(px,py,rct){
+  if(!_snapPts||!_snapPts.length)return null;
+  let best=null,bd=32*32; const v=new THREE.Vector3();
+  for(const s of _snapPts){ v.set(s.p[0],s.p[1],s.p[2]).project(cam); if(v.z>1)continue;
+    const sx=(v.x*0.5+0.5)*rct.width, sy=(-v.y*0.5+0.5)*rct.height;
+    const d2=(sx-px)**2+(sy-py)**2; if(d2<bd){bd=d2;best={p:s.p,kind:s.kind,d:Math.sqrt(d2)};}}
+  return best;
+}
+function snapQuery(e){const rct=renderer.domElement.getBoundingClientRect();
+  return snapQueryScreen(e.clientX-rct.left,e.clientY-rct.top,rct);}
+function snapQueryWorld(parr,tol){
+  const rct=renderer.domElement.getBoundingClientRect();
+  const v=new THREE.Vector3(parr[0],parr[1],parr[2]).project(cam); if(v.z>1)return null;
+  const q=snapQueryScreen((v.x*0.5+0.5)*rct.width,(-v.y*0.5+0.5)*rct.height,rct);
+  return (q&&q.d<=(tol||16))?q:null;}
+// glifos como sprites (canvas): finos, con relleno casi blanco para leerse sobre todo fondo
+const _snapTexCache={};
+function snapTex(kind,col){const k=kind+col; if(_snapTexCache[k])return _snapTexCache[k];
+  const cv=document.createElement('canvas');cv.width=cv.height=64;const g=cv.getContext('2d');
+  g.lineWidth=5;g.strokeStyle=col;g.fillStyle='rgba(255,255,255,.93)';g.lineJoin='round';
+  g.beginPath();
+  if(kind==='end')g.rect(17,17,30,30);
+  else if(kind==='mid'){g.moveTo(32,13);g.lineTo(51,49);g.lineTo(13,49);g.closePath();}
+  else if(kind==='center')g.arc(32,32,17,0,7);
+  else {g.moveTo(32,11);g.lineTo(53,32);g.lineTo(32,53);g.lineTo(11,32);g.closePath();}
+  g.fill();g.stroke();
+  if(kind==='center'){g.beginPath();g.arc(32,32,4.5,0,7);g.fillStyle=col;g.fill();}
+  const t=new THREE.CanvasTexture(cv); t.minFilter=THREE.LinearFilter; _snapTexCache[k]=t; return t;}
+let _haloTex=null;
+function snapHaloTex(){ if(_haloTex)return _haloTex;
+  const cv=document.createElement('canvas');cv.width=cv.height=64;const g=cv.getContext('2d');
+  const gr=g.createRadialGradient(32,32,4,32,32,30);
+  gr.addColorStop(0,'rgba(10,132,255,.28)');gr.addColorStop(1,'rgba(10,132,255,0)');
+  g.fillStyle=gr;g.fillRect(0,0,64,64);
+  _haloTex=new THREE.CanvasTexture(cv); return _haloTex;}
+const snapHalo=new THREE.Sprite(new THREE.SpriteMaterial({map:snapHaloTex(),depthTest:false,transparent:true,opacity:0}));
+const snapSpr=new THREE.Sprite(new THREE.SpriteMaterial({depthTest:false,transparent:true,opacity:0}));
+snapHalo.renderOrder=39; snapSpr.renderOrder=40; snapHalo.visible=snapSpr.visible=false;
+scene.add(snapHalo); scene.add(snapSpr);
+let _snapState=null, _snapFix=null;
+function setSnapState(s,mode){_snapState={p:new THREE.Vector3(s.p[0],s.p[1],s.p[2]),kind:s.kind,mode};}
+function clearSnapState(){_snapState=null;}
+function flashSnapFix(p,kind){_snapFix={p:new THREE.Vector3(p[0],p[1],p[2]),kind,t0:performance.now()};clearSnapState();}
+function updateSnapGlyphs(){
+  const t=performance.now();
+  if(_snapFix){const dt=t-_snapFix.t0;
+    if(dt>650){_snapFix=null;}
+    else{const w=wppAt(_snapFix.p), k=dt/650;
+      snapSpr.visible=true; snapHalo.visible=false;
+      snapSpr.material.map=snapTex(_snapFix.kind,'#0f9d68');
+      snapSpr.material.opacity=1-k;
+      snapSpr.position.copy(_snapFix.p);
+      const s=(17+8*k)*w; snapSpr.scale.set(s,s,1);
+      return;}}
+  if(_snapState){const st=_snapState, w=wppAt(st.p);
+    const mag2=(st.mode==='mag');
+    const puls=mag2?1:(1+0.09*Math.sin(t*0.006));   // "respira" al insinuarse
+    snapSpr.material.map=snapTex(st.kind,'#0a84ff');
+    snapSpr.material.opacity=mag2?1:0.55;
+    snapSpr.position.copy(st.p);
+    const s=(mag2?18:14)*w*puls; snapSpr.scale.set(s,s,1);
+    snapHalo.position.copy(st.p); snapHalo.material.opacity=mag2?0.9:0;
+    const hs=40*w; snapHalo.scale.set(hs,hs,1);
+    snapSpr.visible=true; snapHalo.visible=mag2;
+  } else { snapSpr.visible=snapHalo.visible=false; }
+}
 // ---- IMÁN DEL LÁSER ----------------------------------------------------
 // Al mover el láser con el gizmo, su plano central se pega a la CARA (plano)
 // perpendicular al eje de arrastre más cercana de una pieza o del suelo, y se
@@ -2691,7 +2823,7 @@ function buildExport(){
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
-window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText};
+window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());
@@ -2871,7 +3003,7 @@ applyMode();   // asegura la configuración del poché (stencil) tras crear las 
     const on=interOn&&pieces[ip.a]&&pieces[ip.a].visible&&pieces[ip.b]&&pieces[ip.b].visible;
     ip.l1.visible=on; ip.l2.visible=on;});
   if(gizmo&&gizmo.visible){const L=Math.max(10,sph.r*0.12);gizmo.scale.set(L,L,L);}
-  updateSilh(); updateSecMarkers(); updateNoteScales();
+  updateSilh(); updateSecMarkers(); updateNoteScales(); updateSnapGlyphs();
   renderer.render(scene,cam);})();
 </script>
 </body>
