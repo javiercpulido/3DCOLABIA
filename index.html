@@ -150,7 +150,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.30 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.31 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -165,6 +165,7 @@
   <button id="selGrp" title="Agrupar / desagrupar">🔗</button>
   <button id="selSplit" title="Partir la línea por un punto (sin separar las partes)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M3 12 H10 M14 12 H21"/><path d="M12 8 V16" stroke-dasharray="2 2.4"/></svg></button>
   <button id="selSurf" title="Superficie: esta curva es la DIRECTRIZ · después toca la GENERATRIZ"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3.5 7.5 Q12 2.5 20.5 7.5"/><path d="M3.5 17.5 Q12 12.5 20.5 17.5"/><path d="M7 5.7V15.7M12 4.3V14.3M17 5.7V15.7" opacity=".45" stroke-width="1.3"/></svg></button>
+  <button id="selFace" title="Cara: crea una superficie del CONTORNO CERRADO seleccionado (calcos, poliarcos o líneas unidas en continuidad)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16.5 8 5.5 20 7.5 16 18.5Z"/><path d="M7 14l4-5 3 2 3-3" opacity=".45" stroke-width="1.3"/></svg></button>
  </span>
  <span id="xformOps">
   <button class="mvax" data-ax="x">X</button><button class="mvax" data-ax="y">Y</button><button class="mvax" data-ax="z">Z</button>
@@ -239,6 +240,7 @@
   <button id="mMulti" title="Multi-selección: toca trazos para sumar/restar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="11" height="11" rx="2"/><rect x="10" y="10" width="11" height="11" rx="2"/></svg></button>
   <button id="mDraw" title="Trazo (2º toque: candado)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg><span id="lockDot" style="position:absolute;top:2px;right:4px;font-size:9px;line-height:1;display:none">🔒</span></button>
   <button id="mErase" title="Borrar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg></button>
+  <button id="mSplitTool" title="Partir: toca cualquier línea por el punto donde partirla (las partes quedan unidas por ese punto)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h7M14 12h7"/><path d="M12 6.5v11" stroke-dasharray="2.4 2.8"/></svg></button>
   <button id="mag" class="on" title="Imán"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15-4-4 6.75-6.77a7.79 7.79 0 0 1 11 11L13 22l-4-4 6.39-6.36a2.14 2.14 0 0 0-3-3L6 15"/><path d="m5 8 4 4"/><path d="m12 15 4 4"/></svg></button>
   <button id="mLaser" title="Láser de obra: inserta un nivel láser con rayos verdes"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="2" y1="12" x2="22" y2="12" stroke="#00c853"/><line x1="12" y1="2" x2="12" y2="22" stroke="#00c853"/><rect x="8.3" y="8.3" width="7.4" height="7.4" rx="1.6" fill="#fff" stroke="currentColor" stroke-width="1.8"/></svg></button>
   <div class="sep"></div>
@@ -749,6 +751,8 @@ const btns={orbit:'mOrbit',sel:'mSel',draw:'mDraw',erase:'mErase',text:'mText',i
 function setMode(m){mode=m;for(let k in btns)document.getElementById(btns[k]).classList.toggle('on',k===m);
   if(m!=='draw'&&typeof polyDraw!=='undefined'&&polyDraw&&typeof cancelPoly==='function')cancelPoly();
   const vl=document.getElementById('vLook'); if(vl)vl.classList.toggle('on',m==='look');
+  if(m!=='sel'&&window._splitAny){window._splitAny=false;   // salir de sel desarma PARTIR
+    const bt=document.getElementById('mSplitTool'); if(bt)bt.classList.remove('on');}
   // navegar (orbitar / girar la cabeza) NO deselecciona; sólo los modos de edición
   if(m!=='sel'&&m!=='orbit'&&m!=='look'){deselect();
     if(multiSel){multiSel=false;document.getElementById('mMulti').classList.remove('on');}}}
@@ -1305,6 +1309,12 @@ renderer.domElement.addEventListener('pointerdown',e=>{
   if(_joinCtx)hideJoinPop();   // tocar el lienzo cierra el popup Unir/Cancelar
   if(secPlaceMode&&e.button===0&&e.isPrimary!==false){
     startSecPlacement(e); return;}
+  if(window._splitAny&&e.button===0&&e.isPrimary!==false){   // PARTIR desde el dock: toca cualquier línea
+    const st=pickStrokeAt(e);
+    if(st){if(mode!=='sel')setMode('sel'); selectStroke(st);
+      if(trySplitAt(e))toast('✂ Línea partida · toca otra o vuelve a pulsar ✂ para salir');}
+    else toast('✂ Toca una línea para partirla');
+    return;}
   if(e.pointerType==='pen'&&!penSeen){penSeen=true;toast('✍️ Pen detectado: el lápiz dibuja, los dedos navegan');}
   const em=effMode(e);
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
@@ -1329,6 +1339,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     if(drawMode==='note'){startCallout(e);return;}   // nota con flecha: pulsa la punta y arrastra la guía
     ndc(e); let hh=ray.intersectObjects(handles.map(h=>h.mesh));
     if(hh.length){handDrag=handles.find(h=>h.mesh===hh[0].object);handDrag.dist=hh[0].distance;
+      handDrag.p0=handDrag.mesh.position.clone(); handDrag.axInf=null;
       _snapPts=mag?buildSnapPts(handDrag.stroke):null; return;}
     _drawEdgeSegs=buildEdgeSegs();   // imán-guía (aristas del modelo) para todo este trazo
     _snapPts=mag?buildSnapPts(null):null;   // catálogo OSNAP (extremos·medios·centros·cuadrantes)
@@ -1372,6 +1383,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     if(surfArm){ trySurfaceAt(e); return; }
     let hh2=ray.intersectObjects(handles.map(h=>h.mesh));   // los tiradores GANAN al gizmo (son objetivos precisos)
     if(hh2.length){handDrag=handles.find(h=>h.mesh===hh2[0].object);handDrag.dist=hh2[0].distance;
+      handDrag.p0=handDrag.mesh.position.clone(); handDrag.axInf=null;
       _snapPts=mag?buildSnapPts(handDrag.stroke):null; return;}
     // el CUERPO del láser también gana al gizmo: tocar+arrastrar lo mueve directo
     {const exs=exPick(); if(exs.length){const exh=ray.intersectObjects(exs,true);
@@ -1425,6 +1437,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
                  origV:list.map(s=>s.poly?{v:s.verts.map(p=>p.slice()),
                    m:Object.fromEntries(Object.entries(s.arcMids).map(([k,v])=>[k,v.slice()])),
                    g:Object.fromEntries(Object.entries(s.guidePts||{}).map(([k,gg])=>[k,gg.map(p=>p.slice())]))}:null)};
+        _snapPts=mag?buildSnapPts(list):null;   // imán OSNAP del CONJUNTO mientras se mueve
       } else selectStroke(hitS);
       return;}
     // láseres y secciones (seleccionar / doble-toque para activar)
@@ -1551,6 +1564,32 @@ addEventListener('pointermove',e=>{
     const cur=planePoint(e,selDrag.depth);
     const d=new THREE.Vector3().subVectors(cur,selDrag.start);
     if(axLock){const v=d[axLock];d.set(0,0,0);d[axLock]=v;} // RESTRICCION a un eje
+    if(mag&&!axLock){
+      // IMÁN del conjunto: los extremos buscan puntos de control OSNAP y, si no,
+      // aristas / bordes de papel / líneas láser; el delta se corrige para CLAVAR
+      // el extremo sin deformar la forma (traslación rígida)
+      const o=selDrag.orig[0], ends=[o[0],o[o.length-1]];
+      let best=null;
+      if(_snapPts)for(const ep of ends){
+        const q=[ep[0]+d.x,ep[1]+d.y,ep[2]+d.z];
+        const sq=snapQueryWorld(q,16);
+        if(sq&&(!best||sq.d<best.d))best={d:sq.d,from:ep,to:sq.p,kind:sq.kind};}
+      if(!best){
+        if(!_drawEdgeSegs)_drawEdgeSegs=buildEdgeSegs();
+        const tol=Math.max(0.8,sph.r*0.014); let bd=Infinity;
+        for(const ep of ends){
+          const q=new THREE.Vector3(ep[0]+d.x,ep[1]+d.y,ep[2]+d.z);
+          const ms=nearestOnSegs(q,(_drawEdgeSegs||[]).concat(paperBorderSegs(null)),tol*tol);
+          const lq=laserSnap(q);
+          let c=null;
+          if(ms)c={p:ms,d:ms.distanceTo(q)};
+          if(lq){const dl=lq.distanceTo(q); if(!c||dl<c.d)c={p:lq,d:dl};}
+          if(c&&c.d<bd){bd=c.d;best={d:c.d,from:ep,to:c.p.toArray(),kind:'end'};}}
+      }
+      if(best){d.set(best.to[0]-best.from[0],best.to[1]-best.from[1],best.to[2]-best.from[2]);
+        setSnapState({p:best.to,kind:best.kind},'mag');}
+      else clearSnapState();
+    }
     selDrag.list.forEach((s,i)=>{
       s.points=selDrag.orig[i].map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);
       if(selDrag.origC[i])s.reg.c.copy(selDrag.origC[i]).add(d);
@@ -1558,7 +1597,7 @@ addEventListener('pointermove',e=>{
         s.verts=selDrag.origV[i].v.map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);
         s.arcMids={}; for(const k in selDrag.origV[i].m)s.arcMids[k]=[selDrag.origV[i].m[k][0]+d.x,selDrag.origV[i].m[k][1]+d.y,selDrag.origV[i].m[k][2]+d.z];
         s.guidePts={}; for(const k in selDrag.origV[i].g)s.guidePts[k]=selDrag.origV[i].g[k].map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);}
-      if((mag||s.magLock)&&s.sobre!=='aire'&&!axLock&&!s.poly)s.points=glue(s.points);
+      if((mag||s.magLock)&&s.sobre!=='aire'&&!axLock&&!s.poly&&!s.cont)s.points=glue(s.points);   // los contornos unidos se mueven RÍGIDOS
     });
     document.getElementById('hud').textContent='Δ '+d.length().toFixed(1)+' mm · x '+
       d.x.toFixed(1)+' · y '+d.y.toFixed(1)+' · z '+d.z.toFixed(1)+
@@ -1570,9 +1609,47 @@ addEventListener('pointermove',e=>{
     let h=mag?castAt(e):null;
     let p=h?offPt(h)
            :planePoint(e,handDrag.dist);
-    if(mag){const lq=laserSnap(p);if(lq)p=lq.clone();}
-    if(mag){const sq=snapQueryWorld(p.toArray(),16);   // edición por puntos de control OSNAP
-      if(sq){p.set(sq.p[0],sq.p[1],sq.p[2]); setSnapState({p:sq.p,kind:sq.kind},'mag');} else clearSnapState();}
+    // INFERENCIA DE EJES (tipo SketchUp): se compara la dirección del gesto EN
+    // PANTALLA con la de cada eje proyectado desde el pinzamiento; si coinciden,
+    // el movimiento se bloquea al eje (fantasma de color) con histéresis
+    if(handDrag.p0&&!axLock){
+      const rct=renderer.domElement.getBoundingClientRect();
+      const sOf=w=>{const v=w.clone().project(cam);
+        return [(v.x*0.5+0.5)*rct.width,(-v.y*0.5+0.5)*rct.height];};
+      const s0=sOf(handDrag.p0);
+      const gv=[e.clientX-rct.left-s0[0], e.clientY-rct.top-s0[1]];
+      const gl=Math.hypot(gv[0],gv[1]);
+      const axDir=u=>{const sa=sOf(handDrag.p0.clone().addScaledVector(u,sph.r*0.2));
+        return [sa[0]-s0[0],sa[1]-s0[1]];};
+      if(handDrag.axInf){
+        const av=axDir(handDrag.axInf.u), al=Math.hypot(av[0],av[1])||1;
+        const c=Math.abs((gv[0]*av[0]+gv[1]*av[1])/((gl||1)*al));
+        if(gl<10||c<0.86)handDrag.axInf=null;   // se suelta al separarse del eje
+      }
+      if(!handDrag.axInf&&gl>18){
+        let bk=null,bc=0.94;
+        for(const k of ['x','y','z']){
+          const u=new THREE.Vector3(k==='x'?1:0,k==='y'?1:0,k==='z'?1:0);
+          const av=axDir(u), al=Math.hypot(av[0],av[1]);
+          if(al<4)continue;   // eje casi paralelo a la vista: no inferible
+          const c=Math.abs((gv[0]*av[0]+gv[1]*av[1])/(gl*al));
+          if(c>bc){bc=c;bk={k,u};}}
+        if(bk)handDrag.axInf=bk;
+      }
+    } else handDrag.axInf=null;
+    if(handDrag.axInf){
+      ndc(e);   // punto del EJE más cercano al rayo del puntero → posición exacta sobre el eje
+      const u=handDrag.axInf.u, t=axisParam(handDrag.p0,u);
+      p=handDrag.p0.clone().addScaledVector(u,t);
+      showAxGhost(handDrag.p0,u,handDrag.axInf.k);
+      clearSnapState();
+      document.getElementById('hud').textContent='eje '+handDrag.axInf.k.toUpperCase()+' · Δ '+Math.abs(t).toFixed(1)+' mm';
+    } else {
+      hideAxGhost();
+      if(mag){const lq=laserSnap(p);if(lq)p=lq.clone();}
+      if(mag){const sq=snapQueryWorld(p.toArray(),16);   // edición por puntos de control OSNAP
+        if(sq){p.set(sq.p[0],sq.p[1],sq.p[2]); setSnapState({p:sq.p,kind:sq.kind},'mag');} else clearSnapState();}
+    }
     if(s.poly){   // POLI 3D: arrastrar vértice (V#) o punto de paso de arco (M#)
       const role=handDrag.role;
       if(role[0]==='V')s.verts[+role.slice(1)]=p.toArray();
@@ -1824,7 +1901,7 @@ function endPointer(e){
     else if(role==='f1'||role==='p1')checkJoinOnRelease(st,role);
   }
   drawing=null;handDrag=null;imgDrag=null;selDrag=null;textDrag=null;laserDrag=null;dragging=false;
-  _drawEdgeSegs=null;_laserPolys=null;_calcoPolys=null;_snapPts=null;clearSnapState();hideDrawTag();redraw();
+  _drawEdgeSegs=null;_laserPolys=null;_calcoPolys=null;_snapPts=null;clearSnapState();hideAxGhost();hideDrawTag();redraw();
 }
 addEventListener('pointerup',endPointer);
 addEventListener('pointercancel',endPointer);
@@ -2892,7 +2969,9 @@ function nearestLaserVertexScreen(e){   // el vértice de guía más cercano al 
 let _snapPts=null;
 function buildSnapPts(exclude,noLaser){
   const pts=[]; const add=(p,kind)=>pts.push({p:(p.toArray?p.toArray():p.slice?p.slice():p),kind});
-  for(const st of strokes){ if(st===exclude)continue; const n=st.points.length; if(n<2)continue;
+  for(const st of strokes){
+    if(exclude&&(st===exclude||(Array.isArray(exclude)&&exclude.includes(st))))continue;
+    const n=st.points.length; if(n<2)continue;
     add(st.points[0],'end'); add(st.points[n-1],'end');
     if(st.reg&&st.reg.tipo==='circulo'){
       const cc=st.reg.circ, c3=to3(st.reg,[cc.cx,cc.cy]); add(c3,'center');
@@ -3050,6 +3129,24 @@ function cylFrame(cyl){
   const u2=new THREE.Vector3().crossVectors(cyl.a,u1).normalize();
   return {u1,u2};
 }
+// FANTASMA DE EJE (inferencia tipo SketchUp): al arrastrar un pinzamiento hacia
+// un eje del mundo, aparece la línea punteada del color del eje desde el origen
+// del pinzamiento y el movimiento se bloquea a ese eje. X rojo · Y verde · Z azul.
+const AXCOL={x:0xe5433c,y:0x1fa055,z:0x2f6fff};
+const axGhostMat=new THREE.LineDashedMaterial({color:0xffffff,transparent:true,opacity:.9,dashSize:2,gapSize:1.4,depthTest:false});
+const axGhost=new THREE.Line(new THREE.BufferGeometry(),axGhostMat);
+axGhost.renderOrder=25; axGhost.visible=false; axGhost.frustumCulled=false; scene.add(axGhost);
+function showAxGhost(o,u,k){
+  const L=Math.max(30,sph.r*0.8);
+  axGhost.geometry.dispose();
+  axGhost.geometry=new THREE.BufferGeometry().setFromPoints(
+    [o.clone().addScaledVector(u,-L),o.clone().addScaledVector(u,L)]);
+  axGhost.computeLineDistances();
+  axGhostMat.color.setHex(AXCOL[k]);
+  axGhostMat.dashSize=Math.max(1.2,sph.r*0.02); axGhostMat.gapSize=Math.max(0.8,sph.r*0.014);
+  axGhost.visible=true;
+}
+function hideAxGhost(){axGhost.visible=false;}
 const polyGuideViz=new THREE.Group(); polyGuideViz.renderOrder=8; scene.add(polyGuideViz);
 function clearGuideViz(){while(polyGuideViz.children.length)polyGuideViz.remove(polyGuideViz.children[0]);}
 function updateGuideViz(){
@@ -3400,6 +3497,82 @@ function buildSurfaceFromPts(dPts,gPts,colHex,name){
   surfaces.push(S); renderSurfList();
   return S;
 }
+// SUPERFICIE de un CONTORNO CERRADO 3D (posiblemente alabeado): se proyecta al
+// plano medio (normal de Newell), se triangula por recorte de orejas y, si el
+// contorno proyectado no es simple, cae a un abanico desde el centroide.
+function triangulate2(pts2){
+  const n=pts2.length; if(n<3)return null;
+  const idx=[...Array(n).keys()];
+  let area=0; for(let i=0;i<n;i++){const a=pts2[i],b=pts2[(i+1)%n]; area+=a[0]*b[1]-b[0]*a[1];}
+  const ccw=area>0, tris=[];
+  const cross=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
+  const inTri=(p,a,b,c)=>{const d1=cross(a,b,p),d2=cross(b,c,p),d3=cross(c,a,p);
+    return !(((d1<0)||(d2<0)||(d3<0))&&((d1>0)||(d2>0)||(d3>0)));};
+  let guard=0;
+  while(idx.length>3&&guard++<6000){
+    let ear=-1;
+    for(let i=0;i<idx.length;i++){
+      const ia=idx[(i-1+idx.length)%idx.length], ib=idx[i], ic=idx[(i+1)%idx.length];
+      const a=pts2[ia],b=pts2[ib],c=pts2[ic];
+      const cv=cross(a,b,c); if(ccw?cv<=1e-9:cv>=-1e-9)continue;
+      let ok=true;
+      for(const j of idx){ if(j===ia||j===ib||j===ic)continue;
+        if(inTri(pts2[j],a,b,c)){ok=false;break;}}
+      if(ok){ear=i;break;}
+    }
+    if(ear<0)return null;
+    tris.push(idx[(ear-1+idx.length)%idx.length],idx[ear],idx[(ear+1)%idx.length]);
+    idx.splice(ear,1);
+  }
+  if(idx.length===3)tris.push(idx[0],idx[1],idx[2]);
+  return tris;
+}
+function buildContourSurfaceFromPts(rawPts,colHex,name){
+  let P=rawPts.map(p=>p.slice());
+  const dEnds=Math.hypot(P[0][0]-P[P.length-1][0],P[0][1]-P[P.length-1][1],P[0][2]-P[P.length-1][2]);
+  if(dEnds<Math.max(1,sph.r*0.02)&&P.length>3)P.pop();   // sin duplicar el punto de cierre
+  if(P.length>120){                                       // decimado por longitud de arco
+    const closedList=P.concat([P[0]]);
+    const rs=resampleCurve(closedList,120); rs.pop();
+    P=rs.map(v=>v.toArray());
+  }
+  const V=P.map(p=>new THREE.Vector3(...p));
+  const N=new THREE.Vector3();                            // normal de Newell
+  for(let i=0;i<V.length;i++){const a=V[i],b=V[(i+1)%V.length];
+    N.x+=(a.y-b.y)*(a.z+b.z); N.y+=(a.z-b.z)*(a.x+b.x); N.z+=(a.x-b.x)*(a.y+b.y);}
+  if(N.lengthSq()<1e-9)N.set(0,0,1); N.normalize();
+  const O=V.reduce((s,v)=>s.add(v),new THREE.Vector3()).multiplyScalar(1/V.length);
+  const U=(Math.abs(N.z)>0.9?new THREE.Vector3(1,0,0):new THREE.Vector3(0,0,1)).cross(N).normalize();
+  const W2=new THREE.Vector3().crossVectors(N,U);
+  const pts2=V.map(v=>{const d=v.clone().sub(O);return [d.dot(U),d.dot(W2)];});
+  let tris=triangulate2(pts2), verts=V;
+  if(!tris){                                              // abanico desde el centroide
+    verts=V.concat([O]); tris=[];
+    for(let i=0;i<V.length;i++)tris.push(i,(i+1)%V.length,V.length);
+  }
+  const pos=new Float32Array(verts.length*3);
+  verts.forEach((v,i)=>{pos[i*3]=v.x;pos[i*3+1]=v.y;pos[i*3+2]=v.z;});
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setIndex(tris); geo.computeVertexNormals();
+  const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:colHex,metalness:.05,
+    roughness:.55,side:THREE.DoubleSide,transparent:true,opacity:.92}));
+  scene.add(mesh);
+  const S={mesh,name:name||('S'+(++surfCount)),kind:'cont',pts:P.map(p=>p.slice()),colorHex:colHex};
+  surfaces.push(S); renderSurfList();
+  return S;
+}
+document.getElementById('selFace').onclick=()=>{
+  if(!(selected&&selected.kind==='trazo')){toast('Selecciona antes un contorno cerrado');return;}
+  const st=selected.ref, pts=st.points;
+  if(!pts||pts.length<3)return;
+  const d0=Math.hypot(pts[0][0]-pts[pts.length-1][0],pts[0][1]-pts[pts.length-1][1],pts[0][2]-pts[pts.length-1][2]);
+  if(!((st.poly&&st.closed)||d0<Math.max(1,sph.r*0.02))){
+    toast('▱ El contorno no está cerrado · une los extremos (⛓ Unir en continuidad o Unir)');return;}
+  const S=buildContourSurfaceFromPts(pts,new THREE.Color(st.color||color).getHex());
+  pushUndo('superficie '+S.name,()=>removeSurface(S,true));
+  redraw(); toast('Superficie '+S.name+' creada del contorno ✓');
+};
 function removeSurface(S,noUndo){
   if(!surfaces.includes(S))return;
   scene.remove(S.mesh); surfaces=surfaces.filter(x=>x!==S);
@@ -3437,6 +3610,12 @@ function trySurfaceAt(e){
   redraw(); toast('Superficie '+S.name+' creada ✓ · en el panel puedes ocultarla o borrarla');
 }
 // ---- PARTIR (split) sin separar + UNIR al solapar pinzamientos -----------------
+// Herramienta del dock: se arma y cada toque parte la línea tocada (multi-uso).
+document.getElementById('mSplitTool').onclick=function(){
+  window._splitAny=!window._splitAny; this.classList.toggle('on',window._splitAny);
+  if(window._splitAny){if(mode!=='sel')setMode('sel');
+    toast('✂ PARTIR: toca cualquier línea por el punto donde quieras partirla');}
+};
 let splitArm=false;
 document.getElementById('selSplit').onclick=function(){
   if(!(selected&&selected.kind==='trazo')){toast('Selecciona antes una línea');return;}
@@ -3733,13 +3912,17 @@ function buildExport(){
       roll:s.paper?s.roll:undefined,size:s.paper?s.size:undefined})),
     lasers:lasers.map(L=>({name:L.name,pos:L.mesh.position.toArray(),quat:L.mesh.quaternion.toArray(),
       h:L.on.h,v:L.on.v,v2:L.on.v2,n:L.n,sp:L.sp,off:L.off||undefined,locked:L.locked||undefined})),
-    superficies:surfaces.map(S=>({name:S.name,d:S.dirPts,g:S.genPts,col:S.colorHex,vis:S.mesh.visible})),
+    superficies:surfaces.map(S=>S.kind==='cont'
+      ?{name:S.name,kind:'cont',pts:S.pts,col:S.colorHex,vis:S.mesh.visible}
+      :{name:S.name,d:S.dirPts,g:S.genPts,col:S.colorHex,vis:S.mesh.visible}),
     textos:texts,
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
 window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
 buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},
+buildContourSurfaceFromPts,get axGhost(){return axGhost},selectStroke,
+get selDrag(){return selDrag},get gizDrag(){return gizDrag},get axLock(){return axLock},
 _polyStart(p){polyDraw={verts:[p.slice()],segTypes:[],arcMids:{},guidePts:{},nextType:'L',arcPending:null,dragging:false,prov:null};showPolyChips();redraw();},
 _polyVert(p){if(!polyDraw)return;polyDraw.prov=p.slice();polyDraw.dragging=true;commitPolyTap();}};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
@@ -3794,7 +3977,9 @@ fileJson.onchange=ev=>{
         if(ld.locked)L.locked=true;});
       updateLasers(); renderLaserList();}
     if(d.superficies){surfaces.slice().forEach(S=>removeSurface(S,true)); surfCount=0;
-      d.superficies.forEach(sd=>{const S=buildSurfaceFromPts(sd.d,sd.g,sd.col||0x8e939a,sd.name);
+      d.superficies.forEach(sd=>{
+        const S=(sd.kind==='cont')?buildContourSurfaceFromPts(sd.pts,sd.col||0x8e939a,sd.name)
+                                  :buildSurfaceFromPts(sd.d,sd.g,sd.col||0x8e939a,sd.name);
         if(sd.vis===false)S.mesh.visible=false;});
       renderSurfList();}
     texts=d.textos||[];
