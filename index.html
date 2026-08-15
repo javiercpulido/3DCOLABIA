@@ -139,6 +139,9 @@
  .grip:active{cursor:grabbing;background:rgba(0,0,0,.06)}
  #dock .grip{height:16px;width:26px;min-width:26px}
  #dock.horiz .grip{height:26px;width:16px;min-width:16px}   /* horizontal: asa a la izquierda */
+ .peye{border:0;background:transparent;color:var(--mut);width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:none;opacity:.5}
+ .peye.on{color:var(--ink);opacity:1}
+ .peye[data-pk].on{color:#ff8f1f}
  .snaphint{position:fixed;z-index:8;pointer-events:none;border:2px dashed var(--acc);
    border-radius:14px;opacity:.5;display:none}
 </style>
@@ -147,7 +150,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.29 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.30 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -312,9 +315,10 @@
  <button class="secTgl" data-dm="free" title="Dibujo libre a mano alzada"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Libre</button>
  <button class="secTgl" data-dm="line" title="Línea recta con longitud en vivo (tipo SketchUp)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2" fill="currentColor"/><circle cx="20" cy="4" r="2" fill="currentColor"/></svg>Recta</button>
  <button class="secTgl" data-dm="note" title="Nota con flecha: toca un punto de la superficie y escribe una explicación (tipo SketchUp)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 21.5l1.2-3.9L13 8.3l2.7 2.7L6.4 20.3 2.5 21.5z"/><path d="M14.2 7.1l1.6-1.6a1.5 1.5 0 0 1 2.1 0l.5.5a1.5 1.5 0 0 1 0 2.1l-1.6 1.6"/><text x="14.5" y="21" font-size="10" stroke="none" fill="currentColor" font-weight="800">A</text></svg>Nota con flecha</button>
- <button class="secTgl" data-dm="laser" title="Lápiz de arco láser: apoya sobre una guía láser y arrastra; el trazo sigue el arco que el láser proyecta (imantado), incluso una vuelta completa"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17a9 9 0 0 1 18 0"/><circle cx="3" cy="17" r="1.6" fill="currentColor" stroke="none"/><circle cx="21" cy="17" r="1.6" fill="currentColor" stroke="none"/></svg>Arco láser</button>
+ <button class="secTgl" data-dm="laser" title="Calco láser: apoya sobre una línea láser, una ARISTA o una guía de cilindro y arrastra; el trazo la calca imantado, incluso una vuelta completa"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17a9 9 0 0 1 18 0"/><circle cx="3" cy="17" r="1.6" fill="currentColor" stroke="none"/><circle cx="21" cy="17" r="1.6" fill="currentColor" stroke="none"/></svg>Calco láser</button>
  <button class="secTgl" data-dm="poly" title="Poli 3D: toques encadenados recta⟷arco entre superficies, con puntos de control, cierre y edición por vértices"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 4 8 12 4 12 12 a5 5 0 0 0 8 4"/><circle cx="4" cy="19" r="1.8" fill="currentColor" stroke="none"/><circle cx="4" cy="8" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="4" r="1.8" fill="currentColor" stroke="none"/><circle cx="20" cy="16" r="1.8" fill="currentColor" stroke="none"/></svg>Poli 3D</button>
  <button class="secTgl" id="dmLock" title="Seguir dibujando sin volver a orbitar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Continuo (candado)</button>
+ <button class="secTgl" id="dmJoin" title="Todo trazo que termine tocando el extremo de otro queda UNIDO a él en una sola forma continua (para superficies y sólidos)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6"/><path d="M9.5 7H7a5 5 0 0 0 0 10h2.5"/><path d="M14.5 7H17a5 5 0 0 1 0 10h-2.5"/></svg>Unir en continuidad</button>
 </div>
 <div id="lasermenu" class="pill" style="position:fixed;top:76px;left:12px;z-index:11;display:none;flex-direction:column;padding:7px;gap:5px;width:150px;max-width:60vw;font-size:12.5px;color:var(--ink)">
  <div class="menucaret"></div>
@@ -449,7 +453,11 @@ MESHES.forEach(m=>{
   mesh.userData.alpha=1;
   let lab=document.createElement('label');
   lab.style.display='flex'; lab.style.alignItems='center'; lab.style.gap='5px';
-  lab.innerHTML='<input type="checkbox" checked data-n="'+m.name+'"> <span style="color:'+m.color+'">■</span> <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+m.name+'</span>'+
+  const _EYE='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const _UNLK='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 6.6-1.6"/></svg>';
+  lab.innerHTML='<button type="button" class="peye on" data-pe="'+m.name+'" title="ver / ocultar esta pieza">'+_EYE+'</button>'+
+    ' <span style="color:'+m.color+'">■</span> <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+m.name+'</span>'+
+    '<button type="button" class="peye" data-pk="'+m.name+'" title="bloquear esta pieza (no se podrá mover ni girar)">'+_UNLK+'</button>'+
     '<input class="pieceAlpha" type="range" min="8" max="100" value="100" data-na="'+m.name+'" title="Transparencia de esta pieza" style="width:60px;display:none">';
   document.getElementById('pieces').appendChild(lab);
 });
@@ -757,10 +765,40 @@ document.getElementById('drawmenu').addEventListener('click',e=>{
     drawMode=b.dataset.dm; applyDrawMode(); setMode('draw');
     document.querySelectorAll('#drawmenu [data-dm]').forEach(x=>x.classList.toggle('on',x.dataset.dm===drawMode));
     document.getElementById('drawmenu').style.display='none';
-    toast('Lápiz: '+({geo:'pegado a geometría/láser',free:'libre',line:'recta',note:'nota con flecha',laser:'arco láser',poly:'Poli 3D · toques encadenados'}[drawMode]));}});
+    toast('Lápiz: '+({geo:'pegado a geometría/láser',free:'libre',line:'recta',note:'nota con flecha',laser:'calco láser · sigue láseres y aristas',poly:'Poli 3D · toques encadenados'}[drawMode]));}});
 document.getElementById('dmLock').onclick=function(){drawLock=!drawLock;
   this.classList.toggle('on',drawLock); const ld=document.getElementById('lockDot'); if(ld)ld.style.display=drawLock?'block':'none';
   toast(drawLock?'Lápiz continuo 🔒':'Un trazo y vuelve a orbitar');};
+let contJoin=false;   // «Unir en continuidad»: los trazos que se tocan se funden en una sola forma
+document.getElementById('dmJoin').onclick=function(){contJoin=!contJoin;
+  this.classList.toggle('on',contJoin);
+  toast(contJoin?'⛓ Unir en continuidad: los trazos que se toquen quedarán unidos'
+                :'Los trazos quedan sueltos (Unir/Cancelar al editar)');};
+// funde el trazo con cualquier otro cuyo extremo coincida con uno de los suyos
+function tryContinuousMerge(st){
+  if(!contJoin||st.poly||!st.points||st.points.length<2)return st;
+  const tol=()=>Math.max(0.6,sph.r*0.012);
+  let merged=st,changed=true;
+  while(changed){changed=false;
+    const P=merged.points, A=P[0], B=P[P.length-1];
+    const d=(p,q)=>Math.hypot(p[0]-q[0],p[1]-q[1],p[2]-q[2]);
+    for(const o of strokes){
+      if(o===merged||o.poly||!o.points||o.points.length<2)continue;
+      const oa=o.points[0], ob=o.points[o.points.length-1];
+      let np=null;
+      if(d(B,oa)<tol())np=P.concat(o.points.slice(1));
+      else if(d(B,ob)<tol())np=P.concat(o.points.slice().reverse().slice(1));
+      else if(d(A,ob)<tol())np=o.points.concat(P.slice(1));
+      else if(d(A,oa)<tol())np=o.points.slice().reverse().concat(P.slice(1));
+      if(np){
+        const nm={points:np.map(p=>p.slice()),color:merged.color,w:merged.w,sobre:merged.sobre,cont:true};
+        strokes=strokes.filter(x=>x!==merged&&x!==o); strokes.push(nm);
+        merged=nm; changed=true; break;}
+    }
+  }
+  if(merged!==st)toast('⛓ unido en continuidad ('+merged.points.length+' pts)');
+  return merged;
+}
 setPenIcon();
 document.getElementById('mag').onclick=e=>{mag=!mag;e.currentTarget.classList.toggle('on',mag);};
 colBtn.onclick=()=>document.getElementById('colors').classList.toggle('show');
@@ -1294,9 +1332,9 @@ renderer.domElement.addEventListener('pointerdown',e=>{
       _snapPts=mag?buildSnapPts(handDrag.stroke):null; return;}
     _drawEdgeSegs=buildEdgeSegs();   // imán-guía (aristas del modelo) para todo este trazo
     _snapPts=mag?buildSnapPts(null):null;   // catálogo OSNAP (extremos·medios·centros·cuadrantes)
-    if(drawMode==='laser'){   // LÁPIZ DE ARCO LÁSER: sigue la curva que el láser proyecta
-      buildLaserPolys(); const hit=nearestLaserVertexScreen(e);
-      if(!hit){toast('Acerca el lápiz a una guía láser'); return;}
+    if(drawMode==='laser'){   // CALCO LÁSER: calca líneas láser, aristas y guías de cilindro
+      buildCalcoPolys(); const hit=nearestLaserVertexScreen(e);
+      if(!hit){toast('Acerca el lápiz a un láser, una arista o una guía'); return;}
       const closed=(hit.poly.length>2&&hit.poly[0].distanceTo(hit.poly[hit.poly.length-1])<Math.max(0.1,sph.r*0.01));
       drawing={points:[hit.poly[hit.idx].toArray()],color,w:lineW,sobre:'laser',laserArc:{poly:hit.poly,start:hit.idx,closed}};
       drawDist=cam.position.distanceTo(hit.poly[hit.idx]); lastMoveT=performance.now(); return;
@@ -1620,8 +1658,8 @@ addEventListener('pointermove',e=>{
           seg=(a<=b)?poly.slice(a,b+1):poly.slice(b,a+1).reverse();
         }
         if(seg.length>=1){drawing.points=seg.map(v=>v.toArray());
-          document.getElementById('hud').textContent='Arco láser · '+seg.length+' pts';
-          showDrawTag(hit.point,'arco'); redraw(); annGroup.add(strokeLine(drawing));}}
+          document.getElementById('hud').textContent='Calco láser · '+seg.length+' pts';
+          showDrawTag(hit.point,'calco'); redraw(); annGroup.add(strokeLine(drawing));}}
       return;}
     if(drawing.editEnd){
       let reg=drawing.reg;
@@ -1736,9 +1774,11 @@ function endPointer(e){
     }
     if(drawing.paperRef){   // vincular al papel: guardar coords locales (uv) para que siga al plano
       const s=drawing.paperRef; drawing.uv=drawing.points.map(p=>paperUV(s,p));}
-    strokes.push(drawing);
-    {const st=drawing; pushUndo('trazo',()=>{strokes=strokes.filter(x=>x!==st);
-      if(selected&&selected.ref===st)deselect();});}
+    {const prev=strokes.slice();   // el deshacer restaura el estado previo exacto
+     strokes.push(drawing);        // (también si el trazo se funde en continuidad)
+     const fin=(typeof tryContinuousMerge==='function')?tryContinuousMerge(drawing):drawing;
+     pushUndo(fin!==drawing?'trazo unido en continuidad':'trazo',
+       ()=>{strokes=prev.slice(); if(selected&&!strokes.includes(selected.ref))deselect();});}
     if(mode==='draw'&&!drawLock&&!wasPen&&!activePaper)setMode('orbit');   // lapiz de UN trazo (en papel: sigue dibujando)
     if(selLine){setMode('sel');select('trazo',selLine,'trazo linea');}  // recta: lista para teclear la longitud exacta
   }
@@ -1784,7 +1824,7 @@ function endPointer(e){
     else if(role==='f1'||role==='p1')checkJoinOnRelease(st,role);
   }
   drawing=null;handDrag=null;imgDrag=null;selDrag=null;textDrag=null;laserDrag=null;dragging=false;
-  _drawEdgeSegs=null;_laserPolys=null;_snapPts=null;clearSnapState();hideDrawTag();redraw();
+  _drawEdgeSegs=null;_laserPolys=null;_calcoPolys=null;_snapPts=null;clearSnapState();hideDrawTag();redraw();
 }
 addEventListener('pointerup',endPointer);
 addEventListener('pointercancel',endPointer);
@@ -1814,8 +1854,20 @@ undo.onclick=()=>{
   else if(strokes.length){strokes.pop();redraw();}
   else toast('Nada que deshacer');
 };
-document.getElementById('pieces').addEventListener('change',e=>{
-  let n=e.target.dataset.n;if(n){pieces[n].visible=e.target.checked;_silhFrame=-1;updateLasers();}});
+// OJO (ver/ocultar) y CANDADO (bloquear posición y giro) por pieza
+document.getElementById('pieces').addEventListener('click',e=>{
+  const pe=e.target.closest('[data-pe]'), pk=e.target.closest('[data-pk]');
+  if(pe){e.preventDefault(); const m=pieces[pe.dataset.pe]; if(!m)return;
+    m.visible=!m.visible; pe.classList.toggle('on',m.visible);
+    if(!m.visible&&selected&&selected.ref===m)deselect();
+    _silhFrame=-1;updateLasers();redraw();}
+  else if(pk){e.preventDefault(); const m=pieces[pk.dataset.pk]; if(!m)return;
+    const ud=m.userData; ud.locked=!ud.locked; pk.classList.toggle('on',ud.locked);
+    pk.innerHTML=ud.locked
+      ?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg>'
+      :'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 6.6-1.6"/></svg>';
+    if(selected&&selected.ref===m)updateGizmo();
+    toast(m.name+(ud.locked?' bloqueada 🔒 · no se puede mover ni girar':' desbloqueada'));}});
 // transparencia POR PIEZA: el icono revela un deslizante en cada fila
 document.getElementById('pieceAlphaTgl').onclick=function(){
   const show=document.querySelectorAll('.pieceAlpha')[0]&&document.querySelectorAll('.pieceAlpha')[0].style.display==='none';
@@ -1839,6 +1891,7 @@ document.getElementById('selMove').addEventListener('change',e=>{
   const v=+e.target.value||0; if(!v)return;
   const ax=axLock||'z'; const d=new THREE.Vector3(); d[ax]=v;
   if(selected&&selected.kind==='pieza'){ // desplazar PIEZA
+    if(selected.ref.userData.locked){e.target.value='';toast(selected.ref.name+' bloqueada 🔒');return;}
     selected.ref.position.add(d);
     computeIntersections();applySec();_silhFrame=-1;updateLasers();updateGizmo();
     e.target.value=''; toast('pieza Δ'+ax.toUpperCase()+' = '+v+' mm'); return;}
@@ -1862,6 +1915,7 @@ document.getElementById('selMove').addEventListener('change',e=>{
 document.getElementById('selRot').addEventListener('change',e=>{
   const v=+e.target.value||0; if(!v)return;
   if(selected&&selected.kind==='pieza'){ // girar PIEZA sobre su centro
+    if(selected.ref.userData.locked){e.target.value='';toast(selected.ref.name+' bloqueada 🔒');return;}
     const ax2=axLock||'z';
     const u2=new THREE.Vector3(ax2==='x'?1:0,ax2==='y'?1:0,ax2==='z'?1:0);
     const q=new THREE.Quaternion().setFromAxisAngle(u2,v*Math.PI/180);
@@ -2043,6 +2097,7 @@ function updateGizmo(){
     setGizMode('rot');
   } else setGizMode('full');
   if(t==='laser'&&selected.ref.locked){gizmo.visible=false;return;}   // láser bloqueado: sin gizmo
+  if(t==='pieza'&&selected.ref.userData.locked){gizmo.visible=false;return;}   // pieza bloqueada: sin gizmo
   const c=new THREE.Vector3();
   if(t==='trazo'){const bb=new THREE.Box3(); let n=0;   // centro GEOMÉTRICO (caja), no media de muestras
     effSel().forEach(s=>s.points.forEach(p=>{bb.expandByPoint(new THREE.Vector3(p[0],p[1],p[2]));n++;}));
@@ -2783,6 +2838,35 @@ function buildLaserPolys(){
   _laserPolys=chainSegs(laserSegs(),tol);
   return _laserPolys;
 }
+// ---- CALCO LÁSER: guías calcables = líneas láser + ARISTAS del modelo +
+//      líneas de cuadrante de los cilindros (guías intrínsecas). Las aristas
+//      rectas se densifican para que el calco avance con el lápiz punto a punto.
+let _calcoPolys=null;
+function densifyPoly(poly,step){
+  const out=[poly[0]];
+  for(let i=1;i<poly.length;i++){const a=poly[i-1],b=poly[i];
+    const n=Math.max(1,Math.ceil(a.distanceTo(b)/step));
+    for(let k=1;k<=n;k++)out.push(a.clone().lerp(b,k/n));}
+  return out;
+}
+function buildCalcoPolys(){
+  buildLaserPolys();
+  const step=Math.max(0.5,sph.r*0.008);
+  const polys=(_laserPolys||[]).slice();
+  for(const ch of chainSegs(buildEdgeSegs(),Math.max(0.02,sph.r*0.0006)))
+    polys.push(densifyPoly(ch,step));
+  for(const nm in pieces){const m=pieces[nm]; if(!m.visible)continue;
+    const cyl=pieceCylGuide(m); if(!cyl)continue;
+    const {u1,u2}=cylFrame(cyl);
+    for(const q of [[cyl.r,0],[-cyl.r,0],[0,cyl.r],[0,-cyl.r]]){
+      const off=u1.clone().multiplyScalar(q[0]).add(u2.clone().multiplyScalar(q[1]));
+      const A=cyl.C.clone().add(off).addScaledVector(cyl.a,cyl.t0);
+      const B=cyl.C.clone().add(off).addScaledVector(cyl.a,cyl.t1);
+      const pts=[]; const n=Math.max(2,Math.ceil(A.distanceTo(B)/step));
+      for(let i=0;i<=n;i++)pts.push(A.clone().lerp(B,i/n));
+      polys.push(pts);}}
+  _calcoPolys=polys; return polys;
+}
 function nearestLaserVertex(p){   // devuelve {poly, idx, point}
   let best=null,bd=Infinity;
   for(const poly of (_laserPolys||[])) for(let i=0;i<poly.length;i++){
@@ -2790,11 +2874,12 @@ function nearestLaserVertex(p){   // devuelve {poly, idx, point}
   if(!best)return null;
   best.point=best.poly[best.idx].clone(); best.d=Math.sqrt(bd); return best;
 }
-function nearestLaserVertexScreen(e){   // el vértice de guía láser más cercano al cursor (en pantalla)
-  if(!_laserPolys||!_laserPolys.length)return null;
+function nearestLaserVertexScreen(e){   // el vértice de guía más cercano al cursor (pantalla)
+  const src=_calcoPolys||_laserPolys;   // el CALCO amplía las guías a aristas y cilindros
+  if(!src||!src.length)return null;
   const rct=renderer.domElement.getBoundingClientRect();
   const px=e.clientX-rct.left, py=e.clientY-rct.top; let best=null,bd=36*36; const v=new THREE.Vector3();
-  for(const poly of _laserPolys)for(let i=0;i<poly.length;i++){
+  for(const poly of src)for(let i=0;i<poly.length;i++){
     v.copy(poly[i]).project(cam); if(v.z>1)continue;
     const sx=(v.x*0.5+0.5)*rct.width, sy=(-v.y*0.5+0.5)*rct.height;
     const d2=(sx-px)**2+(sy-py)**2; if(d2<bd){bd=d2;best={poly,idx:i};}}
@@ -3654,6 +3739,7 @@ function buildExport(){
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
 window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
+buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},
 _polyStart(p){polyDraw={verts:[p.slice()],segTypes:[],arcMids:{},guidePts:{},nextType:'L',arcPending:null,dragging:false,prov:null};showPolyChips();redraw();},
 _polyVert(p){if(!polyDraw)return;polyDraw.prov=p.slice();polyDraw.dragging=true;commitPolyTap();}};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
