@@ -150,7 +150,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.35 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.36 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -1399,8 +1399,11 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     return;}
   if(e.pointerType==='pen'&&!penSeen){penSeen=true;toast('✍️ Pen detectado: el lápiz dibuja, los dedos navegan');}
   const em=effMode(e);
-  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(pointers.size===3){   // 3 dedos en iPad = activar «girar la cabeza» (look around)
+  {const now=performance.now();   // purga punteros ZOMBI (up/cancel perdidos por gestos del sistema):
+   pointers.forEach((v,k)=>{if(now-(v.ts||0)>8000)pointers.delete(k);});}   // inflaban el conteo y disparaban «girar la cabeza»
+  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY,t:e.pointerType||'touch',ts:performance.now()});
+  const _touchN=[...pointers.values()].filter(q=>q.t==='touch').length;
+  if(e.pointerType==='touch'&&_touchN===3){   // 3 DEDOS reales (el Pencil nunca cuenta) = «girar la cabeza»
     pinch=null; _tapDeselect=null;
     if(mode!=='look'){setMode('look');toast('👁️ Girar la cabeza · arrastra para mirar alrededor');}
     return;}
@@ -1591,7 +1594,8 @@ renderer.domElement.addEventListener('pointerdown',e=>{
 });
 addEventListener('pointermove',e=>{
   if(deadPointers.has(e.pointerId))return;
-  if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pointers.has(e.pointerId)){const pv=pointers.get(e.pointerId);
+    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY,t:pv.t,ts:performance.now()});}
   if(pinch&&pointers.size===2){
     let ps=[...pointers.values()];
     let d=Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y);
@@ -1905,8 +1909,9 @@ addEventListener('pointermove',e=>{
     if(mdx*mdx+mdy*mdy>36)_tapDeselect.moved=true;}   // se movió = es órbita, no deselección
   let dx=(e.clientX-lastX)/W,dy=(e.clientY-lastY)/H;lastX=e.clientX;lastY=e.clientY;
   if(mode==='look'){   // GIRAR LA CABEZA: la cámara queda fija y gira la dirección de vista
+    // sentido NATURAL: dedo a la derecha = mirar a la derecha · dedo arriba = mirar arriba
     const campos=cam.position.clone();
-    sph.th+=dx*3.5; sph.ph=Math.max(.02,Math.min(Math.PI-.02,sph.ph+dy*3.5));
+    sph.th-=dx*3.5; sph.ph=Math.max(.02,Math.min(Math.PI-.02,sph.ph-dy*3.5));
     const dist=ortho?ORTHO_DIST:sph.r;
     const dir=new THREE.Vector3(Math.sin(sph.ph)*Math.cos(sph.th),Math.sin(sph.ph)*Math.sin(sph.th),Math.cos(sph.ph));
     target.copy(campos).addScaledVector(dir,-dist);   // target=campos-dist·dir → la cámara no se mueve
