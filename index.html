@@ -139,7 +139,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.24 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.25 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -560,6 +560,11 @@ function applyMode(){
   for(const n in pieces){const ud=pieces[n].userData; const a=(ud.alpha!==undefined?ud.alpha:1);
     if(!invView&&(viewMode==='tecnico'||viewMode==='oculto')){ud.matFlat.opacity=a;}
     else{ud.matShaded.opacity*=a;}}
+  // PIEZA SELECCIONADA: en los modos de línea (Wire/Técnico/Oculto) el resaltado
+  // se lleva a aristas y siluetas, que es lo que se ve; funciona en claro y oscuro
+  for(const n in pieces){const ud=pieces[n].userData; if(!ud.hi)continue;
+    ud.edges.material.color.setHex(0x0a84ff);
+    if(ud.silh)ud.silh.line.material.color.setHex(0x0a84ff);}
   _silhFrame=-1; // recalcular siluetas aunque la camara no se haya movido
   document.querySelectorAll('#vmodes button').forEach(b=>b.classList.toggle('on',b.dataset.m===viewMode));
 }
@@ -925,7 +930,10 @@ function finishCallout(cd){
   }
   askText(txt=>{const s=(txt||'').trim(); if(!s)return;
     const rec={text:s,pos:pos.toArray(),anchor:cd.anchor.toArray(),color:cd.color,size:14};
-    texts.push(rec); redraw();
+    texts.push(rec);
+    pushUndo('nota',()=>{texts=texts.filter(x=>x!==rec);
+      if(selected&&selected.ref===rec)deselect();});
+    redraw();
     setMode('sel'); select('texto',rec,'nota "'+rec.text+'"');
     toast('Nota con flecha creada · arrastra el cuadro para moverlo');});
 }
@@ -1066,15 +1074,19 @@ function circleFrom3(p0,pm,p1){
 
 // ---- SELECCION y PAPELERA ----
 function deselect(){
-  if(selected&&selected.kind==='pieza'){const m=selected.ref;
-    if(m.material.emissive)m.material.emissive.setHex(0x000000);}
+  if(selected&&selected.kind==='pieza'){const m=selected.ref,ud=m.userData;
+    ud.hi=false;
+    if(ud.matShaded&&ud.matShaded.emissive)ud.matShaded.emissive.setHex(0x000000);
+    applyMode();}   // devuelve aristas y siluetas a su color
   selected=null;selSet=[];hideContact();
   if(secRotate){secRotate=null;if(typeof renderSecList==='function')renderSecList();}
   document.getElementById('selbar').style.display='none';redraw();
 }
 function select(kind,ref,label){
   deselect();selected={kind,ref,label};
-  if(kind==='pieza'&&ref.material.emissive)ref.material.emissive.setHex(0x0a84ff);
+  if(kind==='pieza'){const ud=ref.userData; ud.hi=true;   // resaltado en TODOS los modos de visión
+    if(ud.matShaded&&ud.matShaded.emissive)ud.matShaded.emissive.setHex(0x0a84ff);
+    applyMode();}   // en Wire/Técnico/Oculto el acento va a aristas y siluetas
   document.getElementById('selname').textContent=label;
   const li=document.getElementById('selLen'),lu=document.getElementById('selLenU');
   const isLin=kind==='trazo'&&ref.reg&&ref.reg.tipo==='linea';
@@ -1162,10 +1174,7 @@ document.getElementById('selDel').onclick=()=>{
       trash.push({kind:'trazo',ref:st,label:'trazo '+(st.reg?st.reg.tipo:'mano')});});
     renderTrash();redraw();toast(multi.length+' trazos → papelera');return;}
   const it=selected;deselect();
-  if(it.kind==='laser'){const L=it.ref;scene.remove(L.mesh);scene.remove(L.linesA);scene.remove(L.linesB);
-    lasers=lasers.filter(x=>x!==L);
-    if(typeof renderLaserList==='function')renderLaserList();
-    toast((L.name||'láser')+' eliminado');return;}
+  if(it.kind==='laser'){removeLaser(it.ref);return;}   // mismo camino que el menú (con deshacer)
   if(it.kind==='section'){removeSection(it.ref);toast('sección eliminada');return;}
   if(it.kind==='pieza'){it.ref.material.emissive&&it.ref.material.emissive.setHex(0x000000);
     it.ref.visible=false;
@@ -1405,7 +1414,8 @@ renderer.domElement.addEventListener('pointerdown',e=>{
   } else if(em==='text'&&e.button===0){
     let h=castAt(e);
     let p=h?h.point.clone().addScaledVector(cam.getWorldDirection(new THREE.Vector3()),-4):planePoint(e,sph.r);
-    askText(txt=>{texts.push({text:txt,pos:p.toArray(),color,size:14});redraw();});
+    askText(txt=>{const rec={text:txt,pos:p.toArray(),color,size:14};texts.push(rec);
+      pushUndo('texto',()=>{texts=texts.filter(x=>x!==rec);});redraw();});
   } else if(em==='img'&&e.button===0){
     ndc(e); let hits=ray.intersectObjects(images.map(i=>i.mesh));
     if(hits.length){imgDrag={rec:hits[0].object.userData.rec,dist:hits[0].distance};selImg=imgDrag.rec;}
@@ -1443,6 +1453,10 @@ addEventListener('pointermove',e=>{
     const cur=planePoint(e,laserDrag.depth);
     const d=new THREE.Vector3().subVectors(cur,laserDrag.start);
     if(d.length()>0.5)laserDrag.moved=true;
+    if(laserDrag.L.locked){   // bloqueado: no se mueve (avisa una sola vez)
+      if(laserDrag.moved&&!laserDrag.warned){laserDrag.warned=true;
+        toast(laserDrag.L.name+' bloqueado 🔒 · desbloquéalo en el menú de láseres');}
+      return;}
     let np=laserDrag.orig.clone().add(d);
     if(axLock){np.copy(laserDrag.orig); np[axLock]+=d[axLock];}   // restricción a un eje si está bloqueado
     if(mag){
@@ -1697,6 +1711,8 @@ function endPointer(e){
     if(drawing.paperRef){   // vincular al papel: guardar coords locales (uv) para que siga al plano
       const s=drawing.paperRef; drawing.uv=drawing.points.map(p=>paperUV(s,p));}
     strokes.push(drawing);
+    {const st=drawing; pushUndo('trazo',()=>{strokes=strokes.filter(x=>x!==st);
+      if(selected&&selected.ref===st)deselect();});}
     if(mode==='draw'&&!drawLock&&!wasPen&&!activePaper)setMode('orbit');   // lapiz de UN trazo (en papel: sigue dibujando)
     if(selLine){setMode('sel');select('trazo',selLine,'trazo linea');}  // recta: lista para teclear la longitud exacta
   }
@@ -1713,6 +1729,11 @@ function endPointer(e){
   if(selDrag)hideContact();
   if(gizDrag){
     if(gizDrag.t==='pieza'){computeIntersections();applySec();_silhFrame=-1;updateLasers();}
+    if(gizDrag.t==='laser'&&gizDrag.mesh&&
+       (!gizDrag.pos0.equals(gizDrag.mesh.position)||!gizDrag.quat0.equals(gizDrag.mesh.quaternion))){
+      const m=gizDrag.mesh,p0=gizDrag.pos0.clone(),q0=gizDrag.quat0.clone();
+      pushUndo('ajustar láser',()=>{m.position.copy(p0);m.quaternion.copy(q0);
+        updateLasers();updateGizmo();});}
     gizDrag=null;hideContact();hideMagHi();updateGizmo();}
   if(_tapDeselect){if(!_tapDeselect.moved)deselect(); _tapDeselect=null;}   // toque en vacío = deseleccionar
   if(calloutDrag){const cd=calloutDrag; clearCalloutPreview(); finishCallout(cd);}   // nota: al soltar, cierra la flecha y pide el texto
@@ -1721,6 +1742,9 @@ function endPointer(e){
       window._lzTap=null; setLaserPower(laserDrag.L,false);
       if(typeof renderLaserList==='function')renderLaserList(); toast(laserDrag.L.name+' apagado 👻');}
     else if(laserDrag.moved){window._lzTap=null;   // un arrastre real no cuenta como primer toque
+      if(!laserDrag.L.locked){const Lz=laserDrag.L,p0=laserDrag.orig.clone();
+        pushUndo('mover '+Lz.name,()=>{Lz.mesh.position.copy(p0);updateLasers();
+          if(selected&&selected.ref===Lz)updateGizmo();});}
       if(_snapState&&_snapState.mode==='mag')
         flashSnapFix([_snapState.p.x,_snapState.p.y,_snapState.p.z],_snapState.kind);}
     laserDrag=null;}
@@ -1754,7 +1778,16 @@ function checkHold(){
 }
 
 // ---- UI resto ----
-undo.onclick=()=>{strokes.pop();redraw();};
+// DESHACER general por ACCIONES: trazos, notas y láseres (insertar, mover, girar,
+// restablecer, eliminar). Si no hay acciones registradas, cae al comportamiento clásico.
+const undoActs=[];
+function pushUndo(label,fn){undoActs.push({label,fn}); if(undoActs.length>80)undoActs.shift();}
+undo.onclick=()=>{
+  const a=undoActs.pop();
+  if(a){a.fn(); redraw(); toast('Deshecho: '+a.label);}
+  else if(strokes.length){strokes.pop();redraw();}
+  else toast('Nada que deshacer');
+};
 document.getElementById('pieces').addEventListener('change',e=>{
   let n=e.target.dataset.n;if(n){pieces[n].visible=e.target.checked;_silhFrame=-1;updateLasers();}});
 // transparencia POR PIEZA: el icono revela un deslizante en cada fila
@@ -1784,7 +1817,12 @@ document.getElementById('selMove').addEventListener('change',e=>{
     computeIntersections();applySec();_silhFrame=-1;updateLasers();updateGizmo();
     e.target.value=''; toast('pieza Δ'+ax.toUpperCase()+' = '+v+' mm'); return;}
   if(selected&&selected.kind==='laser'){ // desplazar LÁSER
-    selected.ref.mesh.position.add(d);
+    const L=selected.ref;
+    if(L.locked){e.target.value='';toast(L.name+' bloqueado 🔒');return;}
+    const p0=L.mesh.position.clone();
+    pushUndo('mover '+L.name,()=>{L.mesh.position.copy(p0);updateLasers();
+      if(selected&&selected.ref===L)updateGizmo();});
+    L.mesh.position.add(d);
     updateLasers();updateGizmo();
     e.target.value=''; toast('láser Δ'+ax.toUpperCase()+' = '+v+' mm'); return;}
   if(selected&&selected.kind==='section'){ // desplazar SECCIÓN
@@ -1808,9 +1846,14 @@ document.getElementById('selRot').addEventListener('change',e=>{
     computeIntersections();applySec();_silhFrame=-1;updateLasers();updateGizmo();
     e.target.value=''; toast('pieza giro '+v+'° · eje '+ax2.toUpperCase()); return;}
   if(selected&&selected.kind==='laser'){ // girar LÁSER sobre sí mismo
+    const L=selected.ref;
+    if(L.locked){e.target.value='';toast(L.name+' bloqueado 🔒');return;}
     const ax2=axLock||'z';
     const u2=new THREE.Vector3(ax2==='x'?1:0,ax2==='y'?1:0,ax2==='z'?1:0);
-    selected.ref.mesh.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(u2,v*Math.PI/180));
+    const q0=L.mesh.quaternion.clone();
+    pushUndo('girar '+L.name,()=>{L.mesh.quaternion.copy(q0);updateLasers();
+      if(selected&&selected.ref===L)updateGizmo();});
+    L.mesh.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(u2,v*Math.PI/180));
     updateLasers();updateGizmo();
     e.target.value=''; toast('láser giro '+v+'° · eje '+ax2.toUpperCase()); return;}
   if(selected&&selected.kind==='section'){ // inclinar SECCIÓN
@@ -1846,6 +1889,9 @@ document.getElementById('selDup').onclick=()=>{
     if(ng!=null)c.grp=ng;
     if(c.reg&&c.reg.c)c.reg.c.add(d);
     strokes.push(c);return c;});
+  pushUndo(copies.length>1?'duplicar ('+copies.length+')':'duplicar',
+    ()=>{strokes=strokes.filter(x=>!copies.includes(x));
+      if(selected&&copies.includes(selected.ref))deselect();});
   selSet=copies;
   selected={kind:'trazo',ref:copies[0],label:copies.length+' copias'};
   document.getElementById('selname').textContent=copies.length>1?(copies.length+' copias'):'copia';
@@ -1969,6 +2015,7 @@ function updateGizmo(){
     if(secRotate!==selected.ref){gizmo.visible=false;return;}
     setGizMode('rot');
   } else setGizMode('full');
+  if(t==='laser'&&selected.ref.locked){gizmo.visible=false;return;}   // láser bloqueado: sin gizmo
   const c=new THREE.Vector3();
   if(t==='trazo'){const bb=new THREE.Box3(); let n=0;   // centro GEOMÉTRICO (caja), no media de muestras
     effSel().forEach(s=>s.points.forEach(p=>{bb.expandByPoint(new THREE.Vector3(p[0],p[1],p[2]));n++;}));
@@ -2082,7 +2129,9 @@ const IC_HATCH=_sv+'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4
 const IC_ALIGN=_sv+'<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
 const IC_FLIP=_sv+'<path d="M8 3 4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4"/></svg>';
 const IC_TRASH=_sv+'<path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
-const IC_RESET=_sv+'<path d="M3 12a9 9 0 1 0 2.6-6.3M3 4v5h5"/></svg>';
+const IC_RESET=_sv+'<circle cx="12" cy="12" r="6.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/></svg>';   // diana: volver a la posición inicial (no parece «deshacer»)
+const IC_LOCK=_sv+'<rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg>';
+const IC_UNLOCK=_sv+'<rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 6.6-1.6"/></svg>';
 const IC_ORBIT=_sv+'<ellipse cx="12" cy="12" rx="10" ry="4.5"/><ellipse cx="12" cy="12" rx="4.5" ry="10"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg>';
 const IC_POWER=_sv+'<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></svg>';
 // marcador de sección de arquitecto (círculo + triángulo a la derecha + letra),
@@ -3040,7 +3089,10 @@ function finishPoly(closed){
   pd.closed=closed&&pd.verts.length>2;
   const st={poly:true,verts:pd.verts,segTypes:pd.segTypes,arcMids:pd.arcMids,guidePts:pd.guidePts||{},closed:pd.closed,
     color,w:lineW,sobre:'poli'};
-  rebuildPoly(st); strokes.push(st); redraw();
+  rebuildPoly(st); strokes.push(st);
+  pushUndo('poli 3D',()=>{strokes=strokes.filter(x=>x!==st);
+    if(selected&&selected.ref===st)deselect();});
+  redraw();
   setMode('sel'); select('trazo',st,'poli 3D'+(st.closed?' (cerrada)':''));
   toast(st.closed?'Poli 3D cerrada ✓ · edítala por sus vértices':'Poli 3D creada · edítala por sus vértices');
 }
@@ -3218,6 +3270,7 @@ function addLaser(silent){
   lasers.push(L); updateLasers();
   if(typeof renderLaserList==='function')renderLaserList();
   if(!silent){   // sin cambiar el modo de visión: se conserva el que haya
+    pushUndo('insertar '+L.name,()=>removeLaser(L,true));
     setMode('sel'); select('laser',L,L.name);
     toast(L.name+' insertado');}
   return L;
@@ -3238,16 +3291,25 @@ function toggleLaser(L){
   toast(L.off?(L.name+' apagado 👻'):(L.name+' encendido'));
 }
 function resetLaser(L){
+  if(L.locked){toast(L.name+' bloqueado 🔒 · desbloquéalo para restablecer');return;}
+  {const p0=L.mesh.position.clone(),q0=L.mesh.quaternion.clone(),
+     on=Object.assign({},L.on),n=L.n,sp=L.sp,off=L.off;
+   pushUndo('restablecer '+L.name,()=>{L.mesh.position.copy(p0);L.mesh.quaternion.copy(q0);
+     L.on=on;L.n=n;L.sp=sp;setLaserPower(L,!off);updateLasers();
+     if(selected&&selected.ref===L){syncLaserOps(L);updateGizmo();}
+     if(typeof renderLaserList==='function')renderLaserList();});}
   L.mesh.position.copy(L.pos0); L.mesh.quaternion.copy(L.quat0);
   L.on=Object.assign({},L.on0); L.n=L.n0; L.sp=L.sp0; if(L.off)setLaserPower(L,true);
   updateLasers(); if(selected&&selected.ref===L){syncLaserOps(L);updateGizmo();}
   if(typeof renderLaserList==='function')renderLaserList();
   toast(L.name+' restablecido');
 }
-function removeLaser(L){
+function removeLaser(L,noUndo){
   if(selected&&selected.ref===L)deselect();
   scene.remove(L.mesh); scene.remove(L.linesA); scene.remove(L.linesB);
   lasers=lasers.filter(x=>x!==L);
+  if(!noUndo)pushUndo('eliminar '+L.name,()=>{scene.add(L.mesh);scene.add(L.linesA);scene.add(L.linesB);
+    lasers.push(L);updateLasers();renderLaserList();});
   renderLaserList(); toast(L.name+' eliminado');
 }
 // ---- Menú de láseres (mismo sistema que las secciones: crear, activar varios,
@@ -3260,15 +3322,19 @@ function renderLaserList(){
     row.innerHTML='<button data-p="'+i+'" class="secbtn'+(on?' on':'')+'" title="encender / apagar (fantasma)">'+IC_POWER+'</button>'+
       '<span data-s="'+i+'" style="flex:1;cursor:pointer;font-weight:600;color:'+(on?'#0a9f57':'inherit')+'">'+escH(L.name)+'</span>'+
       '<button data-r="'+i+'" class="secbtn" title="restablecer posición y ángulo">'+IC_RESET+'</button>'+
+      '<button data-k="'+i+'" class="secbtn'+(L.locked?' on':'')+'" title="bloquear posición y giro (toca de nuevo para desbloquear)">'+(L.locked?IC_LOCK:IC_UNLOCK)+'</button>'+
       '<button data-x="'+i+'" class="secbtn del" title="eliminar">'+IC_TRASH+'</button>';
     d.appendChild(row);});
   if(!lasers.length)d.innerHTML='<span style="color:var(--mut);font-size:11px">Sin láseres. Pulsa «Nuevo láser».</span>';
 }
 document.getElementById('laserList').addEventListener('click',e=>{
-  const t=e.target.dataset, i=+(t.p??t.s??t.r??t.x);
+  const t=e.target.dataset, i=+(t.p??t.s??t.r??t.k??t.x);
   if(t.p!==undefined)toggleLaser(lasers[i]);
   else if(t.s!==undefined){setMode('sel');select('laser',lasers[i],lasers[i].name);}
   else if(t.r!==undefined)resetLaser(lasers[i]);
+  else if(t.k!==undefined){const L=lasers[i]; L.locked=!L.locked; renderLaserList();
+    if(selected&&selected.ref===L)updateGizmo();
+    toast(L.locked?(L.name+' bloqueado 🔒 · posición y giro fijos'):(L.name+' desbloqueado'));}
   else if(t.x!==undefined)removeLaser(lasers[i]);
 });
 document.getElementById('lzNew').onclick=()=>{addLaser(false);renderLaserList();};
@@ -3337,12 +3403,12 @@ function buildExport(){
       paperAlpha:s.paper?s.paperAlpha:undefined,lineAlpha:s.paper?s.lineAlpha:undefined,paperHidden:s.paper?!!s.paperHidden:undefined,
       roll:s.paper?s.roll:undefined,size:s.paper?s.size:undefined})),
     lasers:lasers.map(L=>({name:L.name,pos:L.mesh.position.toArray(),quat:L.mesh.quaternion.toArray(),
-      h:L.on.h,v:L.on.v,v2:L.on.v2,n:L.n,sp:L.sp,off:L.off||undefined})),
+      h:L.on.h,v:L.on.v,v2:L.on.v2,n:L.n,sp:L.sp,off:L.off||undefined,locked:L.locked||undefined})),
     textos:texts,
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
-window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R}};
+window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode}};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());
@@ -3391,7 +3457,8 @@ fileJson.onchange=ev=>{
         if(ld.pos)L.mesh.position.set(...ld.pos); if(ld.quat)L.mesh.quaternion.set(...ld.quat);
         L.on={h:!!ld.h,v:!!ld.v,v2:!!ld.v2}; L.n=ld.n||1; L.sp=ld.sp||20;
         L.pos0=L.mesh.position.clone();L.quat0=L.mesh.quaternion.clone();L.on0=Object.assign({},L.on);L.n0=L.n;L.sp0=L.sp;
-        if(ld.off)setLaserPower(L,false);});
+        if(ld.off)setLaserPower(L,false);
+        if(ld.locked)L.locked=true;});
       updateLasers(); renderLaserList();}
     texts=d.textos||[];
     (d.imagenes||[]).forEach(im=>{if(!im.dataURL)return;
