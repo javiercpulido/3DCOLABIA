@@ -139,7 +139,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.20 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.21 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -151,6 +151,7 @@
   <button id="selMag" title="Imán fijo: pegar el trazo a la superficie y bloquearlo">🧲</button>
   <button id="selDup" title="Duplicar selección">⎘</button>
   <button id="selGrp" title="Agrupar / desagrupar">🔗</button>
+  <button id="selSplit" title="Partir la línea por un punto (sin separar las partes)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M3 12 H10 M14 12 H21"/><path d="M12 8 V16" stroke-dasharray="2 2.4"/></svg></button>
  </span>
  <span id="xformOps">
   <button class="mvax" data-ax="x">X</button><button class="mvax" data-ax="y">Y</button><button class="mvax" data-ax="z">Z</button>
@@ -174,6 +175,23 @@
 </div>
 <div id="hud">x — · y — · z — mm</div>
 <div id="drawTag" style="position:fixed;z-index:13;display:none;pointer-events:none;font-size:11px;font-weight:600;line-height:1;padding:2px 5px;border-radius:6px;background:rgba(28,28,30,.82);color:#fff;white-space:nowrap;transform:translate(10px,-50%)">0 mm</div>
+<div id="polychips" style="position:fixed;z-index:14;display:none;gap:4px;align-items:center">
+ <button id="pcArc" class="pchip" title="El próximo tramo será un ARCO (toca el punto de paso y luego el final)">⌒</button>
+ <button id="pcUndo" class="pchip" title="Deshacer el último vértice">↩</button>
+ <button id="pcClose" class="pchip pcok" title="Cerrar la forma en el primer vértice">✓</button>
+ <button id="pcDone" class="pchip" title="Terminar la poli abierta">●</button>
+ <button id="pcExit" class="pchip pcx" title="Cancelar">✕</button>
+</div>
+<div id="joinpop" style="position:fixed;z-index:15;display:none;gap:4px;align-items:center;background:var(--bg,#fff);border:1px solid rgba(0,0,0,.12);border-radius:10px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,.18)">
+ <button id="jpJoin" class="pchip pcok" style="width:auto;padding:0 10px">Unir</button>
+ <button id="jpCancel" class="pchip" style="width:auto;padding:0 10px">Cancelar</button>
+</div>
+<style>
+.pchip{height:28px;min-width:28px;border:1px solid rgba(0,0,0,.1);border-radius:9px;background:rgba(255,255,255,.94);color:#1c1c1e;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12);padding:0}
+.pchip.on{background:#0a84ff;color:#fff;border-color:#0a84ff}
+.pchip.pcok{color:#0f9d68}.pchip.pcok.on{background:#0f9d68;color:#fff;border-color:#0f9d68}
+.pchip.pcx{color:#8a8f98}
+</style>
 
 <div id="colors" class="pill">
  <span class="sw on" style="background:#d500f9" data-c="#d500f9"></span>
@@ -271,6 +289,7 @@
  <button class="secTgl" data-dm="line" title="Línea recta con longitud en vivo (tipo SketchUp)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2" fill="currentColor"/><circle cx="20" cy="4" r="2" fill="currentColor"/></svg>Recta</button>
  <button class="secTgl" data-dm="note" title="Nota con flecha: toca un punto de la superficie y escribe una explicación (tipo SketchUp)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 21.5l1.2-3.9L13 8.3l2.7 2.7L6.4 20.3 2.5 21.5z"/><path d="M14.2 7.1l1.6-1.6a1.5 1.5 0 0 1 2.1 0l.5.5a1.5 1.5 0 0 1 0 2.1l-1.6 1.6"/><text x="14.5" y="21" font-size="10" stroke="none" fill="currentColor" font-weight="800">A</text></svg>Nota con flecha</button>
  <button class="secTgl" data-dm="laser" title="Lápiz de arco láser: apoya sobre una guía láser y arrastra; el trazo sigue el arco que el láser proyecta (imantado), incluso una vuelta completa"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17a9 9 0 0 1 18 0"/><circle cx="3" cy="17" r="1.6" fill="currentColor" stroke="none"/><circle cx="21" cy="17" r="1.6" fill="currentColor" stroke="none"/></svg>Arco láser</button>
+ <button class="secTgl" data-dm="poly" title="Poli 3D: toques encadenados recta⟷arco entre superficies, con puntos de control, cierre y edición por vértices"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 4 8 12 4 12 12 a5 5 0 0 0 8 4"/><circle cx="4" cy="19" r="1.8" fill="currentColor" stroke="none"/><circle cx="4" cy="8" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="4" r="1.8" fill="currentColor" stroke="none"/><circle cx="20" cy="16" r="1.8" fill="currentColor" stroke="none"/></svg>Poli 3D</button>
  <button class="secTgl" id="dmLock" title="Seguir dibujando sin volver a orbitar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Continuo (candado)</button>
 </div>
 <div id="lasermenu" class="pill" style="position:fixed;top:76px;left:12px;z-index:11;display:none;flex-direction:column;padding:7px;gap:5px;width:150px;max-width:60vw;font-size:12.5px;color:var(--ink)">
@@ -670,13 +689,15 @@ vPlaInv.onclick=()=>setView(-Math.PI/2,Math.PI-0.01);  // planta invertida (infe
 
 // ---- estado UI ----
 let mode='orbit', color='#d500f9', mag=true, lineW=0.2, penSeen=false, drawLock=false, selDrag=null, textDrag=null;
+let polyDraw=null, _joinCtx=null;   // POLI 3D en curso · contexto del popup Unir/Cancelar
 let drawMode='geo';   // 'geo'=pegado a geometría/láser (por defecto) · 'free'=libre · 'line'=recta · 'note'=nota con flecha
 const PEN_ICONS={
   geo:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/><circle cx="18.5" cy="18.5" r="2.6"/></svg>',
   free:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
   line:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2.2" fill="currentColor"/><circle cx="20" cy="4" r="2.2" fill="currentColor"/></svg>',
   note:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 21.5l1.2-3.9L13 8.3l2.7 2.7L6.4 20.3 2.5 21.5z"/><path d="M14.2 7.1l1.6-1.6a1.5 1.5 0 0 1 2.1 0l.5.5a1.5 1.5 0 0 1 0 2.1l-1.6 1.6"/><text x="14.5" y="21" font-size="10" stroke="none" fill="currentColor" font-weight="800">A</text></svg>',
-  laser:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17a9 9 0 0 1 18 0"/><circle cx="3" cy="17" r="1.7" fill="currentColor" stroke="none"/><circle cx="21" cy="17" r="1.7" fill="currentColor" stroke="none"/><path d="M12 3v3M12 8l0 0" stroke="#00c774"/></svg>'};
+  laser:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17a9 9 0 0 1 18 0"/><circle cx="3" cy="17" r="1.7" fill="currentColor" stroke="none"/><circle cx="21" cy="17" r="1.7" fill="currentColor" stroke="none"/><path d="M12 3v3M12 8l0 0" stroke="#00c774"/></svg>',
+  poly:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 4 8 12 4 12 12 a5 5 0 0 0 8 4"/><circle cx="4" cy="19" r="2" fill="currentColor" stroke="none"/><circle cx="4" cy="8" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="4" r="2" fill="currentColor" stroke="none"/><circle cx="20" cy="16" r="2" fill="currentColor" stroke="none"/></svg>'};
 function setPenIcon(){const b=document.getElementById('mDraw'); if(!b)return;
   b.innerHTML=PEN_ICONS[drawMode]+'<span id="lockDot" style="position:absolute;top:2px;right:4px;font-size:9px;line-height:1;display:'+(drawLock?'block':'none')+'">🔒</span>';}
 function applyDrawMode(){
@@ -687,6 +708,7 @@ function applyDrawMode(){
   setPenIcon();}
 const btns={orbit:'mOrbit',sel:'mSel',draw:'mDraw',erase:'mErase',text:'mText',img:'mImg'};
 function setMode(m){mode=m;for(let k in btns)document.getElementById(btns[k]).classList.toggle('on',k===m);
+  if(m!=='draw'&&typeof polyDraw!=='undefined'&&polyDraw&&typeof cancelPoly==='function')cancelPoly();
   const vl=document.getElementById('vLook'); if(vl)vl.classList.toggle('on',m==='look');
   // navegar (orbitar / girar la cabeza) NO deselecciona; sólo los modos de edición
   if(m!=='sel'&&m!=='orbit'&&m!=='look'){deselect();
@@ -700,10 +722,11 @@ document.getElementById('mDraw').onclick=()=>{
     if(show)rightOfIcon(d,document.getElementById('mDraw')); else d.style.display='none';}};
 document.getElementById('drawmenu').addEventListener('click',e=>{
   const b=e.target.closest('[data-dm]');
-  if(b){drawMode=b.dataset.dm; applyDrawMode(); setMode('draw');
+  if(b){if(polyDraw&&b.dataset.dm!=='poly'&&typeof cancelPoly==='function')cancelPoly();
+    drawMode=b.dataset.dm; applyDrawMode(); setMode('draw');
     document.querySelectorAll('#drawmenu [data-dm]').forEach(x=>x.classList.toggle('on',x.dataset.dm===drawMode));
     document.getElementById('drawmenu').style.display='none';
-    toast('Lápiz: '+({geo:'pegado a geometría/láser',free:'libre',line:'recta',note:'nota con flecha',laser:'arco láser'}[drawMode]));}});
+    toast('Lápiz: '+({geo:'pegado a geometría/láser',free:'libre',line:'recta',note:'nota con flecha',laser:'arco láser',poly:'Poli 3D · toques encadenados'}[drawMode]));}});
 document.getElementById('dmLock').onclick=function(){drawLock=!drawLock;
   this.classList.toggle('on',drawLock); const ld=document.getElementById('lockDot'); if(ld)ld.style.display=drawLock?'block':'none';
   toast(drawLock?'Lápiz continuo 🔒':'Un trazo y vuelve a orbitar');};
@@ -794,10 +817,16 @@ function strokeLine(s){
       obj=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
         new THREE.LineBasicMaterial({color:s.color,depthTest:false,transparent:true,opacity:op}));
     }else{
-      let path=new THREE.CurvePath();
-      for(let i=1;i<pts.length;i++)path.add(new THREE.LineCurve3(pts[i-1],pts[i]));
-      let g=new THREE.TubeGeometry(path,Math.max(2,pts.length*2),(selMe?1.6:1)*Math.max(w,HAIRLINE)/2,6,false);
-      obj=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:selMe?'#0a84ff':s.color,depthTest:false,transparent:true,opacity:op}));
+      const mkTube=(pp)=>{let path=new THREE.CurvePath();
+        for(let i=1;i<pp.length;i++)path.add(new THREE.LineCurve3(pp[i-1],pp[i]));
+        const g=new THREE.TubeGeometry(path,Math.max(2,pp.length*2),(selMe?1.6:1)*Math.max(w,HAIRLINE)/2,6,false);
+        return new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:selMe?'#0a84ff':s.color,depthTest:false,transparent:true,opacity:op}));};
+      if(s._breaks&&s._breaks.length>2){   // POLI: tubo por TRAMO → esquinas vivas a 90° (sin chaflán de muestreo)
+        obj=new THREE.Group();
+        for(let k=0;k+1<s._breaks.length;k++){
+          const pp=pts.slice(s._breaks[k],s._breaks[k+1]+1);
+          if(pp.length>=2){const t=mkTube(pp); t.userData.rec=s; t.renderOrder=10; obj.add(t);}}
+      } else obj=mkTube(pts);
     }
   }
   obj.userData.rec=s; obj.renderOrder=10; return obj;
@@ -916,7 +945,9 @@ function makeHandles(){
   const foc=(drawing&&drawing.editEnd)?drawing:(selected&&selected.kind==='trazo'?selected.ref:null);
   if(!foc||(selSet&&selSet.length>1))return;
   const s=foc; let hs=[];
-  if(s.reg&&s.reg.tipo==='linea'){hs=[['p0',s.points[0]],['p1',s.points[s.points.length-1]]];}
+  if(s.poly){hs=s.verts.map((v,i)=>['V'+i,v]);   // POLI 3D: un tirador por vértice + puntos de paso de arcos
+    for(const k in s.arcMids)hs.push(['M'+k,s.arcMids[k]]);}
+  else if(s.reg&&s.reg.tipo==='linea'){hs=[['p0',s.points[0]],['p1',s.points[s.points.length-1]]];}
   else if(s.reg&&s.reg.tipo==='arco'){hs=[['p0',s.points[0]],['pm',s.points[(s.points.length/2)|0]],['p1',s.points[s.points.length-1]]];}
   else if(s.reg&&s.reg.tipo==='circulo'){let c3=to3(s.reg,[s.reg.circ.cx,s.reg.circ.cy]);
     hs=[['centro',c3.toArray()],['radio',s.points[0]]];}
@@ -932,6 +963,7 @@ function makeHandles(){
 function redraw(){
   while(annGroup.children.length)annGroup.remove(annGroup.children[0]);
   strokes.forEach(s=>{if(s.paperRef&&s.paperRef.paperHidden)return; annGroup.add(strokeLine(s));});
+  if(polyDraw&&polyDraw.verts.length)annGroup.add(strokeLine(polyPreviewObj()));   // vista previa de la Poli 3D
   texts.forEach(t=>{const o=makeText(t); if(Array.isArray(o))o.forEach(x=>annGroup.add(x)); else annGroup.add(o);});
   images.forEach(im=>annGroup.add(im.mesh));
   makeHandles(); handles.forEach(h=>annGroup.add(h.mesh));
@@ -1197,6 +1229,7 @@ function effMode(e){
 renderer.domElement.addEventListener('pointerdown',e=>{
   renderer.domElement.setPointerCapture(e.pointerId);
   deadPointers.delete(e.pointerId);
+  if(_joinCtx)hideJoinPop();   // tocar el lienzo cierra el popup Unir/Cancelar
   if(secPlaceMode&&e.button===0&&e.isPrimary!==false){
     startSecPlacement(e); return;}
   if(e.pointerType==='pen'&&!penSeen){penSeen=true;toast('✍️ Pen detectado: el lápiz dibuja, los dedos navegan');}
@@ -1209,6 +1242,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
   if(pointers.size===2){
     if(drawing){drawing=null;redraw();}
     if(calloutDrag)clearCalloutPreview();
+    if(polyDraw&&polyDraw.dragging){polyDraw.dragging=false;hideDrawTag();}   // orbitar en mitad de una poli no fija vértice
     _tapDeselect=null;   // un pellizco (zoom/giro) no debe deseleccionar
     let ps=[...pointers.values()];
     pinch={d0:Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y),r0:sph.r,
@@ -1220,7 +1254,8 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     {const dm=document.getElementById('drawmenu'); if(dm.style.display&&dm.style.display!=='none')dm.style.display='none';}  // al empezar a dibujar se cierra el submenú
     if(drawMode==='note'){startCallout(e);return;}   // nota con flecha: pulsa la punta y arrastra la guía
     ndc(e); let hh=ray.intersectObjects(handles.map(h=>h.mesh));
-    if(hh.length){handDrag=handles.find(h=>h.mesh===hh[0].object);handDrag.dist=hh[0].distance;return;}
+    if(hh.length){handDrag=handles.find(h=>h.mesh===hh[0].object);handDrag.dist=hh[0].distance;
+      _snapPts=mag?buildSnapPts(handDrag.stroke):null; return;}
     _drawEdgeSegs=buildEdgeSegs();   // imán-guía (aristas del modelo) para todo este trazo
     _snapPts=mag?buildSnapPts(null):null;   // catálogo OSNAP (extremos·medios·centros·cuadrantes)
     if(drawMode==='laser'){   // LÁPIZ DE ARCO LÁSER: sigue la curva que el láser proyecta
@@ -1229,6 +1264,15 @@ renderer.domElement.addEventListener('pointerdown',e=>{
       const closed=(hit.poly.length>2&&hit.poly[0].distanceTo(hit.poly[hit.poly.length-1])<Math.max(0.1,sph.r*0.01));
       drawing={points:[hit.poly[hit.idx].toArray()],color,w:lineW,sobre:'laser',laserArc:{poly:hit.poly,start:hit.idx,closed}};
       drawDist=cam.position.distanceTo(hit.poly[hit.idx]); lastMoveT=performance.now(); return;
+    }
+    if(drawMode==='poly'){   // POLI 3D: cada toque coloca un vértice provisional (se ajusta al arrastrar, se fija al soltar)
+      let h=mag?castAt(e):null, p;
+      if(h){p=offPt(h); drawDist=h.distance;}
+      else{const d=mag?sph.r:cam.position.distanceTo(target); p=planePoint(e,d); drawDist=d;}
+      if(mag){const sq=snapQueryWorld(p.toArray(),16); if(sq){p.set(sq.p[0],sq.p[1],sq.p[2]); flashSnapFix(sq.p,sq.kind);}}
+      if(!polyDraw)polyDraw={verts:[],segTypes:[],arcMids:{},nextType:'L',arcPending:null,dragging:false};
+      polyDraw.prov=p.toArray(); polyDraw.dragging=true;
+      redraw(); showPolyChips(); lastMoveT=performance.now(); return;
     }
     if(activePaper){   // DIBUJO RESTRINGIDO al papel activo (proyecta sobre su plano)
       const pp=rayToPaper(e,activePaper)||planePoint(e,sph.r);
@@ -1249,12 +1293,14 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     lastMoveT=performance.now();
   } else if(em==='sel'&&e.button===0){
     ndc(e);
-    if(gizmo&&gizmo.visible){ // gizmo primero: flechas y anillos
+    if(splitArm){ if(trySplitAt(e)){splitArm=false;document.getElementById('selSplit').classList.remove('on');} return; }
+    let hh2=ray.intersectObjects(handles.map(h=>h.mesh));   // los tiradores GANAN al gizmo (son objetivos precisos)
+    if(hh2.length){handDrag=handles.find(h=>h.mesh===hh2[0].object);handDrag.dist=hh2[0].distance;
+      _snapPts=mag?buildSnapPts(handDrag.stroke):null; return;}
+    if(gizmo&&gizmo.visible){ // gizmo: flechas y anillos
       const gp=(gizMode==='rot')?gizParts.filter(p=>p.userData.giz.type==='rot'):gizParts;
       const gh=ray.intersectObjects(gp,false);
       if(gh.length){startGizDrag(gh[0].object.userData.giz);return;}}
-    let hh2=ray.intersectObjects(handles.map(h=>h.mesh));
-    if(hh2.length){handDrag=handles.find(h=>h.mesh===hh2[0].object);handDrag.dist=hh2[0].distance;return;}
     // arrastrar la flecha de la sección YA seleccionada = mover el plano en su normal
     if(selected&&selected.kind==='section'){const exs=exPick();
       if(exs.length){const ex=ray.intersectObjects(exs,true);
@@ -1283,7 +1329,9 @@ renderer.domElement.addEventListener('pointerdown',e=>{
         const list=effSel();
         selDrag={list,depth,start:planePoint(e,depth),
                  orig:list.map(s=>s.points.map(p=>p.slice())),
-                 origC:list.map(s=>(s.reg&&s.reg.c)?s.reg.c.clone():null)};
+                 origC:list.map(s=>(s.reg&&s.reg.c)?s.reg.c.clone():null),
+                 origV:list.map(s=>s.poly?{v:s.verts.map(p=>p.slice()),
+                   m:Object.fromEntries(Object.entries(s.arcMids).map(([k,v])=>[k,v.slice()]))}:null)};
       } else selectStroke(hitS);
       return;}
     // láseres y secciones (seleccionar / doble-toque para activar)
@@ -1394,7 +1442,10 @@ addEventListener('pointermove',e=>{
     selDrag.list.forEach((s,i)=>{
       s.points=selDrag.orig[i].map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);
       if(selDrag.origC[i])s.reg.c.copy(selDrag.origC[i]).add(d);
-      if((mag||s.magLock)&&s.sobre!=='aire'&&!axLock)s.points=glue(s.points);
+      if(s.poly&&selDrag.origV&&selDrag.origV[i]){   // la poli traslada también sus vértices y arcos
+        s.verts=selDrag.origV[i].v.map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);
+        s.arcMids={}; for(const k in selDrag.origV[i].m)s.arcMids[k]=[selDrag.origV[i].m[k][0]+d.x,selDrag.origV[i].m[k][1]+d.y,selDrag.origV[i].m[k][2]+d.z];}
+      if((mag||s.magLock)&&s.sobre!=='aire'&&!axLock&&!s.poly)s.points=glue(s.points);
     });
     document.getElementById('hud').textContent='Δ '+d.length().toFixed(1)+' mm · x '+
       d.x.toFixed(1)+' · y '+d.y.toFixed(1)+' · z '+d.z.toFixed(1)+
@@ -1407,6 +1458,13 @@ addEventListener('pointermove',e=>{
     let p=h?offPt(h)
            :planePoint(e,handDrag.dist);
     if(mag){const lq=laserSnap(p);if(lq)p=lq.clone();}
+    if(mag){const sq=snapQueryWorld(p.toArray(),16);   // edición por puntos de control OSNAP
+      if(sq){p.set(sq.p[0],sq.p[1],sq.p[2]); setSnapState({p:sq.p,kind:sq.kind},'mag');} else clearSnapState();}
+    if(s.poly){   // POLI 3D: arrastrar vértice (V#) o punto de paso de arco (M#)
+      const role=handDrag.role;
+      if(role[0]==='V')s.verts[+role.slice(1)]=p.toArray();
+      else if(role[0]==='M')s.arcMids[+role.slice(1)]=p.toArray();
+      rebuildPoly(s); redraw(); return;}
     if(!reg){   // trazo libre: estirar sólo el extremo agarrado
       if(handDrag.role==='f0')s.points[0]=p.toArray();
       else if(handDrag.role==='f1')s.points[s.points.length-1]=p.toArray();
@@ -1426,6 +1484,35 @@ addEventListener('pointermove',e=>{
     if(reg.tipo==='linea'&&s.points.length>1){const a=new THREE.Vector3(...s.points[0]),b=new THREE.Vector3(...s.points[s.points.length-1]);showDrawTag(p,a.distanceTo(b).toFixed(1)+' mm');}
     contactProbe(s);
     redraw();return;}
+  if(polyDraw&&polyDraw.dragging){   // POLI 3D: ajustar el vértice provisional con imán y guías
+    let h=mag?castAt(e):null; let p=h?offPt(h):planePoint(e,drawDist);
+    let badge='';
+    const sq=mag?snapQuery(e):null;
+    if(sq&&sq.d<=14){p.set(sq.p[0],sq.p[1],sq.p[2]); setSnapState(sq,'mag'); badge='◈';}
+    else{
+      if(sq)setSnapState(sq,'hint'); else clearSnapState();
+      if(mag&&polyDraw.verts.length&&!polyDraw.arcPending&&polyDraw.nextType!=='A'){
+        const A0=new THREE.Vector3(...polyDraw.verts[polyDraw.verts.length-1]);
+        const d=p.clone().sub(A0), L=d.length();
+        if(L>1){const dn=d.clone().divideScalar(L);
+          let bax=null,bA=12*Math.PI/180;   // orto pasivo a ejes globales
+          for(const ax of [[1,0,0,'X'],[0,1,0,'Y'],[0,0,1,'Z']]){
+            const u=new THREE.Vector3(ax[0],ax[1],ax[2]);
+            const dot=dn.dot(u), ang=Math.acos(Math.min(1,Math.abs(dot)));
+            if(ang<bA){bA=ang;bax={u:u.multiplyScalar(dot<0?-1:1),n:ax[3]};}}
+          if(bax){p.copy(A0).addScaledVector(bax.u,L); badge=bax.n;}
+          if(polyDraw.verts.length>=2){   // = misma longitud que el tramo anterior
+            const Lp=new THREE.Vector3(...polyDraw.verts[polyDraw.verts.length-1])
+              .distanceTo(new THREE.Vector3(...polyDraw.verts[polyDraw.verts.length-2]));
+            if(Math.abs(L-Lp)<Math.max(1,Lp*0.02)){
+              const dir=p.clone().sub(A0).normalize(); p.copy(A0).addScaledVector(dir,Lp);
+              badge+=(badge?' ':'')+'=';}}
+        }}}
+    polyDraw.prov=p.toArray();
+    if(polyDraw.verts.length){
+      const A0=new THREE.Vector3(...polyDraw.verts[polyDraw.verts.length-1]);
+      showDrawTag(p,A0.distanceTo(p).toFixed(1)+' mm'+(badge?'  '+badge:''));}
+    redraw(); positionPolyChips(); return;}
   if(drawing){
     if(drawing.laserArc){   // ARCO LÁSER: el trazo sigue la polilínea del láser desde el inicio hasta el cursor
       const arc=drawing.laserArc, poly=arc.poly, N=poly.length;
@@ -1537,6 +1624,7 @@ function endPointer(e){
   pointers.delete(e.pointerId);deadPointers.delete(e.pointerId);
   if(secPlacing){finishSecPlacement();return;}     // soltar = activa la sección
   if(secMoveDrag)secMoveDrag=null;
+  if(polyDraw&&polyDraw.dragging){commitPolyTap(); hideDrawTag(); dragging=false; return;}   // soltar = fija el vértice; la poli continúa
   if(pointers.size<2){pinch=null;
     if(wasPinch)pointers.forEach((_,id)=>deadPointers.add(id));} // el dedo restante no orbita/pinta
   if(drawing&&drawing.points.length>1){
@@ -1578,6 +1666,15 @@ function endPointer(e){
     gizDrag=null;hideContact();hideMagHi();updateGizmo();}
   if(_tapDeselect){if(!_tapDeselect.moved)deselect(); _tapDeselect=null;}   // toque en vacío = deseleccionar
   if(calloutDrag){const cd=calloutDrag; clearCalloutPreview(); finishCallout(cd);}   // nota: al soltar, cierra la flecha y pide el texto
+  if(handDrag){   // al soltar un pinzamiento de EXTREMO sobre el de otra línea → Unir / Cancelar
+    const st=handDrag.stroke, role=handDrag.role;
+    if(_snapState&&_snapState.mode==='mag')flashSnapFix([_snapState.p.x,_snapState.p.y,_snapState.p.z],_snapState.kind);
+    if(st.poly&&!st.closed){
+      if(role==='V0')checkJoinOnRelease(st,'v0');
+      else if(role==='V'+(st.verts.length-1))checkJoinOnRelease(st,'vend');
+    } else if(role==='f0'||role==='p0')checkJoinOnRelease(st,role);
+    else if(role==='f1'||role==='p1')checkJoinOnRelease(st,role);
+  }
   drawing=null;handDrag=null;imgDrag=null;selDrag=null;textDrag=null;dragging=false;
   _drawEdgeSegs=null;_laserPolys=null;_snapPts=null;clearSnapState();hideDrawTag();redraw();
 }
@@ -2645,6 +2742,201 @@ function updateSnapGlyphs(){
     snapSpr.visible=true; snapHalo.visible=mag2;
   } else { snapSpr.visible=snapHalo.visible=false; }
 }
+// ================= POLI 3D (fase 2): toques encadenados recta⟷arco entre superficies ==========
+// Cada toque fija un vértice (con OSNAP); chips junto a la punta: ⌒ arco · ↩ deshacer ·
+// ✓ cerrar · ● terminar · ✕ cancelar. La forma queda editable por sus vértices.
+function arc3d(a,m,b,n){
+  // arco 3D por tres puntos (plano que los contiene, circuncentro y barrido corto por m)
+  const A=new THREE.Vector3(...a),M=new THREE.Vector3(...m),B=new THREE.Vector3(...b);
+  const u=M.clone().sub(A), v=B.clone().sub(A), N=new THREE.Vector3().crossVectors(u,v);
+  if(N.lengthSq()<1e-9)return [a,b];
+  N.normalize();
+  const X=u.clone().normalize(), Y=new THREE.Vector3().crossVectors(N,X);
+  const p2=q=>[q.clone().sub(A).dot(X),q.clone().sub(A).dot(Y)];
+  const [ax,ay]=[0,0],[mx,my]=p2(M),[bx,by]=p2(B);
+  const d=2*(mx*by-my*bx); if(Math.abs(d)<1e-9)return [a,b];
+  const cx=(by*(mx*mx+my*my)-my*(bx*bx+by*by))/d, cy2=(mx*(bx*bx+by*by)-bx*(mx*mx+my*my))/d;
+  const r=Math.hypot(cx,cy2);
+  let a0=Math.atan2(-cy2,-cx), am=Math.atan2(my-cy2,mx-cx), a1=Math.atan2(by-cy2,bx-cx);
+  const norm=x=>{while(x<0)x+=2*Math.PI;return x;};
+  let s0=0, sm=norm(am-a0), s1=norm(a1-a0);
+  const dir=(sm<=s1)?1:-1;                       // el barrido que pasa por m
+  const span=dir>0?s1:(2*Math.PI-s1);
+  const out=[];
+  for(let i=0;i<=(n||16);i++){const t=a0+dir*span*i/(n||16);
+    out.push(A.clone().addScaledVector(X,cx+r*Math.cos(t)).addScaledVector(Y,cy2+r*Math.sin(t)).toArray());}
+  return out;
+}
+function flattenPoly(pd,prov){
+  const pts=[],breaks=[0]; const V=pd.verts;
+  const seg=(i,aa,bb)=>{
+    if(pd.segTypes[i]==='A'&&pd.arcMids[i])return arc3d(aa,pd.arcMids[i],bb,16);
+    return [aa,bb];};
+  for(let i=0;i+1<V.length;i++){
+    const s=seg(i,V[i],V[i+1]);
+    if(pts.length)pts.pop();                     // sin duplicar el vértice compartido
+    pts.push(...s); breaks.push(pts.length-1);
+  }
+  if(prov&&V.length){                            // tramo provisional hasta la punta
+    let s;
+    if(pd.nextType==='A'&&pd.arcPending)s=arc3d(V[V.length-1],pd.arcPending,prov,16);
+    else s=[V[V.length-1],prov];
+    if(pts.length)pts.pop(); else pts.push(s[0]);
+    pts.push(...s.slice(pts.length?0:1)); breaks.push(pts.length-1);
+  }
+  if(!prov&&pd.closed&&V.length>2){
+    const s=seg(V.length-1,V[V.length-1],V[0]);
+    pts.pop(); pts.push(...s); breaks.push(pts.length-1);
+  }
+  if(!pts.length&&V.length)pts.push(V[0]);
+  return {pts,breaks};
+}
+function rebuildPoly(st){const f=flattenPoly(st,null); st.points=f.pts; st._breaks=f.breaks;}
+function polyPreviewObj(){
+  const f=flattenPoly(polyDraw,polyDraw.dragging?polyDraw.prov:null);
+  return {points:f.pts,_breaks:f.breaks,poly:true,color,w:lineW,sobre:'poli'};
+}
+function showPolyChips(){const c=document.getElementById('polychips');c.style.display='flex';positionPolyChips();}
+function hidePolyChips(){document.getElementById('polychips').style.display='none';}
+function positionPolyChips(){
+  if(!polyDraw||!polyDraw.verts.length)return;
+  const c=document.getElementById('polychips'); if(c.style.display==='none')return;
+  const last=polyDraw.dragging?polyDraw.prov:polyDraw.verts[polyDraw.verts.length-1];
+  const v=new THREE.Vector3(...last).project(cam);
+  const rct=renderer.domElement.getBoundingClientRect();
+  let x=rct.left+(v.x*0.5+0.5)*rct.width+16, y=rct.top+(-v.y*0.5+0.5)*rct.height+18;
+  x=Math.min(x,innerWidth-c.offsetWidth-8); y=Math.min(y,innerHeight-40);
+  c.style.left=x+'px'; c.style.top=y+'px';
+  document.getElementById('pcClose').style.display=(polyDraw.verts.length>=3)?'':'none';
+  document.getElementById('pcArc').classList.toggle('on',polyDraw.nextType==='A');
+}
+function commitPolyTap(){
+  const p=polyDraw.prov; polyDraw.dragging=false; if(!p)return;
+  if(polyDraw.verts.length&&polyDraw.nextType==='A'&&!polyDraw.arcPending){
+    polyDraw.arcPending=p.slice(); toast('Arco: toca el punto FINAL'); redraw(); showPolyChips(); return;}
+  if(!polyDraw.verts.length){polyDraw.verts.push(p.slice());}
+  else{const i=polyDraw.verts.length-1;
+    if(polyDraw.arcPending){polyDraw.segTypes[i]='A';polyDraw.arcMids[i]=polyDraw.arcPending;polyDraw.arcPending=null;polyDraw.nextType='L';}
+    else polyDraw.segTypes[i]='L';
+    polyDraw.verts.push(p.slice());}
+  redraw(); showPolyChips();
+}
+function finishPoly(closed){
+  if(!polyDraw)return;
+  const pd=polyDraw; polyDraw=null; hidePolyChips(); hideDrawTag(); clearSnapState();
+  if(pd.verts.length<2){redraw();return;}
+  pd.closed=closed&&pd.verts.length>2;
+  const st={poly:true,verts:pd.verts,segTypes:pd.segTypes,arcMids:pd.arcMids,closed:pd.closed,
+    color,w:lineW,sobre:'poli'};
+  rebuildPoly(st); strokes.push(st); redraw();
+  setMode('sel'); select('trazo',st,'poli 3D'+(st.closed?' (cerrada)':''));
+  toast(st.closed?'Poli 3D cerrada ✓ · edítala por sus vértices':'Poli 3D creada · edítala por sus vértices');
+}
+function cancelPoly(){if(!polyDraw)return; polyDraw=null; hidePolyChips(); hideDrawTag(); clearSnapState(); redraw();}
+document.getElementById('pcArc').onclick=()=>{if(!polyDraw)return;
+  polyDraw.nextType=(polyDraw.nextType==='A')?'L':'A'; if(polyDraw.nextType==='L')polyDraw.arcPending=null;
+  positionPolyChips(); toast(polyDraw.nextType==='A'?'Próximo tramo: ARCO (punto de paso + final)':'Próximo tramo: recta');};
+document.getElementById('pcUndo').onclick=()=>{if(!polyDraw)return;
+  if(polyDraw.arcPending){polyDraw.arcPending=null;}
+  else if(polyDraw.verts.length){polyDraw.verts.pop(); polyDraw.segTypes.pop();}
+  if(!polyDraw.verts.length)cancelPoly(); else {redraw(); showPolyChips();}};
+document.getElementById('pcClose').onclick=()=>finishPoly(true);
+document.getElementById('pcDone').onclick=()=>finishPoly(false);
+document.getElementById('pcExit').onclick=()=>cancelPoly();
+addEventListener('keydown',e=>{if(e.key==='Escape'&&polyDraw)cancelPoly();});
+// ---- PARTIR (split) sin separar + UNIR al solapar pinzamientos -----------------
+let splitArm=false;
+document.getElementById('selSplit').onclick=function(){
+  if(!(selected&&selected.kind==='trazo')){toast('Selecciona antes una línea');return;}
+  splitArm=!splitArm; this.classList.toggle('on',splitArm);
+  if(splitArm)toast('✂ Toca el punto de la línea donde partir');};
+function trySplitAt(e){
+  if(!(selected&&selected.kind==='trazo'))return false;
+  const st=selected.ref, rct=renderer.domElement.getBoundingClientRect();
+  const px=e.clientX-rct.left, py=e.clientY-rct.top;
+  const scr=p=>{const v=new THREE.Vector3(...p).project(cam);
+    return [(v.x*0.5+0.5)*rct.width,(-v.y*0.5+0.5)*rct.height,v.z];};
+  // punto más cercano SOBRE la línea (proyección por segmentos en pantalla): parte donde tocas
+  let best=null,bd=26*26;
+  for(let i=0;i+1<st.points.length;i++){
+    const A2=scr(st.points[i]), B2=scr(st.points[i+1]); if(A2[2]>1||B2[2]>1)continue;
+    const l2=(B2[0]-A2[0])**2+(B2[1]-A2[1])**2;
+    let t=l2?((px-A2[0])*(B2[0]-A2[0])+(py-A2[1])*(B2[1]-A2[1]))/l2:0; t=Math.max(0,Math.min(1,t));
+    const dx=px-(A2[0]+t*(B2[0]-A2[0])), dy=py-(A2[1]+t*(B2[1]-A2[1]));
+    const d2=dx*dx+dy*dy; if(d2<bd){bd=d2;best={i,t};}}
+  if(!best){toast('Toca sobre la línea');return true;}
+  if(best.i===0&&best.t<0.02){toast('Toca un punto interior de la línea');return true;}
+  if(best.i===st.points.length-2&&best.t>0.98){toast('Toca un punto interior de la línea');return true;}
+  const bi=best.i;
+  if(st.poly){                                   // poli: partir por el vértice más cercano
+    let bv=-1,bvd=Infinity;
+    for(let k=1;k<st.verts.length-1;k++){const s=scr(st.verts[k]);
+      const d2=(s[0]-px)**2+(s[1]-py)**2; if(d2<bvd){bvd=d2;bv=k;}}
+    if(st.closed){                               // cerrada → se abre por ese vértice
+      const V=st.verts, n=V.length, k=Math.max(1,bv);
+      const nv=[],nt=[],nm={};
+      for(let i=0;i<=n;i++){const idx=(k+i)%n; nv.push(V[idx].slice());
+        if(i<n){const si=(k+i)%n; nt.push(st.segTypes[si]||'L'); if(st.arcMids[si])nm[i]=st.arcMids[si];}}
+      st.verts=nv; st.segTypes=nt; st.arcMids=nm; st.closed=false; rebuildPoly(st);   // abierta, extremos coincidentes
+      redraw(); toast('✂ Forma abierta por el vértice (extremos coincidentes)'); return true;}
+    if(bv<1){toast('Toca cerca de un vértice interior');return true;}
+    const b={poly:true,verts:st.verts.slice(bv).map(v=>v.slice()),segTypes:st.segTypes.slice(bv),
+      arcMids:{},closed:false,color:st.color,w:st.w,sobre:st.sobre};
+    for(const k2 in st.arcMids)if(+k2>=bv)b.arcMids[+k2-bv]=st.arcMids[k2];
+    st.verts=st.verts.slice(0,bv+1); st.segTypes=st.segTypes.slice(0,bv);
+    for(const k2 in st.arcMids)if(+k2>=bv)delete st.arcMids[k2];
+    st.closed=false; rebuildPoly(st); rebuildPoly(b); strokes.push(b);
+  } else {
+    const a3=st.points[best.i], b3=st.points[best.i+1];
+    const sp=[a3[0]+(b3[0]-a3[0])*best.t, a3[1]+(b3[1]-a3[1])*best.t, a3[2]+(b3[2]-a3[2])*best.t];
+    const b={points:[sp.slice(),...st.points.slice(bi+1).map(p=>p.slice())],color:st.color,w:st.w,sobre:st.sobre,magLock:st.magLock};
+    st.points=[...st.points.slice(0,bi+1),sp.slice()]; delete st.reg;   // las partes pasan a trazos simples
+    strokes.push(b);
+  }
+  redraw(); select('trazo',selected.ref,'trazo (partido)');
+  toast('✂ Partida en dos · comparten el punto (no se separan)');
+  return true;
+}
+// popup pequeño junto al pinzamiento: Unir / Cancelar
+function showJoinPop(sx,sy,ctx){
+  _joinCtx=ctx; const jp=document.getElementById('joinpop');
+  jp.style.display='flex'; jp.style.left=Math.min(sx+12,innerWidth-150)+'px'; jp.style.top=(sy-14)+'px';
+}
+function hideJoinPop(){document.getElementById('joinpop').style.display='none';_joinCtx=null;}
+document.getElementById('jpCancel').onclick=()=>{toast('Siguen siendo dos líneas (extremos coincidentes)');hideJoinPop();};
+document.getElementById('jpJoin').onclick=()=>{
+  if(!_joinCtx){hideJoinPop();return;}
+  const {a,aEnd,b,bEnd}=_joinCtx;
+  const A=a.points.map(p=>p.slice()), B=b.points.map(p=>p.slice());
+  const pa=aEnd==='start'?A.reverse():A;          // a queda con su extremo unido al FINAL
+  const pb=bEnd==='end'?B.reverse():B;            // b empieza por el extremo unido
+  const merged={points:pa.concat(pb.slice(1)),color:a.color,w:a.w,sobre:a.sobre,magLock:a.magLock||b.magLock};
+  strokes=strokes.filter(s=>s!==a&&s!==b); strokes.push(merged);
+  redraw(); select('trazo',merged,'trazo unido');
+  toast('🔗 Unidas en una sola línea'); hideJoinPop();
+};
+function checkJoinOnRelease(st,role){
+  // al soltar un pinzamiento de EXTREMO: si coincide con el extremo de otra línea → preguntar
+  const isEnd=(role==='p0'||role==='p1'||role==='f0'||role==='f1'||role==='v0'||role==='vend');
+  if(!isEnd)return;
+  const ep=(role==='p0'||role==='f0'||role==='v0')?st.points[0]:st.points[st.points.length-1];
+  const myEnd=(role==='p0'||role==='f0'||role==='v0')?'start':'end';
+  const rct=renderer.domElement.getBoundingClientRect();
+  const scr=p=>{const v=new THREE.Vector3(...p).project(cam);
+    return [(v.x*0.5+0.5)*rct.width,(-v.y*0.5+0.5)*rct.height];};
+  const q=scr(ep); let hit=null;
+  for(const o of strokes){ if(o===st)continue;
+    for(const [oe,op] of [['start',o.points[0]],['end',o.points[o.points.length-1]]]){
+      const s=scr(op); const d2=(s[0]-q[0])**2+(s[1]-q[1])**2;
+      if(d2<14*14){hit={o,oe,op};break;}}
+    if(hit)break;}
+  if(!hit)return;
+  // pegar el extremo exactamente y preguntar
+  if(myEnd==='start')st.points[0]=hit.op.slice(); else st.points[st.points.length-1]=hit.op.slice();
+  if(st.poly){const vi=(myEnd==='start')?0:st.verts.length-1; st.verts[vi]=hit.op.slice(); rebuildPoly(st);}
+  redraw();
+  showJoinPop(q[0]+rct.left,q[1]+rct.top,{a:st,aEnd:myEnd,b:hit.o,bEnd:hit.oe});
+}
 // ---- IMÁN DEL LÁSER ----------------------------------------------------
 // Al mover el láser con el gizmo, su plano central se pega a la CARA (plano)
 // perpendicular al eje de arrastre más cercana de una pieza o del suelo, y se
@@ -2805,10 +3097,12 @@ document.getElementById('axes').onchange=e=>axes.visible=e.target.checked;
 function buildExport(){
   return {app:'TECTOS-BIM canvas3d v4 webgl',fecha:new Date().toISOString(),unidades:'mm',
     camara:{pos:cam.position.toArray(),target:target.toArray()},
-    trazos:strokes.map(s=>({color:s.color,sobre:s.sobre,grosor:s.w||0.8,tipo:s.reg?s.reg.tipo:'mano',
+    trazos:strokes.map(s=>({color:s.color,sobre:s.sobre,grosor:s.w||0.8,tipo:s.poly?'poli':(s.reg?s.reg.tipo:'mano'),
       grp:s.grp,magLock:s.magLock||undefined,
       paperIdx:s.paperRef?papers().indexOf(s.paperRef):undefined,
       uv:s.uv?s.uv.map(q=>q.map(x=>+x.toFixed(2))):undefined,
+      poly:s.poly?{verts:s.verts.map(v=>v.map(x=>+x.toFixed(2))),segTypes:s.segTypes,
+        arcMids:Object.fromEntries(Object.entries(s.arcMids).map(([k,v])=>[k,v.map(x=>+x.toFixed(2))])),closed:!!s.closed}:undefined,
       points:s.points.map(p=>p.map(x=>+x.toFixed(2)))})),
     piezas:Object.keys(pieces).map(n=>({name:n,visible:pieces[n].visible,
       pos:pieces[n].position.toArray(),quat:pieces[n].quaternion.toArray()})),
@@ -2823,7 +3117,7 @@ function buildExport(){
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
-window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText};
+window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());
@@ -2837,8 +3131,12 @@ imp.onclick=()=>fileJson.click();
 fileJson.onchange=ev=>{
   let f=ev.target.files[0];if(!f)return;let rd=new FileReader();
   rd.onload=()=>{let d=JSON.parse(rd.result);
-    strokes=(d.trazos||[]).map(s=>({points:s.points,color:s.color,sobre:s.sobre,w:s.grosor||0.8,
-      grp:s.grp,magLock:s.magLock,_paperIdx:(s.paperIdx!=null?s.paperIdx:undefined),uv:s.uv}));
+    strokes=(d.trazos||[]).map(s=>{
+      const st={points:s.points,color:s.color,sobre:s.sobre,w:s.grosor||0.8,
+        grp:s.grp,magLock:s.magLock,_paperIdx:(s.paperIdx!=null?s.paperIdx:undefined),uv:s.uv};
+      if(s.poly){st.poly=true;st.verts=s.poly.verts;st.segTypes=s.poly.segTypes;
+        st.arcMids=s.poly.arcMids||{};st.closed=!!s.poly.closed;rebuildPoly(st);}
+      return st;});
     grpN=strokes.reduce((m,s)=>Math.max(m,s.grp||0),grpN);
     if(d.piezas){d.piezas.forEach(pz=>{const m=pieces[pz.name];if(!m)return;
         if(pz.pos)m.position.set(...pz.pos);
@@ -3004,6 +3302,7 @@ applyMode();   // asegura la configuración del poché (stencil) tras crear las 
     ip.l1.visible=on; ip.l2.visible=on;});
   if(gizmo&&gizmo.visible){const L=Math.max(10,sph.r*0.12);gizmo.scale.set(L,L,L);}
   updateSilh(); updateSecMarkers(); updateNoteScales(); updateSnapGlyphs();
+  if(polyDraw)positionPolyChips();
   renderer.render(scene,cam);})();
 </script>
 </body>
