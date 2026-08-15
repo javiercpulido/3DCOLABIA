@@ -150,7 +150,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.33 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.34 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -330,6 +330,9 @@
  <button class="secTgl" data-sm="coons" title="Toca CUATRO curvas que se toquen en las esquinas: parche alabeado que las respeta (malla de Coons)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6 Q12 3 20 6"/><path d="M4 18 Q12 21 20 18"/><path d="M4 6 Q2 12 4 18"/><path d="M20 6 Q22 12 20 18"/><path d="M8 6.8V18.6M16 6.8V18.6" opacity=".35" stroke-width="1.1"/></svg>Malla de 4 bordes</button>
  <button class="secTgl" data-sm="ext" title="Toca un contorno CERRADO y escribe la altura: extrusión perpendicular a su plano, con tapas"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17.5 12 15 20 17.5 12 20.5Z"/><path d="M4 17.5V9.5L12 7l8 2.5v8M12 20.5v-8" opacity=".55"/><path d="M12 5V2M10 3.6 12 1.6 14 3.6" stroke-width="1.5"/></svg>Extrusión</button>
  <button class="secTgl" data-sm="tube" title="Toca una curva-camino y escribe el radio: tubo circular a lo largo del camino (pasamanos, barras)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 16 Q9 4 21 8" stroke-width="4.6" opacity=".3"/><path d="M3 16 Q9 4 21 8"/></svg>Tubo</button>
+ <button class="secTgl" data-sm="ruled" title="Toca DOS curvas: superficie reglada que las une punto a punto (transiciones alabeadas entre carriles)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 7 Q12 3 21 9"/><path d="M3 17 Q12 21 21 15"/><path d="M5 7.6V17.4M9.5 5.6V19M14 5.6V19M18.5 7.6V16.2" opacity=".4" stroke-width="1.1"/></svg>Reglada (2 curvas)</button>
+ <button class="secTgl" data-sm="loft" title="Toca varias curvas-SECCIÓN en orden y toca en vacío: piel que pasa por todas (loft)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="5" rx="6" ry="2"/><ellipse cx="12" cy="12" rx="8.5" ry="2.4" opacity=".7"/><ellipse cx="12" cy="19" rx="5" ry="1.8"/><path d="M3.5 12 6 5M20.5 12 18 5M7 19 3.5 12M17 19 20.5 12" opacity=".4" stroke-width="1.1"/></svg>Loft por secciones</button>
+ <button class="secTgl" data-sm="sweep" title="Toca el PERFIL y después el CAMINO: el perfil se barre a lo largo del camino (Sígueme)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 18 Q10 16 14 10 Q16 7 21 6" stroke-dasharray="2.2 2"/><circle cx="4.5" cy="17.6" r="2.6"/><ellipse cx="20" cy="6.2" rx="1.6" ry="2.4" transform="rotate(28 20 6.2)" opacity=".6"/></svg>Sígueme (perfil × camino)</button>
 </div>
 <div id="lasermenu" class="pill" style="position:fixed;top:76px;left:12px;z-index:11;display:none;flex-direction:column;padding:7px;gap:5px;width:150px;max-width:60vw;font-size:12.5px;color:var(--ink)">
  <div class="menucaret"></div>
@@ -3690,22 +3693,98 @@ function registerSurface(geo,colHex,name,extra){
   const S=Object.assign({mesh,name:name||('S'+(++surfCount)),colorHex:colHex},extra||{});
   surfaces.push(S); renderSurfList(); return S;
 }
-// ⟲ REVOLUCIÓN: perfil girado 360° alrededor de la línea-eje
-function buildRevolveFromPts(profPts,axA,axB,colHex,name){
+// entrada numérica con valor por defecto (OK vacío o Cancelar → null)
+function askNum(def,cb){const m=document.getElementById('modal');m.style.display='flex';
+  const inp=document.getElementById('modalIn');inp.value=String(def);setTimeout(()=>{inp.focus();inp.select();},50);
+  modalOk.onclick=()=>{m.style.display='none';
+    const v=parseFloat(String(inp.value).replace(',','.'));cb(isFinite(v)?v:null);};
+  modalNo.onclick=()=>{m.style.display='none';cb(null);};}
+// ⟲ REVOLUCIÓN: perfil girado alrededor de la línea-eje (ángulo en grados, 360 = completa)
+function buildRevolveFromPts(profPts,axA,axB,colHex,name,angDeg){
   const A=new THREE.Vector3(...axA), u=new THREE.Vector3(...axB).sub(A);
   if(u.lengthSq()<1e-9)return null; u.normalize();
+  const ang=Math.max(1,Math.min(360,angDeg||360))*Math.PI/180;
   const P=resampleCurve(profPts,Math.min(64,Math.max(16,profPts.length)));
-  const SEG=48, n=P.length;
+  const SEG=Math.max(8,Math.round(48*ang/(2*Math.PI))), n=P.length;
   const pos=new Float32Array(n*(SEG+1)*3), idx=[];
   for(let j=0;j<=SEG;j++){
-    const q=new THREE.Quaternion().setFromAxisAngle(u,2*Math.PI*j/SEG);
+    const q=new THREE.Quaternion().setFromAxisAngle(u,ang*j/SEG);
     P.forEach((pt,i)=>{const v=pt.clone().sub(A).applyQuaternion(q).add(A);
       const o=(j*n+i)*3; pos[o]=v.x;pos[o+1]=v.y;pos[o+2]=v.z;});}
   for(let j=0;j<SEG;j++)for(let i=0;i+1<n;i++){
     const a=j*n+i,b2=a+1,c2=a+n,d2=c2+1; idx.push(a,b2,c2,b2,d2,c2);}
   const geo=new THREE.BufferGeometry();
   geo.setAttribute('position',new THREE.BufferAttribute(pos,3)); geo.setIndex(idx);
-  return registerSurface(geo,colHex,name,{kind:'rev',prof:profPts.map(p=>p.slice()),ax:[axA.slice(),axB.slice()]});
+  return registerSurface(geo,colHex,name,{kind:'rev',prof:profPts.map(p=>p.slice()),
+    ax:[axA.slice(),axB.slice()],ang:Math.round(ang*180/Math.PI)});
+}
+// ⋈ REGLADA: une DOS curvas punto a punto (con corrección de sentido)
+function buildRuledFromPts(aPts,bPts,colHex,name){
+  const N=48;
+  const A2=resampleCurve(aPts,N), B2r=resampleCurve(bPts,N);
+  const d1=A2[0].distanceTo(B2r[0])+A2[N].distanceTo(B2r[N]);
+  const d2=A2[0].distanceTo(B2r[N])+A2[N].distanceTo(B2r[0]);
+  const B2=d2<d1?B2r.slice().reverse():B2r;
+  const M=10;
+  const pos=new Float32Array((N+1)*(M+1)*3), idx=[];
+  for(let j=0;j<=M;j++)for(let i=0;i<=N;i++){
+    const v=A2[i].clone().lerp(B2[i],j/M);
+    const o=(j*(N+1)+i)*3; pos[o]=v.x;pos[o+1]=v.y;pos[o+2]=v.z;}
+  for(let j=0;j<M;j++)for(let i=0;i<N;i++){
+    const a=j*(N+1)+i,b3=a+1,c3=a+N+1,d3=c3+1; idx.push(a,b3,c3,b3,d3,c3);}
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3)); geo.setIndex(idx);
+  return registerSurface(geo,colHex,name,{kind:'ruled',a:aPts.map(p=>p.slice()),b:bPts.map(p=>p.slice())});
+}
+// ≋ LOFT: piel que pasa por VARIAS curvas-sección en orden
+function buildLoftFromPts(secs,colHex,name){
+  if(!secs||secs.length<2)return null;
+  const N=36;
+  const R=[resampleCurve(secs[0],N)];
+  for(let s2=1;s2<secs.length;s2++){
+    let cur=resampleCurve(secs[s2],N);
+    const prev=R[R.length-1];
+    const d1=prev[0].distanceTo(cur[0])+prev[N].distanceTo(cur[N]);
+    const d2=prev[0].distanceTo(cur[N])+prev[N].distanceTo(cur[0]);
+    if(d2<d1)cur=cur.slice().reverse();
+    R.push(cur);}
+  const rows=R.length;
+  const pos=new Float32Array(rows*(N+1)*3), idx=[];
+  R.forEach((ring,j)=>ring.forEach((v,i)=>{
+    const o=(j*(N+1)+i)*3; pos[o]=v.x;pos[o+1]=v.y;pos[o+2]=v.z;}));
+  for(let j=0;j+1<rows;j++)for(let i=0;i<N;i++){
+    const a=j*(N+1)+i,b3=a+1,c3=a+N+1,d3=c3+1; idx.push(a,b3,c3,b3,d3,c3);}
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3)); geo.setIndex(idx);
+  return registerSurface(geo,colHex,name,{kind:'loft',secs:secs.map(a=>a.map(p=>p.slice()))});
+}
+// ⤳ SÍGUEME: perfil barrido a lo largo de un camino (marcos por transporte paralelo)
+function buildSweepFromPts(profPts,pathPts,colHex,name){
+  const P=resampleCurve(pathPts,Math.min(96,Math.max(24,pathPts.length*2)));
+  const n=P.length, T=[];
+  for(let i=0;i<n;i++)
+    T.push((i<n-1?P[i+1].clone().sub(P[i]):P[i].clone().sub(P[i-1])).normalize());
+  let nor=Math.abs(T[0].z)>0.9?new THREE.Vector3(1,0,0):new THREE.Vector3(0,0,1);
+  nor=new THREE.Vector3().crossVectors(T[0],nor).normalize();
+  let bin=new THREE.Vector3().crossVectors(T[0],nor).normalize();
+  // perfil en el marco del INICIO del camino (coordenadas u=normal, v=binormal)
+  const prof=resampleCurve(profPts,Math.min(48,Math.max(12,profPts.length)));
+  const uv=prof.map(q=>{const d=q.clone().sub(P[0]);return [d.dot(nor),d.dot(bin)];});
+  const m=prof.length;
+  const pos=new Float32Array(n*m*3), idx=[];
+  for(let i=0;i<n;i++){
+    if(i>0){const ax=new THREE.Vector3().crossVectors(T[i-1],T[i]);
+      if(ax.lengthSq()>1e-12){const ang=Math.acos(Math.min(1,Math.max(-1,T[i-1].dot(T[i]))));
+        nor.applyAxisAngle(ax.clone().normalize(),ang);}}
+    bin=new THREE.Vector3().crossVectors(T[i],nor).normalize();
+    for(let k=0;k<m;k++){
+      const v=P[i].clone().addScaledVector(nor,uv[k][0]).addScaledVector(bin,uv[k][1]);
+      const o=(i*m+k)*3; pos[o]=v.x;pos[o+1]=v.y;pos[o+2]=v.z;}}
+  for(let i=0;i+1<n;i++)for(let k=0;k+1<m;k++){
+    const a=i*m+k,b3=a+1,c3=a+m,d3=c3+1; idx.push(a,c3,b3,b3,c3,d3);}
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3)); geo.setIndex(idx);
+  return registerSurface(geo,colHex,name,{kind:'sweep',prof:profPts.map(p=>p.slice()),path:pathPts.map(p=>p.slice())});
 }
 // ◇ MALLA DE 4 BORDES (parche de Coons): respeta las cuatro curvas
 function chain4(cs){
@@ -3885,10 +3964,34 @@ function surfToolTap(e){
     if(!st){surfToolCancel('Superficie cancelada');return;}
     if(!T.dir){T.dir=st; toast('⟲ Perfil fijado · toca la línea EJE');}
     else if(st!==T.dir){
-      const ax=st.points;
-      const S=buildRevolveFromPts(T.dir.points,ax[0],ax[ax.length-1],
-        new THREE.Color(T.dir.color||color).getHex());
-      if(S)surfToolFinish(S); else toast('⟲ Ese eje no es válido (demasiado corto)');}
+      const ax=st.points, prof=T.dir;
+      toast('⟲ Grados de giro (360 = vuelta completa)');
+      askNum(360,ang=>{
+        if(ang===null||ang<=0){surfToolCancel('Revolución cancelada');return;}
+        const S=buildRevolveFromPts(prof.points,ax[0],ax[ax.length-1],
+          new THREE.Color(prof.color||color).getHex(),null,ang);
+        if(S)surfToolFinish(S); else surfToolCancel('⟲ Ese eje no es válido');});}
+  } else if(T.mode==='ruled'){
+    if(!st){surfToolCancel('Superficie cancelada');return;}
+    if(!T.dir){T.dir=st; toast('⋈ Primera curva fijada · toca la SEGUNDA');}
+    else if(st!==T.dir)
+      surfToolFinish(buildRuledFromPts(T.dir.points,st.points,
+        new THREE.Color(T.dir.color||color).getHex()));
+  } else if(T.mode==='loft'){
+    if(st&&!T.inner.includes(st)){
+      T.inner.push(st);
+      toast('≋ Sección '+T.inner.length+(T.inner.length<2?' · toca la siguiente':' · más secciones o toca en vacío para crear'));
+    } else if(!st){
+      if(T.inner.length<2){surfToolCancel('≋ Hacen falta al menos 2 secciones');return;}
+      surfToolFinish(buildLoftFromPts(T.inner.map(x=>x.points),
+        new THREE.Color(T.inner[0].color||color).getHex()));
+    }
+  } else if(T.mode==='sweep'){
+    if(!st){surfToolCancel('Superficie cancelada');return;}
+    if(!T.dir){T.dir=st; toast('⤳ Perfil fijado · toca el CAMINO');}
+    else if(st!==T.dir)
+      surfToolFinish(buildSweepFromPts(T.dir.points,st.points,
+        new THREE.Color(T.dir.color||color).getHex()));
   } else if(T.mode==='coons'){
     if(!st){surfToolCancel('Superficie cancelada');return;}
     if(!T.inner.includes(st)){
@@ -3902,15 +4005,15 @@ function surfToolTap(e){
   } else if(T.mode==='ext'){
     if(!st){surfToolCancel('Superficie cancelada');return;}
     if(!strokeClosed(st)){toast('⇧ Ese contorno no está cerrado · une los extremos (⛓)');return;}
-    toast('⇧ Escribe la ALTURA de extrusión en mm (negativa = hacia el otro lado)');
-    askText(v=>{const dd=parseFloat(String(v).replace(',','.'));
-      if(!dd||!isFinite(dd)){surfToolCancel('Extrusión cancelada');return;}
+    toast('⇧ Altura de extrusión en mm (negativa = hacia el otro lado)');
+    askNum(Math.round(Math.max(5,sph.r*0.15)),dd=>{
+      if(dd===null||!dd){surfToolCancel('Extrusión cancelada');return;}
       surfToolFinish(buildExtrudeFromPts(st.points,dd,new THREE.Color(st.color||color).getHex()));});
   } else if(T.mode==='tube'){
     if(!st){surfToolCancel('Superficie cancelada');return;}
-    toast('○ Escribe el RADIO del tubo en mm');
-    askText(v=>{const rr=parseFloat(String(v).replace(',','.'));
-      if(!rr||!isFinite(rr)||rr<=0){surfToolCancel('Tubo cancelado');return;}
+    toast('○ Radio del tubo en mm');
+    askNum(Math.max(1,Math.round(sph.r*0.02*10)/10),rr=>{
+      if(rr===null||rr<=0){surfToolCancel('Tubo cancelado');return;}
       surfToolFinish(buildTubeFromPts(st.points,rr,new THREE.Color(st.color||color).getHex()));});
   }
 }
@@ -4235,10 +4338,13 @@ function buildExport(){
     superficies:surfaces.map(S=>{
       const base={name:S.name,col:S.colorHex,vis:S.mesh.visible,locked:S.locked||undefined};
       if(S.kind==='cont')return Object.assign(base,{kind:'cont',pts:S.pts,inner:(S.inner&&S.inner.length)?S.inner:undefined});
-      if(S.kind==='rev')return Object.assign(base,{kind:'rev',prof:S.prof,ax:S.ax});
+      if(S.kind==='rev')return Object.assign(base,{kind:'rev',prof:S.prof,ax:S.ax,ang:S.ang});
       if(S.kind==='coons')return Object.assign(base,{kind:'coons',b:S.b});
       if(S.kind==='ext')return Object.assign(base,{kind:'ext',pts:S.pts,dist:S.dist});
       if(S.kind==='tube')return Object.assign(base,{kind:'tube',pts:S.pts,r:S.r});
+      if(S.kind==='ruled')return Object.assign(base,{kind:'ruled',a:S.a,b:S.b});
+      if(S.kind==='loft')return Object.assign(base,{kind:'loft',secs:S.secs});
+      if(S.kind==='sweep')return Object.assign(base,{kind:'sweep',prof:S.prof,path:S.path});
       return Object.assign(base,{d:S.dirPts,g:S.genPts});}),
     textos:texts,
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
@@ -4248,6 +4354,7 @@ window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strok
 buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},
 buildContourSurfaceFromPts,get axGhost(){return axGhost},selectStroke,surfToolStart,surfToolTap,get surfTool(){return surfTool},moveContPoint,
 buildRevolveFromPts,buildCoonsFromPts,buildExtrudeFromPts,buildTubeFromPts,chain4,buildExport,
+buildRuledFromPts,buildLoftFromPts,buildSweepFromPts,
 get selDrag(){return selDrag},get gizDrag(){return gizDrag},get axLock(){return axLock},
 _polyStart(p){polyDraw={verts:[p.slice()],segTypes:[],arcMids:{},guidePts:{},nextType:'L',arcPending:null,dragging:false,prov:null};showPolyChips();redraw();},
 _polyVert(p){if(!polyDraw)return;polyDraw.prov=p.slice();polyDraw.dragging=true;commitPolyTap();}};
@@ -4306,10 +4413,13 @@ fileJson.onchange=ev=>{
       d.superficies.forEach(sd=>{
         const cl=sd.col||0x8e939a;
         const S=(sd.kind==='cont')?buildContourSurfaceFromPts(sd.pts,cl,sd.name,sd.inner||null)
-          :(sd.kind==='rev')?buildRevolveFromPts(sd.prof,sd.ax[0],sd.ax[1],cl,sd.name)
+          :(sd.kind==='rev')?buildRevolveFromPts(sd.prof,sd.ax[0],sd.ax[1],cl,sd.name,sd.ang||360)
           :(sd.kind==='coons')?buildCoonsFromPts(sd.b,cl,sd.name)
           :(sd.kind==='ext')?buildExtrudeFromPts(sd.pts,sd.dist,cl,sd.name)
           :(sd.kind==='tube')?buildTubeFromPts(sd.pts,sd.r,cl,sd.name)
+          :(sd.kind==='ruled')?buildRuledFromPts(sd.a,sd.b,cl,sd.name)
+          :(sd.kind==='loft')?buildLoftFromPts(sd.secs,cl,sd.name)
+          :(sd.kind==='sweep')?buildSweepFromPts(sd.prof,sd.path,cl,sd.name)
           :buildSurfaceFromPts(sd.d,sd.g,cl,sd.name);
         if(!S)return;
         if(sd.vis===false)S.mesh.visible=false;
