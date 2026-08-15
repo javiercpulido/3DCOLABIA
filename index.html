@@ -150,7 +150,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.36 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.37 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -345,7 +345,12 @@
 <div id="side" class="pill"><div class="grip" data-grip title="Mover panel" style="width:100%;height:14px;margin:-4px 0 4px"><svg width="20" height="10" viewBox="0 0 40 12" fill="currentColor"><circle cx="14" cy="6" r="1.5"/><circle cx="20" cy="6" r="1.5"/><circle cx="26" cy="6" r="1.5"/></svg></div><div style="display:flex;align-items:center;justify-content:space-between"><b>Piezas</b><button id="pieceAlphaTgl" title="Transparencia por pieza" style="border:0;background:transparent;color:var(--mut);cursor:pointer;padding:2px;border-radius:7px;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z"/><path d="M9 14a3 3 0 0 0 3 3" opacity=".5"/></svg></button></div><div id="pieces"></div>
  <div style="margin-top:8px"><b>Opacidad</b><br><input type="range" id="op" min="15" max="100" value="100"></div>
  <div id="invARow" style="margin-top:6px;display:none"><b>Transparencia volúmenes (invertido)</b><br><input type="range" id="invA" min="10" max="100" value="85"></div>
- <div style="margin-top:6px"><b>Grosor trazo</b><br><input type="range" id="lw" min="0.15" max="3" step="0.05" value="0.2"> <span style="font-size:10px;color:var(--mut)">fino = línea 1px (tipo SketchUp)</span></div>
+ <div style="margin-top:6px"><b>Grosor trazo</b><br>
+  <span style="display:flex;align-items:center;gap:6px">
+   <input type="range" id="lw" min="0.15" max="3" step="0.05" value="0.2" style="flex:1;min-width:0">
+   <input type="number" id="lwNum" min="0.15" max="3" step="0.05" value="0.2" title="Grosor en mm (≤0.26 = línea fina de 1px)" style="width:62px;font-size:12.5px;padding:4px 2px 4px 6px;border:1px solid #ddd;border-radius:8px">
+  </span>
+  <span style="font-size:10px;color:var(--mut)">fino = línea 1px (tipo SketchUp)</span></div>
  <div style="margin-top:6px"><b>Tam. imagen</b><br><input type="range" id="imsc" min="10" max="200" value="60"> mm</div>
  <label><input type="checkbox" id="meshChk"> Malla (aristas de triángulos)</label>
  <label><input type="checkbox" id="grid" checked> Rejilla 10 mm</label>
@@ -1385,8 +1390,9 @@ function effMode(e){
     return 'draw';}
   if(penSeen&&e.pointerType==='touch'&&mode==='draw')return 'orbit';
   return mode;}
+const _caps=new Map();   // capturas de puntero vivas (vigiladas por el watchdog)
 renderer.domElement.addEventListener('pointerdown',e=>{
-  try{renderer.domElement.setPointerCapture(e.pointerId);}catch(_){}
+  try{renderer.domElement.setPointerCapture(e.pointerId);_caps.set(e.pointerId,performance.now());}catch(_){}
   deadPointers.delete(e.pointerId);
   if(_joinCtx)hideJoinPop();   // tocar el lienzo cierra el popup Unir/Cancelar
   if(secPlaceMode&&e.button===0&&e.isPrimary!==false){
@@ -1400,7 +1406,12 @@ renderer.domElement.addEventListener('pointerdown',e=>{
   if(e.pointerType==='pen'&&!penSeen){penSeen=true;toast('✍️ Pen detectado: el lápiz dibuja, los dedos navegan');}
   const em=effMode(e);
   {const now=performance.now();   // purga punteros ZOMBI (up/cancel perdidos por gestos del sistema):
-   pointers.forEach((v,k)=>{if(now-(v.ts||0)>8000)pointers.delete(k);});}   // inflaban el conteo y disparaban «girar la cabeza»
+   pointers.forEach((v,k)=>{if(now-(v.ts||0)>8000)pointers.delete(k);});   // inflaban el conteo y disparaban «girar la cabeza»
+   if(e.pointerType==='pen')pointers.forEach((v,k)=>{   // sólo puede existir UN Pencil físico
+     if(v.t==='pen'&&k!==e.pointerId)pointers.delete(k);});
+   else pointers.forEach((v,k)=>{   // un Pencil parado >2.5 s sin interacción activa es un zombi
+     if(v.t==='pen'&&now-(v.ts||0)>2500&&!drawing&&!handDrag&&!laserDrag&&!selDrag&&!gizDrag&&!(polyDraw&&polyDraw.dragging))
+       pointers.delete(k);});}
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY,t:e.pointerType||'touch',ts:performance.now()});
   const _touchN=[...pointers.values()].filter(q=>q.t==='touch').length;
   if(e.pointerType==='touch'&&_touchN===3){   // 3 DEDOS reales (el Pencil nunca cuenta) = «girar la cabeza»
@@ -1596,6 +1607,7 @@ addEventListener('pointermove',e=>{
   if(deadPointers.has(e.pointerId))return;
   if(pointers.has(e.pointerId)){const pv=pointers.get(e.pointerId);
     pointers.set(e.pointerId,{x:e.clientX,y:e.clientY,t:pv.t,ts:performance.now()});}
+  if(_caps.has(e.pointerId))_caps.set(e.pointerId,performance.now());
   if(pinch&&pointers.size===2){
     let ps=[...pointers.values()];
     let d=Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y);
@@ -1927,6 +1939,8 @@ const deadPointers=new Set();
 function endPointer(e){
   const wasPinch=!!pinch, wasPen=e.pointerType==='pen';
   pointers.delete(e.pointerId);deadPointers.delete(e.pointerId);
+  _caps.delete(e.pointerId);
+  try{renderer.domElement.releasePointerCapture(e.pointerId);}catch(_){}
   if(secPlacing){finishSecPlacement();return;}     // soltar = activa la sección
   if(secMoveDrag)secMoveDrag=null;
   if(polyDraw&&polyDraw.dragging){commitPolyTap(); hideDrawTag(); dragging=false; return;}   // soltar = fija el vértice; la poli continúa
@@ -2026,6 +2040,20 @@ function endPointer(e){
 }
 addEventListener('pointerup',endPointer);
 addEventListener('pointercancel',endPointer);
+// WATCHDOG anti-bloqueo: iOS REUTILIZA los pointerId; si el sistema se traga un
+// pointerup, el lienzo retiene la captura de ese id y los siguientes toques
+// (incluidos los BOTONES de las herramientas) se desvían al canvas. Toda captura
+// sin actividad >10 s se libera y su estado transitorio se limpia.
+setInterval(()=>{
+  const now=performance.now();
+  _caps.forEach((ts,id)=>{
+    if(now-ts>10000){
+      try{renderer.domElement.releasePointerCapture(id);}catch(_){}
+      _caps.delete(id); pointers.delete(id); deadPointers.delete(id);
+    }});
+  if(_caps.size===0&&pointers.size===0&&dragging&&!drawing&&!handDrag&&!selDrag&&!laserDrag&&!gizDrag)
+    dragging=false;   // arrastre huérfano
+},3000);
 renderer.domElement.addEventListener('wheel',e=>{sph.r*=(e.deltaY>0?1.1:0.9);
   sph.r=Math.max(20,Math.min(2000,sph.r));updCam();});
 function checkHold(){
@@ -4361,7 +4389,12 @@ function showOpsFor(kind){
   $('secOps').style.display=(kind==='section')?'flex':'none';
 }
 op.oninput=e=>{baseOpacity=+e.target.value/100;applyMode();};
-lw.oninput=e=>{lineW=+e.target.value;};
+lw.oninput=e=>{lineW=+e.target.value;
+  const n=document.getElementById('lwNum'); if(n)n.value=lineW.toFixed(2);};
+document.getElementById('lwNum').addEventListener('input',e=>{
+  const v=parseFloat(String(e.target.value).replace(',','.'));
+  if(!isFinite(v))return;
+  lineW=Math.max(0.15,Math.min(3,v)); lw.value=lineW;});
 axSnap.onchange=e=>{axisSnap=e.target.checked;};
 document.getElementById('meshChk').onchange=e=>{meshOverlay=e.target.checked;};
 document.getElementById('grid').onchange=e=>{gridChk=e.target.checked;
@@ -4412,7 +4445,7 @@ function buildExport(){
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
-window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
+window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},get pointersDbg(){return [...pointers.values()].map(v=>v.t)},get capsDbg(){return _caps.size},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
 buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},
 buildContourSurfaceFromPts,get axGhost(){return axGhost},selectStroke,surfToolStart,surfToolTap,get surfTool(){return surfTool},moveContPoint,
 buildRevolveFromPts,buildCoonsFromPts,buildExtrudeFromPts,buildTubeFromPts,chain4,buildExport,
