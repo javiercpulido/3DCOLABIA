@@ -139,7 +139,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.21 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.22 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -689,7 +689,7 @@ vPlaInv.onclick=()=>setView(-Math.PI/2,Math.PI-0.01);  // planta invertida (infe
 
 // ---- estado UI ----
 let mode='orbit', color='#d500f9', mag=true, lineW=0.2, penSeen=false, drawLock=false, selDrag=null, textDrag=null;
-let polyDraw=null, _joinCtx=null;   // POLI 3D en curso · contexto del popup Unir/Cancelar
+let polyDraw=null, _joinCtx=null, laserDrag=null;   // POLI 3D en curso · popup Unir/Cancelar · arrastre directo del láser
 let drawMode='geo';   // 'geo'=pegado a geometría/láser (por defecto) · 'free'=libre · 'line'=recta · 'note'=nota con flecha
 const PEN_ICONS={
   geo:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/><circle cx="18.5" cy="18.5" r="2.6"/></svg>',
@@ -1243,6 +1243,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     if(drawing){drawing=null;redraw();}
     if(calloutDrag)clearCalloutPreview();
     if(polyDraw&&polyDraw.dragging){polyDraw.dragging=false;hideDrawTag();}   // orbitar en mitad de una poli no fija vértice
+    if(laserDrag)laserDrag=null;
     _tapDeselect=null;   // un pellizco (zoom/giro) no debe deseleccionar
     let ps=[...pointers.values()];
     pinch={d0:Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y),r0:sph.r,
@@ -1297,6 +1298,22 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     let hh2=ray.intersectObjects(handles.map(h=>h.mesh));   // los tiradores GANAN al gizmo (son objetivos precisos)
     if(hh2.length){handDrag=handles.find(h=>h.mesh===hh2[0].object);handDrag.dist=hh2[0].distance;
       _snapPts=mag?buildSnapPts(handDrag.stroke):null; return;}
+    // el CUERPO del láser también gana al gizmo: tocar+arrastrar lo mueve directo
+    {const exs=exPick(); if(exs.length){const exh=ray.intersectObjects(exs,true);
+      if(exh.length){let ob=exh[0].object; while(ob&&!(ob.userData&&(ob.userData.laserRef||ob.userData.secRef)))ob=ob.parent;
+        if(ob&&ob.userData.laserRef){const Lz=ob.userData.laserRef;
+          const now=performance.now();
+          const prev=window._lzTap;
+          const dbl=!!(prev&&prev.L===Lz&&now-prev.t<380);
+          window._lzTap={L:Lz,t:now,wasOn:!Lz.off};
+          if(Lz.off){setLaserPower(Lz,true);
+            if(typeof renderLaserList==='function')renderLaserList(); toast(Lz.name+' encendido');}
+          select('laser',Lz,Lz.name);
+          const depth=Lz.mesh.position.clone().sub(cam.position).dot(cam.getWorldDirection(new THREE.Vector3()));
+          laserDrag={L:Lz,depth,start:planePoint(e,depth),orig:Lz.mesh.position.clone(),
+                     moved:false,maybeOff:dbl&&prev.wasOn};
+          _snapPts=mag?buildSnapPts(null,true):null;
+          return;}}}}
     if(gizmo&&gizmo.visible){ // gizmo: flechas y anillos
       const gp=(gizMode==='rot')?gizParts.filter(p=>p.userData.giz.type==='rot'):gizParts;
       const gh=ray.intersectObjects(gp,false);
@@ -1338,12 +1355,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     {const exs=exPick(); if(exs.length){const ex=ray.intersectObjects(exs,true);
       if(ex.length){let o=ex[0].object;
         while(o&&!(o.userData&&(o.userData.laserRef||o.userData.secRef)))o=o.parent;
-        if(o&&o.userData.laserRef){const Lz=o.userData.laserRef;
-          const now=performance.now();                       // doble-toque = on/off + abre controles
-          if(window._lzTap&&window._lzTap.L===Lz&&now-window._lzTap.t<380){
-            window._lzTap=null; toggleLaser(Lz); select('laser',Lz,Lz.name); return;}
-          window._lzTap={L:Lz,t:now};
-          select('laser',Lz,Lz.name);return;}
+        // (el láser se gestiona ANTES del gizmo: un toque enciende, dos apagan, arrastre directo)
         if(o&&o.userData.secRef){const s3=o.userData.secRef;
           const now=performance.now();
           if(window._secTap&&window._secTap.s===s3&&now-window._secTap.t<380){
@@ -1424,6 +1436,25 @@ addEventListener('pointermove',e=>{
     document.getElementById('hud').textContent='Δ '+(t-secMoveDrag.t0).toFixed(1)+' mm · '+secMoveDrag.s.name;
     return;}
   if(gizDrag){ndc(e);moveGizDrag();redraw();return;}
+  if(laserDrag){   // arrastre directo del láser (dedo o Pencil) con imán OSNAP
+    const cur=planePoint(e,laserDrag.depth);
+    const d=new THREE.Vector3().subVectors(cur,laserDrag.start);
+    if(d.length()>0.5)laserDrag.moved=true;
+    let np=laserDrag.orig.clone().add(d);
+    if(axLock){np.copy(laserDrag.orig); np[axLock]+=d[axLock];}   // restricción a un eje si está bloqueado
+    if(mag){
+      const sq=snapQueryWorld([np.x,np.y,np.z],16);               // puntos de control primero
+      if(sq){np.set(sq.p[0],sq.p[1],sq.p[2]); setSnapState({p:sq.p,kind:sq.kind},'mag');}
+      else{clearSnapState();
+        if(!_drawEdgeSegs)_drawEdgeSegs=buildEdgeSegs();
+        const tol=Math.max(0.8,sph.r*0.018);                      // aristas + papeles (sin las líneas del propio láser)
+        const ms=nearestOnSegs(np,(_drawEdgeSegs||[]).concat(paperBorderSegs(null)),tol*tol);
+        if(ms)np.copy(ms);}
+    }
+    laserDrag.L.mesh.position.copy(np);
+    updateLasers(); if(selected&&selected.ref===laserDrag.L)updateGizmo();
+    document.getElementById('hud').textContent=laserDrag.L.name+' · Δ '+d.length().toFixed(1)+' mm';
+    return;}
   if(calloutDrag){calloutDrag.pos=planePoint(e,calloutDrag.depth); drawCalloutPreview();
     document.getElementById('hud').textContent='Nota con flecha · suelta para escribir'; return;}
   if(textDrag){const cur=planePoint(e,textDrag.depth);
@@ -1666,6 +1697,14 @@ function endPointer(e){
     gizDrag=null;hideContact();hideMagHi();updateGizmo();}
   if(_tapDeselect){if(!_tapDeselect.moved)deselect(); _tapDeselect=null;}   // toque en vacío = deseleccionar
   if(calloutDrag){const cd=calloutDrag; clearCalloutPreview(); finishCallout(cd);}   // nota: al soltar, cierra la flecha y pide el texto
+  if(laserDrag){
+    if(!laserDrag.moved&&laserDrag.maybeOff){                    // 2 toques (sin arrastre) = apagar
+      window._lzTap=null; setLaserPower(laserDrag.L,false);
+      if(typeof renderLaserList==='function')renderLaserList(); toast(laserDrag.L.name+' apagado 👻');}
+    else if(laserDrag.moved){window._lzTap=null;   // un arrastre real no cuenta como primer toque
+      if(_snapState&&_snapState.mode==='mag')
+        flashSnapFix([_snapState.p.x,_snapState.p.y,_snapState.p.z],_snapState.kind);}
+    laserDrag=null;}
   if(handDrag){   // al soltar un pinzamiento de EXTREMO sobre el de otra línea → Unir / Cancelar
     const st=handDrag.stroke, role=handDrag.role;
     if(_snapState&&_snapState.mode==='mag')flashSnapFix([_snapState.p.x,_snapState.p.y,_snapState.p.z],_snapState.kind);
@@ -1675,7 +1714,7 @@ function endPointer(e){
     } else if(role==='f0'||role==='p0')checkJoinOnRelease(st,role);
     else if(role==='f1'||role==='p1')checkJoinOnRelease(st,role);
   }
-  drawing=null;handDrag=null;imgDrag=null;selDrag=null;textDrag=null;dragging=false;
+  drawing=null;handDrag=null;imgDrag=null;selDrag=null;textDrag=null;laserDrag=null;dragging=false;
   _drawEdgeSegs=null;_laserPolys=null;_snapPts=null;clearSnapState();hideDrawTag();redraw();
 }
 addEventListener('pointerup',endPointer);
@@ -2647,7 +2686,7 @@ function nearestLaserVertexScreen(e){   // el vértice de guía láser más cerc
 // (azul = guía, verde = fijado). Un solo glifo iluminado a la vez; "respira" al
 // insinuarse y muestra un halo al imantarse. Tamaño constante en pantalla.
 let _snapPts=null;
-function buildSnapPts(exclude){
+function buildSnapPts(exclude,noLaser){
   const pts=[]; const add=(p,kind)=>pts.push({p:(p.toArray?p.toArray():p.slice?p.slice():p),kind});
   for(const st of strokes){ if(st===exclude)continue; const n=st.points.length; if(n<2)continue;
     add(st.points[0],'end'); add(st.points[n-1],'end');
@@ -2658,6 +2697,7 @@ function buildSnapPts(exclude){
     } else add(st.points[(n/2)|0],'mid');
   }
   // LÁSER: cuadrantes y centro de cada circunferencia proyectada (o extremos+medio si es abierta)
+  if(noLaser)return pts;
   buildLaserPolys();
   for(const poly of (_laserPolys||[])){ const n=poly.length; if(n<3)continue;
     const closed=poly[0].distanceTo(poly[n-1])<Math.max(0.1,sph.r*0.01);
@@ -2976,9 +3016,9 @@ function addLaser(silent){
   const g=new THREE.Group();
   const cubeMat=new THREE.MeshStandardMaterial({color:0x2c3136,metalness:.35,roughness:.5,transparent:true});
   const topMat=new THREE.MeshBasicMaterial({color:0x00e676,transparent:true});
-  const cube=new THREE.Mesh(new THREE.BoxGeometry(8,8,8),cubeMat);
-  const top=new THREE.Mesh(new THREE.CylinderGeometry(2.6,2.6,2.4,16),topMat);
-  top.rotation.x=Math.PI/2; top.position.z=5;
+  const cube=new THREE.Mesh(new THREE.BoxGeometry(5.6,5.6,5.6),cubeMat);   // cuerpo más discreto
+  const top=new THREE.Mesh(new THREE.CylinderGeometry(1.8,1.8,1.7,16),topMat);
+  top.rotation.x=Math.PI/2; top.position.z=3.5;
   g.add(cube,top); g.position.copy(target);
   const geo=new THREE.BufferGeometry();
   const matA=new THREE.LineBasicMaterial({color:darkView?0x00e676:0x00c853});
