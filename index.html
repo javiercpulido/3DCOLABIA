@@ -150,7 +150,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.34 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.35 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -244,7 +244,6 @@
   <button id="mLaser" title="Láser de obra: inserta un nivel láser con rayos verdes"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="2" y1="12" x2="22" y2="12" stroke="#00c853"/><line x1="12" y1="2" x2="12" y2="22" stroke="#00c853"/><rect x="8.3" y="8.3" width="7.4" height="7.4" rx="1.6" fill="#fff" stroke="currentColor" stroke-width="1.8"/></svg></button>
   <div class="sep"></div>
   <button id="colBtn" title="Color"><i style="background:#d500f9"></i></button>
-  <button id="undo" title="Deshacer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></button>
   <div class="sep"></div>
   <button id="more" title="Más"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg></button>
  </div>
@@ -253,6 +252,9 @@
 
 <div id="views" class="pill" style="position:fixed;top:calc(26px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10;display:flex;flex-direction:row;align-items:center;padding:5px;gap:2px;flex-wrap:wrap;max-width:96vw;justify-content:center">
  <div class="grip" data-grip title="Mover este menú"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
+ <button id="undo" title="Deshacer"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></button>
+ <button id="redo" title="Rehacer"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg></button>
+ <div class="vsep"></div>
  <button id="mOrbit" class="on" title="Orbitar"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><path d="M10.4 21.9a10 10 0 0 0 9.9-15.4"/><path d="M13.5 2.1a10 10 0 0 0-9.8 15.4"/></svg></button>
  <button id="vLook" title="Mirar alrededor · look around (3 dedos en iPad)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
  <button id="vOrtho" title="Proyección ortográfica (isométrica / paralela)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5Z"/><path d="M12 3 12 12M4 7.5 12 12 20 7.5"/></svg></button>
@@ -1049,8 +1051,9 @@ function finishCallout(cd){
   askText(txt=>{const s=(txt||'').trim(); if(!s)return;
     const rec={text:s,pos:pos.toArray(),anchor:cd.anchor.toArray(),color:cd.color,size:14};
     texts.push(rec);
-    pushUndo('nota',()=>{texts=texts.filter(x=>x!==rec);
-      if(selected&&selected.ref===rec)deselect();});
+    pushUndo('nota',
+      ()=>{texts=texts.filter(x=>x!==rec); if(selected&&selected.ref===rec)deselect();},
+      ()=>{texts.push(rec);});
     redraw();
     setMode('sel'); select('texto',rec,'nota "'+rec.text+'"');
     toast('Nota con flecha creada · arrastra el cuadro para moverlo');});
@@ -1292,20 +1295,39 @@ document.getElementById('trashEmpty').onclick=()=>{
     trash.forEach(purge);trash=[];renderTrash();toast('papelera vaciada');}};
 document.getElementById('selDel').onclick=()=>{
   if(!selected)return;
+  // instantánea para DESHACER cualquier borrado (trazos, notas, imágenes, piezas)
+  const snap=()=>({s:strokes.slice(),t:texts.slice(),i:images.slice(),tr:trash.slice()});
+  const apply=x=>{strokes=x.s.slice();texts=x.t.slice();images=x.i.slice();trash=x.tr.slice();
+    renderTrash(); if(selected&&!strokes.includes(selected.ref)&&!texts.includes(selected.ref))deselect();};
+  const before=snap();
   if(selSet.length>1){const multi=selSet.slice();deselect();
     multi.forEach(st=>{strokes=strokes.filter(sx=>sx!==st);
       trash.push({kind:'trazo',ref:st,label:'trazo '+(st.reg?st.reg.tipo:'mano')});});
-    renderTrash();redraw();toast(multi.length+' trazos → papelera');return;}
+    renderTrash();redraw();toast(multi.length+' trazos → papelera');
+    const after=snap();
+    pushUndo('borrar '+multi.length+' trazos',()=>apply(before),()=>apply(after));
+    return;}
   const it=selected;deselect();
   if(it.kind==='laser'){removeLaser(it.ref);return;}   // mismo camino que el menú (con deshacer)
   if(it.kind==='section'){removeSection(it.ref);toast('sección eliminada');return;}
   if(it.kind==='pieza'){it.ref.material.emissive&&it.ref.material.emissive.setHex(0x000000);
-    it.ref.visible=false;
-    const cb=document.querySelector('input[data-n="'+it.ref.name+'"]');if(cb)cb.checked=false;}
+    const m=it.ref; m.visible=false;
+    const pe=document.querySelector('[data-pe="'+m.name+'"]'); if(pe)pe.classList.remove('on');
+    _silhFrame=-1;updateLasers();
+    const trBefore=trash.slice();
+    trash.push(it);renderTrash();redraw();toast(it.label+' → papelera');
+    pushUndo('ocultar '+m.name,
+      ()=>{m.visible=true; if(pe)pe.classList.add('on');
+        trash=trBefore.slice(); renderTrash(); _silhFrame=-1;updateLasers();},
+      ()=>{m.visible=false; if(pe)pe.classList.remove('on');
+        trash=trBefore.concat([it]); renderTrash(); _silhFrame=-1;updateLasers();});
+    return;}
   else if(it.kind==='trazo')strokes=strokes.filter(sx=>sx!==it.ref);
   else if(it.kind==='texto')texts=texts.filter(t=>t!==it.ref);
   else if(it.kind==='imagen')images=images.filter(i=>i!==it.ref);
-  trash.push(it);renderTrash();redraw();toast(it.label+' → papelera');};
+  trash.push(it);renderTrash();redraw();toast(it.label+' → papelera');
+  const after=snap();
+  pushUndo('borrar '+(it.label||it.kind),()=>apply(before),()=>apply(after));};
 document.getElementById('selClose').onclick=deselect;
 renderTrash();
 
@@ -1542,17 +1564,25 @@ renderer.domElement.addEventListener('pointerdown',e=>{
         let t=l2?((px-a[0])*(b[0]-a[0])+(py-a[1])*(b[1]-a[1]))/l2:0;t=Math.max(0,Math.min(1,t));
         const dx=px-(a[0]+t*(b[0]-a[0])),dy=py-(a[1]+t*(b[1]-a[1]));
         if(dx*dx+dy*dy<324){hitRec=st;break;}}}
-    if(hitRec){strokes=strokes.filter(s=>s!==hitRec);redraw();toast('trazo borrado');}
+    if(hitRec){const prev=strokes.slice();
+      strokes=strokes.filter(s=>s!==hitRec); const after=strokes.slice();
+      pushUndo('goma: trazo',()=>{strokes=prev.slice();},()=>{strokes=after.slice();});
+      redraw();toast('trazo borrado');}
     else{ndc(e);
       let hits=ray.intersectObjects([...annGroup.children],false);
       if(hits.length){let rec=hits[0].object.userData.rec;
-        if(rec){texts=texts.filter(t=>t!==rec);images=images.filter(i=>i!==rec);
+        if(rec){const pT=texts.slice(),pI=images.slice();
+          texts=texts.filter(t=>t!==rec);images=images.filter(i=>i!==rec);
+          const aT=texts.slice(),aI=images.slice();
+          pushUndo('goma: nota/imagen',
+            ()=>{texts=pT.slice();images=pI.slice();},
+            ()=>{texts=aT.slice();images=aI.slice();});
           if(selImg===rec)selImg=null;redraw();toast('borrado');}}}
   } else if(em==='text'&&e.button===0){
     let h=castAt(e);
     let p=h?h.point.clone().addScaledVector(cam.getWorldDirection(new THREE.Vector3()),-4):planePoint(e,sph.r);
     askText(txt=>{const rec={text:txt,pos:p.toArray(),color,size:14};texts.push(rec);
-      pushUndo('texto',()=>{texts=texts.filter(x=>x!==rec);});redraw();});
+      pushUndo('texto',()=>{texts=texts.filter(x=>x!==rec);},()=>{texts.push(rec);});redraw();});
   } else if(em==='img'&&e.button===0){
     ndc(e); let hits=ray.intersectObjects(images.map(i=>i.mesh));
     if(hits.length){imgDrag={rec:hits[0].object.userData.rec,dist:hits[0].distance};selImg=imgDrag.rec;}
@@ -1935,8 +1965,10 @@ function endPointer(e){
     {const prev=strokes.slice();   // el deshacer restaura el estado previo exacto
      strokes.push(drawing);        // (también si el trazo se funde en continuidad)
      const fin=(typeof tryContinuousMerge==='function')?tryContinuousMerge(drawing):drawing;
+     const after=strokes.slice();
      pushUndo(fin!==drawing?'trazo unido en continuidad':'trazo',
-       ()=>{strokes=prev.slice(); if(selected&&!strokes.includes(selected.ref))deselect();});}
+       ()=>{strokes=prev.slice(); if(selected&&!strokes.includes(selected.ref))deselect();},
+       ()=>{strokes=after.slice();});}
     if(mode==='draw'&&!drawLock&&!wasPen&&!activePaper)setMode('orbit');   // lapiz de UN trazo (en papel: sigue dibujando)
     if(selLine){setMode('sel');select('trazo',selLine,'trazo linea');}  // recta: lista para teclear la longitud exacta
   }
@@ -1955,9 +1987,11 @@ function endPointer(e){
     if(gizDrag.t==='pieza'){computeIntersections();applySec();_silhFrame=-1;updateLasers();}
     if(gizDrag.t==='laser'&&gizDrag.mesh&&
        (!gizDrag.pos0.equals(gizDrag.mesh.position)||!gizDrag.quat0.equals(gizDrag.mesh.quaternion))){
-      const m=gizDrag.mesh,p0=gizDrag.pos0.clone(),q0=gizDrag.quat0.clone();
-      pushUndo('ajustar láser',()=>{m.position.copy(p0);m.quaternion.copy(q0);
-        updateLasers();updateGizmo();});}
+      const m=gizDrag.mesh,p0=gizDrag.pos0.clone(),q0=gizDrag.quat0.clone(),
+            p1=gizDrag.mesh.position.clone(),q1=gizDrag.mesh.quaternion.clone();
+      pushUndo('ajustar láser',
+        ()=>{m.position.copy(p0);m.quaternion.copy(q0);updateLasers();updateGizmo();},
+        ()=>{m.position.copy(p1);m.quaternion.copy(q1);updateLasers();updateGizmo();});}
     gizDrag=null;hideContact();hideMagHi();updateGizmo();}
   if(_tapDeselect){if(!_tapDeselect.moved)deselect(); _tapDeselect=null;}   // toque en vacío = deseleccionar
   if(calloutDrag){const cd=calloutDrag; clearCalloutPreview(); finishCallout(cd);}   // nota: al soltar, cierra la flecha y pide el texto
@@ -1966,9 +2000,10 @@ function endPointer(e){
       window._lzTap=null; setLaserPower(laserDrag.L,false);
       if(typeof renderLaserList==='function')renderLaserList(); toast(laserDrag.L.name+' apagado 👻');}
     else if(laserDrag.moved){window._lzTap=null;   // un arrastre real no cuenta como primer toque
-      if(!laserDrag.L.locked){const Lz=laserDrag.L,p0=laserDrag.orig.clone();
-        pushUndo('mover '+Lz.name,()=>{Lz.mesh.position.copy(p0);updateLasers();
-          if(selected&&selected.ref===Lz)updateGizmo();});}
+      if(!laserDrag.L.locked){const Lz=laserDrag.L,p0=laserDrag.orig.clone(),p1=laserDrag.L.mesh.position.clone();
+        pushUndo('mover '+Lz.name,
+          ()=>{Lz.mesh.position.copy(p0);updateLasers(); if(selected&&selected.ref===Lz)updateGizmo();},
+          ()=>{Lz.mesh.position.copy(p1);updateLasers(); if(selected&&selected.ref===Lz)updateGizmo();});}
       if(_snapState&&_snapState.mode==='mag')
         flashSnapFix([_snapState.p.x,_snapState.p.y,_snapState.p.z],_snapState.kind);}
     laserDrag=null;}
@@ -2002,16 +2037,23 @@ function checkHold(){
 }
 
 // ---- UI resto ----
-// DESHACER general por ACCIONES: trazos, notas y láseres (insertar, mover, girar,
-// restablecer, eliminar). Si no hay acciones registradas, cae al comportamiento clásico.
-const undoActs=[];
-function pushUndo(label,fn){undoActs.push({label,fn}); if(undoActs.length>80)undoActs.shift();}
+// DESHACER / REHACER por ACCIONES: trazos, notas, láseres, superficies y borrados.
+// Cada acción nueva vacía la pila de rehacer (comportamiento estándar).
+const undoActs=[], redoActs=[];
+function pushUndo(label,fn,redoFn){
+  undoActs.push({label,fn,redoFn}); if(undoActs.length>80)undoActs.shift();
+  redoActs.length=0;
+}
 undo.onclick=()=>{
   const a=undoActs.pop();
-  if(a){a.fn(); redraw(); toast('Deshecho: '+a.label);}
+  if(a){a.fn(); if(a.redoFn)redoActs.push(a); else redoActs.length=0;
+    redraw(); toast('Deshecho: '+a.label);}
   else toast('Nada que deshacer');
-  // (sin «pop» clásico de respaldo: con la pila vacía borraba de golpe un trazo
-  //  entero — y una línea continua fusionada es UN solo trazo)
+};
+document.getElementById('redo').onclick=()=>{
+  const a=redoActs.pop();
+  if(a){a.redoFn(); undoActs.push(a); redraw(); toast('Rehecho: '+a.label);}
+  else toast('Nada que rehacer');
 };
 // OJO (ver/ocultar) y CANDADO (bloquear posición y giro) por pieza
 document.getElementById('pieces').addEventListener('click',e=>{
@@ -2057,9 +2099,10 @@ document.getElementById('selMove').addEventListener('change',e=>{
   if(selected&&selected.kind==='laser'){ // desplazar LÁSER
     const L=selected.ref;
     if(L.locked){e.target.value='';toast(L.name+' bloqueado 🔒');return;}
-    const p0=L.mesh.position.clone();
-    pushUndo('mover '+L.name,()=>{L.mesh.position.copy(p0);updateLasers();
-      if(selected&&selected.ref===L)updateGizmo();});
+    const p0=L.mesh.position.clone(), dd2=d.clone();
+    pushUndo('mover '+L.name,
+      ()=>{L.mesh.position.copy(p0);updateLasers(); if(selected&&selected.ref===L)updateGizmo();},
+      ()=>{L.mesh.position.copy(p0).add(dd2);updateLasers(); if(selected&&selected.ref===L)updateGizmo();});
     L.mesh.position.add(d);
     updateLasers();updateGizmo();
     e.target.value=''; toast('láser Δ'+ax.toUpperCase()+' = '+v+' mm'); return;}
@@ -2090,9 +2133,10 @@ document.getElementById('selRot').addEventListener('change',e=>{
     if(L.locked){e.target.value='';toast(L.name+' bloqueado 🔒');return;}
     const ax2=axLock||'z';
     const u2=new THREE.Vector3(ax2==='x'?1:0,ax2==='y'?1:0,ax2==='z'?1:0);
-    const q0=L.mesh.quaternion.clone();
-    pushUndo('girar '+L.name,()=>{L.mesh.quaternion.copy(q0);updateLasers();
-      if(selected&&selected.ref===L)updateGizmo();});
+    const q0=L.mesh.quaternion.clone(), qd=new THREE.Quaternion().setFromAxisAngle(u2,v*Math.PI/180);
+    pushUndo('girar '+L.name,
+      ()=>{L.mesh.quaternion.copy(q0);updateLasers(); if(selected&&selected.ref===L)updateGizmo();},
+      ()=>{L.mesh.quaternion.copy(q0).premultiply(qd);updateLasers(); if(selected&&selected.ref===L)updateGizmo();});
     L.mesh.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(u2,v*Math.PI/180));
     updateLasers();updateGizmo();
     e.target.value=''; toast('láser giro '+v+'° · eje '+ax2.toUpperCase()); return;}
@@ -2131,7 +2175,8 @@ document.getElementById('selDup').onclick=()=>{
     strokes.push(c);return c;});
   pushUndo(copies.length>1?'duplicar ('+copies.length+')':'duplicar',
     ()=>{strokes=strokes.filter(x=>!copies.includes(x));
-      if(selected&&copies.includes(selected.ref))deselect();});
+      if(selected&&copies.includes(selected.ref))deselect();},
+    ()=>{copies.forEach(c2=>strokes.push(c2));});
   selSet=copies;
   selected={kind:'trazo',ref:copies[0],label:copies.length+' copias'};
   document.getElementById('selname').textContent=copies.length>1?(copies.length+' copias'):'copia';
@@ -3459,8 +3504,9 @@ function finishPoly(closed){
   const st={poly:true,verts:pd.verts,segTypes:pd.segTypes,arcMids:pd.arcMids,guidePts:pd.guidePts||{},closed:pd.closed,
     color,w:lineW,sobre:'poli'};
   rebuildPoly(st); strokes.push(st);
-  pushUndo('poli 3D',()=>{strokes=strokes.filter(x=>x!==st);
-    if(selected&&selected.ref===st)deselect();});
+  pushUndo('poli 3D',
+    ()=>{strokes=strokes.filter(x=>x!==st); if(selected&&selected.ref===st)deselect();},
+    ()=>{strokes.push(st);});
   redraw();
   setMode('sel'); select('trazo',st,'poli 3D'+(st.closed?' (cerrada)':''));
   toast(st.closed?'Poli 3D cerrada ✓ · edítala por sus vértices':'Poli 3D creada · edítala por sus vértices');
@@ -3884,7 +3930,9 @@ function buildTubeFromPts(pts,r,colHex,name){
 function removeSurface(S,noUndo){
   if(!surfaces.includes(S))return;
   scene.remove(S.mesh); surfaces=surfaces.filter(x=>x!==S);
-  if(!noUndo)pushUndo('eliminar '+S.name,()=>{scene.add(S.mesh);surfaces.push(S);renderSurfList();});
+  if(!noUndo)pushUndo('eliminar '+S.name,
+    ()=>{scene.add(S.mesh);surfaces.push(S);renderSurfList();},
+    ()=>{scene.remove(S.mesh);surfaces=surfaces.filter(x=>x!==S);renderSurfList();});
   renderSurfList();
 }
 function renderSurfList(){
@@ -3934,7 +3982,8 @@ function strokeClosed(st){
     pts[0][2]-pts[pts.length-1][2])<Math.max(1,sph.r*0.02);
 }
 function surfToolFinish(S){
-  pushUndo('superficie '+S.name,()=>removeSurface(S,true));
+  pushUndo('superficie '+S.name,()=>removeSurface(S,true),
+    ()=>{scene.add(S.mesh);surfaces.push(S);renderSurfList();});
   surfToolCancel(); redraw();
   toast('Superficie '+S.name+' creada ✓ · está en el panel, junto a las piezas');
 }
@@ -4196,7 +4245,9 @@ function addLaser(silent){
   lasers.push(L); updateLasers();
   if(typeof renderLaserList==='function')renderLaserList();
   if(!silent){   // sin cambiar el modo de visión: se conserva el que haya
-    pushUndo('insertar '+L.name,()=>removeLaser(L,true));
+    pushUndo('insertar '+L.name,()=>removeLaser(L,true),
+      ()=>{scene.add(L.mesh);scene.add(L.linesA);scene.add(L.linesB);
+        lasers.push(L);updateLasers();renderLaserList();});
     setMode('sel'); select('laser',L,L.name);
     toast(L.name+' insertado');}
   return L;
@@ -4220,10 +4271,14 @@ function resetLaser(L){
   if(L.locked){toast(L.name+' bloqueado 🔒 · desbloquéalo para restablecer');return;}
   {const p0=L.mesh.position.clone(),q0=L.mesh.quaternion.clone(),
      on=Object.assign({},L.on),n=L.n,sp=L.sp,off=L.off;
-   pushUndo('restablecer '+L.name,()=>{L.mesh.position.copy(p0);L.mesh.quaternion.copy(q0);
-     L.on=on;L.n=n;L.sp=sp;setLaserPower(L,!off);updateLasers();
+   const sync=()=>{updateLasers();
      if(selected&&selected.ref===L){syncLaserOps(L);updateGizmo();}
-     if(typeof renderLaserList==='function')renderLaserList();});}
+     if(typeof renderLaserList==='function')renderLaserList();};
+   pushUndo('restablecer '+L.name,
+     ()=>{L.mesh.position.copy(p0);L.mesh.quaternion.copy(q0);
+       L.on=on;L.n=n;L.sp=sp;setLaserPower(L,!off);sync();},
+     ()=>{L.mesh.position.copy(L.pos0);L.mesh.quaternion.copy(L.quat0);
+       L.on=Object.assign({},L.on0);L.n=L.n0;L.sp=L.sp0;setLaserPower(L,true);sync();});}
   L.mesh.position.copy(L.pos0); L.mesh.quaternion.copy(L.quat0);
   L.on=Object.assign({},L.on0); L.n=L.n0; L.sp=L.sp0; if(L.off)setLaserPower(L,true);
   updateLasers(); if(selected&&selected.ref===L){syncLaserOps(L);updateGizmo();}
@@ -4234,8 +4289,10 @@ function removeLaser(L,noUndo){
   if(selected&&selected.ref===L)deselect();
   scene.remove(L.mesh); scene.remove(L.linesA); scene.remove(L.linesB);
   lasers=lasers.filter(x=>x!==L);
-  if(!noUndo)pushUndo('eliminar '+L.name,()=>{scene.add(L.mesh);scene.add(L.linesA);scene.add(L.linesB);
-    lasers.push(L);updateLasers();renderLaserList();});
+  if(!noUndo)pushUndo('eliminar '+L.name,
+    ()=>{scene.add(L.mesh);scene.add(L.linesA);scene.add(L.linesB);
+      lasers.push(L);updateLasers();renderLaserList();},
+    ()=>removeLaser(L,true));
   renderLaserList(); toast(L.name+' eliminado');
 }
 // ---- Menú de láseres (mismo sistema que las secciones: crear, activar varios,
@@ -4350,7 +4407,7 @@ function buildExport(){
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
-window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
+window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
 buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},
 buildContourSurfaceFromPts,get axGhost(){return axGhost},selectStroke,surfToolStart,surfToolTap,get surfTool(){return surfTool},moveContPoint,
 buildRevolveFromPts,buildCoonsFromPts,buildExtrudeFromPts,buildTubeFromPts,chain4,buildExport,
