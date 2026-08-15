@@ -139,7 +139,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.23 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.24 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -177,6 +177,7 @@
 <div id="drawTag" style="position:fixed;z-index:13;display:none;pointer-events:none;font-size:11px;font-weight:600;line-height:1;padding:2px 5px;border-radius:6px;background:rgba(28,28,30,.82);color:#fff;white-space:nowrap;transform:translate(10px,-50%)">0 mm</div>
 <div id="polychips" style="position:fixed;z-index:14;display:none;gap:4px;align-items:center">
  <button id="pcArc" class="pchip" title="El próximo tramo será un ARCO (toca el punto de paso y luego el final)">⌒</button>
+ <button id="pcMir" class="pchip" title="Simetría: fantasma del espejo de todo lo dibujado (toca de nuevo para aceptar)">⇅</button>
  <button id="pcUndo" class="pchip" title="Deshacer el último vértice">↩</button>
  <button id="pcClose" class="pchip pcok" title="Cerrar la forma en el primer vértice">✓</button>
  <button id="pcDone" class="pchip" title="Terminar la poli abierta">●</button>
@@ -1969,9 +1970,9 @@ function updateGizmo(){
     setGizMode('rot');
   } else setGizMode('full');
   const c=new THREE.Vector3();
-  if(t==='trazo'){let n=0;
-    effSel().forEach(s=>s.points.forEach(p=>{c.x+=p[0];c.y+=p[1];c.z+=p[2];n++;}));
-    if(!n){gizmo.visible=false;return;} c.multiplyScalar(1/n);}
+  if(t==='trazo'){const bb=new THREE.Box3(); let n=0;   // centro GEOMÉTRICO (caja), no media de muestras
+    effSel().forEach(s=>s.points.forEach(p=>{bb.expandByPoint(new THREE.Vector3(p[0],p[1],p[2]));n++;}));
+    if(!n){gizmo.visible=false;return;} bb.getCenter(c);}
   else if(t==='laser')c.copy(selected.ref.mesh.position);
   else if(t==='section')c.copy(selected.ref.pt);
   else new THREE.Box3().setFromObject(selected.ref).getCenter(c);
@@ -3193,19 +3194,22 @@ function buildLaserMag(u){
 }
 function addLaser(silent){
   const g=new THREE.Group();
-  const cubeMat=new THREE.MeshStandardMaterial({color:0x2c3136,metalness:.35,roughness:.5,transparent:true});
+  const cubeMat=new THREE.MeshStandardMaterial({color:0x8e939a,metalness:.3,roughness:.55,transparent:true});   // cuerpo GRIS
   const topMat=new THREE.MeshBasicMaterial({color:0x00e676,transparent:true});
-  const cube=new THREE.Mesh(new THREE.BoxGeometry(5.6,5.6,5.6),cubeMat);   // cuerpo más discreto
+  const cube=new THREE.Mesh(new THREE.BoxGeometry(5.6,5.6,5.6),cubeMat);
   const top=new THREE.Mesh(new THREE.CylinderGeometry(1.8,1.8,1.7,16),topMat);
   top.rotation.x=Math.PI/2; top.position.z=3.5;
+  const edgeMat=new THREE.LineBasicMaterial({color:0x60646a,transparent:true,opacity:.9});   // contorno gris del cilindro
+  top.add(new THREE.LineSegments(new THREE.EdgesGeometry(top.geometry,30),edgeMat));
   g.add(cube,top); g.position.copy(target);
+  g.scale.setScalar(Math.max(0.15,R/200));   // proporcional al modelo: 50% del tamaño previo con el modelo actual (R≈100)
   const geo=new THREE.BufferGeometry();
   const matA=new THREE.LineBasicMaterial({color:darkView?0x00e676:0x00c853});
   const matB=new THREE.LineBasicMaterial({color:0x00e676,transparent:true,opacity:darkView?.38:.25,depthTest:false});
   const lA=new THREE.LineSegments(geo,matA), lB=new THREE.LineSegments(geo,matB);
   lA.frustumCulled=lB.frustumCulled=false; lA.renderOrder=3; lB.renderOrder=9;
   const L={mesh:g,on:{h:true,v:true,v2:false},n:1,sp:20,off:false,geo,matA,matB,
-    linesA:lA,linesB:lB,cubeMat,topMat,name:'L'+(++laserCount)};
+    linesA:lA,linesB:lB,cubeMat,topMat,edgeMat,name:'L'+(++laserCount)};
   L.pos0=g.position.clone(); L.quat0=g.quaternion.clone();
   L.on0=Object.assign({},L.on); L.n0=L.n; L.sp0=L.sp;   // estado inicial para "restablecer"
   {const cp=curClipPlanes();matA.clippingPlanes=cp;matB.clippingPlanes=cp;}
@@ -3213,17 +3217,17 @@ function addLaser(silent){
   scene.add(g); scene.add(lA); scene.add(lB);
   lasers.push(L); updateLasers();
   if(typeof renderLaserList==='function')renderLaserList();
-  if(!silent){
-    if(!darkView)setDark(true);   // el modo oscuro da el contraste del laser
+  if(!silent){   // sin cambiar el modo de visión: se conserva el que haya
     setMode('sel'); select('laser',L,L.name);
-    toast(L.name+' insertado · modo oscuro activado (🌓 para salir)');}
+    toast(L.name+' insertado');}
   return L;
 }
 // encendido/apagado del laser: apagado queda como FANTASMA gris clarito, sin rayos
 function setLaserPower(L,on){
   L.off=!on;
-  L.cubeMat.opacity=on?1:0.22; L.cubeMat.color.setHex(on?0x2c3136:0xb9bec4);
+  L.cubeMat.opacity=on?1:0.22; L.cubeMat.color.setHex(on?0x8e939a:0xcfd3d8);
   L.topMat.opacity=on?1:0.25;  L.topMat.color.setHex(on?0x00e676:0x9aa0a6);
+  if(L.edgeMat)L.edgeMat.opacity=on?0.9:0.25;
   L.linesA.visible=L.linesB.visible=on;
   if(on)updateLasers();
   if(selected&&selected.ref===L)syncLaserOps(L);
@@ -3338,7 +3342,7 @@ function buildExport(){
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
-window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText};
+window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R}};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());
