@@ -30,7 +30,9 @@
    width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--ink);border:0;cursor:pointer}
  /* dock VERTICAL a la izquierda, a media altura */
  #dock{position:fixed;left:calc(10px + env(safe-area-inset-left));top:50%;transform:translateY(-50%);
-   z-index:10;display:flex;flex-direction:row;align-items:center;gap:8px}
+   z-index:10;display:flex;flex-direction:column;align-items:center;gap:6px}   /* vertical: asa ARRIBA */
+ #dockRows{display:flex;flex-direction:row;align-items:flex-start;gap:8px}
+ #dock.horiz{flex-direction:row}   /* horizontal: asa a la izquierda */
  .row{display:flex;flex-direction:column;gap:2px;padding:5px}
  .row button{width:44px;height:44px;border:0;background:transparent;border-radius:12px;color:var(--ink);
    display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
@@ -136,6 +138,7 @@
    opacity:.55;border-radius:6px;flex:none}
  .grip:active{cursor:grabbing;background:rgba(0,0,0,.06)}
  #dock .grip{height:16px;width:26px;min-width:26px}
+ #dock.horiz .grip{height:26px;width:16px;min-width:16px}   /* horizontal: asa a la izquierda */
  .snaphint{position:fixed;z-index:8;pointer-events:none;border:2px dashed var(--acc);
    border-radius:14px;opacity:.5;display:none}
 </style>
@@ -144,7 +147,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.27 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.28 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -218,6 +221,7 @@
 
 <div id="dock">
  <div class="grip pill" data-grip title="Mover herramientas" style="padding:2px"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
+ <div id="dockRows">
  <div id="dock2" class="row pill hide">
   <button id="mText" title="Nota"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></button>
   <button id="mImg" title="Imagen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg></button>
@@ -239,6 +243,7 @@
   <button id="undo" title="Deshacer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></button>
   <div class="sep"></div>
   <button id="more" title="Más"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg></button>
+ </div>
  </div>
 </div>
 
@@ -3731,7 +3736,7 @@ function updateSilh(){
 // se arrastran por un asa, recuerdan su sitio, se reorientan al pegarse a un borde lateral
 // (vertical) o superior/inferior (horizontal) y se acoplan a los bordes o a otro menú.
 (function(){
-  const GAP=8, EDGE=64, SNAP=20;
+  const GAP=8, EDGE=64, SNAP=20, ESNAP=34;   // ESNAP: zona de imán del BORDE de pantalla (más generosa)
   const store=(()=>{try{return window.localStorage}catch(e){return null}})();
   let saved=(()=>{try{return JSON.parse((store&&store.getItem('tectosUI'))||'{}')||{}}catch(e){return{}}})();
   const items=[];
@@ -3744,12 +3749,14 @@ function updateSilh(){
   const R=el=>el.getBoundingClientRect();
   function setPos(el,l,t){el.style.left=l+'px';el.style.top=t+'px';
     el.style.right='auto';el.style.bottom='auto';el.style.transform='none';}
-  function orient(it){
+  function orient(it,px,py){
+    // se reorienta según DÓNDE está el puntero (la intención), no el centro del
+    // elemento: un menú alto nunca acercaría su centro al borde superior
     if(it.opts.fixedOrient)return; const r=R(it.el);
-    if(it.opts.orient==='h'){const cx=r.left+r.width/2;
-      it.el.classList.toggle('vert',cx<EDGE||cx>W-EDGE);}
-    else{const cy=r.top+r.height/2;
-      it.el.classList.toggle('horiz',cy<EDGE||cy>H-EDGE);}
+    const cx=(px!==undefined)?px:r.left+r.width/2;
+    const cy=(py!==undefined)?py:r.top+r.height/2;
+    if(it.opts.orient==='h')it.el.classList.toggle('vert',cx<EDGE||cx>W-EDGE);
+    else it.el.classList.toggle('horiz',cy<EDGE||cy>H-EDGE);
   }
   function clamp(el){const r=R(el);
     if(!r.width&&!r.height)return;   // oculto (p. ej. selbar sin selección): no tocar su posición
@@ -3760,10 +3767,10 @@ function updateSilh(){
     // se pega a él y cuadra las esquinas de ese lado
     const el=it.el; const r=R(el); let l=r.left,t=r.top,ch=false;
     el.classList.remove('dockL','dockR','dockT','dockB');
-    if(l<SNAP){l=0;ch=true;el.classList.add('dockL');}
-    else if(W-(l+r.width)<SNAP){l=W-r.width;ch=true;el.classList.add('dockR');}
-    if(t<SNAP){t=0;ch=true;el.classList.add('dockT');}
-    else if(H-(t+r.height)<SNAP){t=H-r.height;ch=true;el.classList.add('dockB');}
+    if(l<ESNAP){l=0;ch=true;el.classList.add('dockL');}
+    else if(W-(l+r.width)<ESNAP){l=W-r.width;ch=true;el.classList.add('dockR');}
+    if(t<ESNAP){t=0;ch=true;el.classList.add('dockT');}
+    else if(H-(t+r.height)<ESNAP){t=H-r.height;ch=true;el.classList.add('dockB');}
     items.forEach(o=>{if(o===it||!o.el.offsetParent)return; const Q=R(o.el);
       const vOv=!(t>Q.bottom||t+r.height<Q.top), hOv=!(l>Q.right||l+r.width<Q.left);
       if(vOv){ if(Math.abs(l-Q.right)<SNAP){l=Q.right+GAP;ch=true;}
@@ -3783,14 +3790,17 @@ function updateSilh(){
     e.preventDefault();e.stopPropagation();
     try{grip.setPointerCapture(e.pointerId);}catch(_){}
     const el=it.el; el.style.zIndex=40;
+    el.classList.remove('dockL','dockR','dockT','dockB');   // al arrancar el arrastre deja de estar acoplado
     const r=R(el); setPos(el,r.left,r.top);
     const ox=e.clientX-r.left, oy=e.clientY-r.top;
-    const move=ev=>{setPos(el,ev.clientX-ox,ev.clientY-oy);orient(it);};
+    let lx=e.clientX, ly=e.clientY;
+    const move=ev=>{lx=ev.clientX;ly=ev.clientY;setPos(el,lx-ox,ly-oy);orient(it,lx,ly);};
     const up=()=>{try{grip.releasePointerCapture(e.pointerId);}catch(_){}
       grip.removeEventListener('pointermove',move);grip.removeEventListener('pointerup',up);
       grip.removeEventListener('pointercancel',up);
       if(it.opts.onDrop&&it.opts.onDrop(it)){persist();return;}   // p. ej. re-acoplar el grupo de secciones
-      clamp(el);snapTo(it);orient(it);clamp(el);persist();};
+      // primero reorientar (cambia el tamaño) y DESPUÉS acoplar a ras con el tamaño final
+      clamp(el);orient(it,lx,ly);clamp(el);snapTo(it);persist();};
     grip.addEventListener('pointermove',move);
     grip.addEventListener('pointerup',up);
     grip.addEventListener('pointercancel',up);
