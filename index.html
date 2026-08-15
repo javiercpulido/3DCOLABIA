@@ -147,7 +147,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.28 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.29 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -1865,8 +1865,9 @@ document.getElementById('selRot').addEventListener('change',e=>{
     const ax2=axLock||'z';
     const u2=new THREE.Vector3(ax2==='x'?1:0,ax2==='y'?1:0,ax2==='z'?1:0);
     const q=new THREE.Quaternion().setFromAxisAngle(u2,v*Math.PI/180);
-    const m=selected.ref;
-    const Cc=new THREE.Box3().setFromObject(m).getCenter(new THREE.Vector3());
+    const m=selected.ref; m.updateMatrixWorld();
+    m.geometry.computeBoundingBox();
+    const Cc=m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld).getCenter(new THREE.Vector3());
     m.quaternion.premultiply(q);
     m.position.sub(Cc).applyQuaternion(q).add(Cc);
     computeIntersections();applySec();_silhFrame=-1;updateLasers();updateGizmo();
@@ -2048,7 +2049,10 @@ function updateGizmo(){
     if(!n){gizmo.visible=false;return;} bb.getCenter(c);}
   else if(t==='laser')c.copy(selected.ref.mesh.position);
   else if(t==='section')c.copy(selected.ref.pt);
-  else new THREE.Box3().setFromObject(selected.ref).getCenter(c);
+  else{const mm=selected.ref; mm.updateMatrixWorld();   // centro geométrico de la PIEZA:
+    if(mm.geometry){mm.geometry.computeBoundingBox();   // sólo su malla (los buffers hijos
+      mm.geometry.boundingBox.clone().applyMatrix4(mm.matrixWorld).getCenter(c);}   // dinámicos arrastraban la caja al origen)
+    else new THREE.Box3().setFromObject(mm).getCenter(c);}
   gizmo.position.copy(c);
   const L=Math.max(10,sph.r*0.12); gizmo.scale.set(L,L,L);
   gizmo.visible=true;
@@ -2564,9 +2568,14 @@ scene.add(pocheClear);
   // MISMO polygonOffset que las piezas visibles → el prepass y el stencil quedan
   // coplanares con la geometría (imprescindible para el conteo por profundidad).
   const PO={polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1};
-  const mk=(side,op)=>new THREE.MeshBasicMaterial(Object.assign({side,colorWrite:false,depthWrite:false,depthTest:true,
+  // Conteo CLÁSICO independiente de la profundidad (como el ejemplo oficial de
+  // clipping+stencil de three.js): a lo largo de cada rayo, caras traseras +1 y
+  // delanteras −1; un sólido cerrado da 0 salvo donde el corte lo abre (+1).
+  // El conteo «consciente de profundidad» anterior dependía de z exactamente
+  // coplanares entre prepass y stencil, y pintaba TODO el volumen de poché.
+  const mk=(side,op)=>new THREE.MeshBasicMaterial(Object.assign({side,colorWrite:false,depthWrite:false,depthTest:false,
     stencilWrite:true,stencilFunc:THREE.AlwaysStencilFunc,
-    stencilFail:THREE.KeepStencilOp,stencilZFail:op,stencilZPass:THREE.KeepStencilOp},PO));
+    stencilFail:THREE.KeepStencilOp,stencilZFail:THREE.KeepStencilOp,stencilZPass:op},PO));
   const mB=mk(THREE.BackSide,THREE.IncrementWrapStencilOp);
   const mF=mk(THREE.FrontSide,THREE.DecrementWrapStencilOp);
   const mD=new THREE.MeshBasicMaterial(Object.assign({colorWrite:false,depthWrite:true,depthTest:true,side:THREE.DoubleSide},PO));
@@ -2587,8 +2596,24 @@ function updatePoche(){
   const A=(secShowCut&&secPoche)?activeCuts():[];
   const on=A.length>0;
   const planes=A.map(s=>s.plane);   // ya actualizados por curClipPlanes en applySec
-  for(const n in pieces){const ud=pieces[n].userData;
-    if(ud.stB){ud.stB.visible=on;ud.stF.visible=on;} if(ud.stD)ud.stD.visible=on;}
+  // Sólo cuentan en el stencil las piezas que ALGÚN plano corta de verdad: las
+  // demás sumarían 0 si fueran cerradas, pero las mallas abiertas (roseta,
+  // semiesferas) rompen la paridad y pintaban toda su silueta de poché.
+  // El prepass de profundidad queda como OCLUSOR de la tapa (z estrictos).
+  for(const n in pieces){const m=pieces[n],ud=m.userData;
+    let cut=false;
+    if(on&&m.visible){
+      m.updateMatrixWorld(); m.geometry.computeBoundingBox();
+      const bb=m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld);
+      cut=A.some(s=>{let neg=false,pos=false; const d0=s.normal.dot(s.pt);
+        for(const vx of [bb.min.x,bb.max.x])for(const vy of [bb.min.y,bb.max.y])
+          for(const vz of [bb.min.z,bb.max.z]){
+            const d=s.normal.x*vx+s.normal.y*vy+s.normal.z*vz-d0;
+            if(d<0)neg=true; else pos=true;}
+        return neg&&pos;});
+    }
+    if(ud.stB){ud.stB.visible=cut;ud.stF.visible=cut;}
+    if(ud.stD)ud.stD.visible=on;}
   if(pocheMats){pocheMats.mB.clippingPlanes=planes; pocheMats.mF.clippingPlanes=planes;
     pocheMats.mD.clippingPlanes=planes;}
   while(pochePool.length<A.length)pochePool.push(makePocheCap());
@@ -3557,6 +3582,11 @@ document.getElementById('mLaser').onclick=()=>{const d=document.getElementById('
   if(show){renderLaserList();rightOfIcon(d,document.getElementById('mLaser'));document.getElementById('mLaser').classList.add('on');}
   else{d.style.display='none';document.getElementById('mLaser').classList.remove('on');}};
 renderLaserList();
+// pulsar cualquier otra herramienta del dock cierra el menú de láseres
+document.querySelectorAll('#dock1 button').forEach(b=>{ if(b.id==='mLaser')return;
+  b.addEventListener('click',()=>{const d=document.getElementById('lasermenu');
+    if(d&&d.style.display!=='none'){d.style.display='none';
+      document.getElementById('mLaser').classList.remove('on');}});});
 function syncLaserOps(L){
   lzPw.classList.toggle('on',!L.off);
   lzH.classList.toggle('on',L.on.h); lzV.classList.toggle('on',L.on.v); lzV2.classList.toggle('on',L.on.v2);
@@ -3781,6 +3811,34 @@ function updateSilh(){
         if(Math.abs(l-Q.left)<SNAP){l=Q.left;ch=true;} }});
     if(ch)setPos(el,l,t);
   }
+  // Si al arrastrar un menú se SOLAPA con otro, se propone acomodarlo al lado
+  // más cercano (columna debajo, encima o a los lados) con un fantasma punteado;
+  // al soltar, se coloca ahí.
+  const hintEl=document.createElement('div'); hintEl.className='snaphint';
+  document.body.appendChild(hintEl);
+  function overlapProposal(it){
+    const r=R(it.el);
+    for(const o of items){
+      if(o===it)continue;
+      if(it.opts.onDrop&&o.el.id==='views')continue;   // soltar el grupo de secciones sobre la barra = re-acoplar
+      const q=R(o.el); if(!q.width&&!q.height)continue;
+      const ov=!(r.left>q.right||r.right<q.left||r.top>q.bottom||r.bottom<q.top);
+      if(!ov)continue;
+      const cx=r.left+r.width/2, cy=r.top+r.height/2;
+      const cand=[
+        {d:Math.abs(cx-q.left),  l:q.left-r.width-GAP,  t:q.top},
+        {d:Math.abs(q.right-cx), l:q.right+GAP,         t:q.top},
+        {d:Math.abs(cy-q.top),   l:q.left,              t:q.top-r.height-GAP},
+        {d:Math.abs(q.bottom-cy),l:q.left,              t:q.bottom+GAP}];
+      cand.sort((a,b)=>a.d-b.d);
+      for(const cd of cand){
+        const l=Math.max(0,Math.min(W-r.width,cd.l)), t=Math.max(0,Math.min(H-r.height,cd.t));
+        if(!(l>q.right||l+r.width<q.left||t>q.bottom||t+r.height<q.top))continue;   // seguiría solapando
+        return {l,t,w:r.width,h:r.height};
+      }
+    }
+    return null;
+  }
   function persist(){items.forEach(it=>{const el=it.el; if(!el.style.left)return;
     saved[el.id]={left:parseFloat(el.style.left),top:parseFloat(el.style.top),
       vert:el.classList.contains('vert'),horiz:el.classList.contains('horiz'),
@@ -3794,11 +3852,18 @@ function updateSilh(){
     const r=R(el); setPos(el,r.left,r.top);
     const ox=e.clientX-r.left, oy=e.clientY-r.top;
     let lx=e.clientX, ly=e.clientY;
-    const move=ev=>{lx=ev.clientX;ly=ev.clientY;setPos(el,lx-ox,ly-oy);orient(it,lx,ly);};
+    const move=ev=>{lx=ev.clientX;ly=ev.clientY;setPos(el,lx-ox,ly-oy);orient(it,lx,ly);
+      const pr=overlapProposal(it); it._prop=pr;
+      if(pr){hintEl.style.display='block';
+        hintEl.style.left=pr.l+'px';hintEl.style.top=pr.t+'px';
+        hintEl.style.width=pr.w+'px';hintEl.style.height=pr.h+'px';}
+      else hintEl.style.display='none';};
     const up=()=>{try{grip.releasePointerCapture(e.pointerId);}catch(_){}
       grip.removeEventListener('pointermove',move);grip.removeEventListener('pointerup',up);
       grip.removeEventListener('pointercancel',up);
-      if(it.opts.onDrop&&it.opts.onDrop(it)){persist();return;}   // p. ej. re-acoplar el grupo de secciones
+      hintEl.style.display='none';
+      if(it.opts.onDrop&&it.opts.onDrop(it)){it._prop=null;persist();return;}   // p. ej. re-acoplar el grupo de secciones
+      if(it._prop){setPos(el,it._prop.l,it._prop.t);it._prop=null;clamp(el);persist();return;}   // acomodo junto al menú solapado
       // primero reorientar (cambia el tamaño) y DESPUÉS acoplar a ras con el tamaño final
       clamp(el);orient(it,lx,ly);clamp(el);snapTo(it);persist();};
     grip.addEventListener('pointermove',move);
@@ -3855,6 +3920,7 @@ function updateSilh(){
   window._reclampFloat=()=>items.forEach(it=>{if(it.el.style.left)try{clamp(it.el);}catch(e){}});
 })();
 
+setMode('sel');   // herramienta por defecto: SELECCIÓN (flecha)
 // restaurar preferencia de modo oscuro / invertido
 try{const iv=localStorage.getItem('tectosInv')==='1';
   if(iv)setInv(true); else if(localStorage.getItem('tectosDark')==='1')setDark(true);}catch(e){}
