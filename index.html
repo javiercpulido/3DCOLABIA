@@ -144,7 +144,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.26 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.27 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -183,19 +183,26 @@
 <div id="hud">x — · y — · z — mm</div>
 <div id="drawTag" style="position:fixed;z-index:13;display:none;pointer-events:none;font-size:11px;font-weight:600;line-height:1;padding:2px 5px;border-radius:6px;background:rgba(28,28,30,.82);color:#fff;white-space:nowrap;transform:translate(10px,-50%)">0 mm</div>
 <div id="polychips" style="position:fixed;z-index:14;display:none;gap:4px;align-items:center">
- <button id="pcArc" class="pchip" title="El próximo tramo será un ARCO (toca el punto de paso y luego el final)">⌒</button>
- <button id="pcMir" class="pchip" title="Simetría: fantasma del espejo de todo lo dibujado (toca de nuevo para aceptar)">⇅</button>
- <button id="pcUndo" class="pchip" title="Deshacer el último vértice">↩</button>
- <button id="pcClose" class="pchip pcok" title="Cerrar la forma en el primer vértice">✓</button>
- <button id="pcDone" class="pchip" title="Terminar la poli abierta">●</button>
- <button id="pcExit" class="pchip pcx" title="Cancelar">✕</button>
+ <button id="pcLine" class="pchip on" title="Tramo RECTO (por defecto)">─<i class="pclab">Recta</i></button>
+ <button id="pcArc" class="pchip" title="Tramo ARCO: toca el punto de paso y luego el final">⌒<i class="pclab">Arco</i></button>
+ <button id="pcSpl" class="pchip" title="Tramo SPLINE: curva suave que pasa por los vértices">∿<i class="pclab">Spline</i></button>
+ <span class="pcdiv"></span>
+ <button id="pcMir" class="pchip" title="Simetría: fantasma del espejo de todo lo dibujado (toca de nuevo para aceptar)">⇅<i class="pclab">Simetría</i></button>
+ <button id="pcUndo" class="pchip" title="Deshacer el último vértice">↩<i class="pclab">Deshacer</i></button>
+ <button id="pcClose" class="pchip pcok" title="Cerrar la forma en el primer vértice">✓<i class="pclab">Cerrar</i></button>
+ <button id="pcDone" class="pchip" title="Terminar la poli abierta">●<i class="pclab">Terminar</i></button>
+ <button id="pcExit" class="pchip pcx" title="Cancelar">✕<i class="pclab">Cancelar</i></button>
 </div>
 <div id="joinpop" style="position:fixed;z-index:15;display:none;gap:4px;align-items:center;background:var(--bg,#fff);border:1px solid rgba(0,0,0,.12);border-radius:10px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,.18)">
  <button id="jpJoin" class="pchip pcok" style="width:auto;padding:0 10px">Unir</button>
  <button id="jpCancel" class="pchip" style="width:auto;padding:0 10px">Cancelar</button>
 </div>
 <style>
-.pchip{height:28px;min-width:28px;border:1px solid rgba(0,0,0,.1);border-radius:9px;background:rgba(255,255,255,.94);color:#1c1c1e;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12);padding:0}
+.pchip{position:relative;height:28px;min-width:28px;border:1px solid rgba(0,0,0,.1);border-radius:9px;background:rgba(255,255,255,.94);color:#1c1c1e;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12);padding:0}
+.pcdiv{width:1px;height:18px;background:rgba(0,0,0,.16);flex:none;margin:0 1px}
+.pclab{position:absolute;top:calc(100% + 5px);left:50%;transform:translateX(-50%);font-style:normal;font-size:9.5px;font-weight:600;letter-spacing:.01em;color:#fff;background:rgba(28,28,30,.86);padding:2px 6px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .18s;z-index:2}
+#polychips.showlab .pclab,.pchip:hover .pclab{opacity:1}
+#polychips button:nth-of-type(even) .pclab{top:calc(100% + 26px)}   /* alternadas en dos alturas para no solaparse */
 .pchip.on{background:#0a84ff;color:#fff;border-color:#0a84ff}
 .pchip.pcok{color:#0f9d68}.pchip.pcok.on{background:#0f9d68;color:#fff;border-color:#0f9d68}
 .pchip.pcx{color:#8a8f98}
@@ -3031,9 +3038,26 @@ function arc3d(a,m,b,n){
     out.push(A.clone().addScaledVector(X,cx+r*Math.cos(t)).addScaledVector(Y,cy2+r*Math.sin(t)).toArray());}
   return out;
 }
+function crSeg(p0,p1,p2,p3,n){
+  // tramo Catmull-Rom p1→p2 (spline suave que PASA por los vértices)
+  const out=[];
+  for(let k=0;k<=n;k++){const t=k/n,t2=t*t,t3=t2*t;
+    out.push([0,1,2].map(c=>0.5*((2*p1[c])+(-p0[c]+p2[c])*t+
+      (2*p0[c]-5*p1[c]+4*p2[c]-p3[c])*t2+(-p0[c]+3*p1[c]-3*p2[c]+p3[c])*t3)));}
+  return out;
+}
 function flattenPoly(pd,prov){
   const pts=[],breaks=[0]; const V=pd.verts;
   const seg=(i,aa,bb)=>{
+    if(pd.segTypes[i]==='S'){                      // SPLINE: tangentes por los vértices vecinos
+      const N=V.length;
+      const nb=k=>{
+        if(pd.closed)return V[((k%N)+N)%N];
+        if(k<0)return [2*aa[0]-bb[0],2*aa[1]-bb[1],2*aa[2]-bb[2]];
+        if(k>=N)return [2*bb[0]-aa[0],2*bb[1]-aa[1],2*bb[2]-aa[2]];
+        return V[k];};
+      return crSeg(nb(i-1),aa,bb,nb(i+2),14);
+    }
     if(pd.segTypes[i]==='G'&&pd.guidePts&&pd.guidePts[i]){
       const g=pd.guidePts[i], n=g.length-1;      // tramo GUIADO: se adapta si se editan sus vértices
       const d0=[aa[0]-g[0][0],aa[1]-g[0][1],aa[2]-g[0][2]];
@@ -3051,6 +3075,10 @@ function flattenPoly(pd,prov){
     let s;
     if(pd.guidePath&&pd.guidePath.length>1)s=pd.guidePath;
     else if(pd.nextType==='A'&&pd.arcPending)s=arc3d(V[V.length-1],pd.arcPending,prov,16);
+    else if(pd.nextType==='S'){                    // previsualización del spline hasta la punta
+      const a=V[V.length-1];
+      const p0=V.length>1?V[V.length-2]:[2*a[0]-prov[0],2*a[1]-prov[1],2*a[2]-prov[2]];
+      s=crSeg(p0,a,prov,[2*prov[0]-a[0],2*prov[1]-a[1],2*prov[2]-a[2]],14);}
     else s=[V[V.length-1],prov];
     if(pts.length)pts.pop(); else pts.push(s[0]);
     pts.push(...s.slice(pts.length?0:1)); breaks.push(pts.length-1);
@@ -3067,7 +3095,28 @@ function polyPreviewObj(){
   const f=flattenPoly(polyDraw,polyDraw.dragging?polyDraw.prov:null);
   return {points:f.pts,_breaks:f.breaks,poly:true,color,w:lineW,sobre:'poli'};
 }
-function showPolyChips(){const c=document.getElementById('polychips');c.style.display='flex';positionPolyChips();}
+function showPolyChips(){const c=document.getElementById('polychips');c.style.display='flex';positionPolyChips();maybeChipLabels();}
+// ---- mini-etiquetas de los chips: con Pencil no hay hover, así que se muestran
+// solas las 3 primeras veces que se usa la herramienta; después, pulsación larga
+// sobre los chips. Con ratón, cada chip enseña la suya al pasar por encima (CSS).
+let _labT=null;
+function chipLabels(ms){const c=document.getElementById('polychips');
+  c.classList.add('showlab'); clearTimeout(_labT);
+  _labT=setTimeout(()=>c.classList.remove('showlab'),ms||4200);}
+function maybeChipLabels(){
+  if(!penSeen||window._chipLabShown)return;
+  let n=0; try{n=+localStorage.getItem('tectosChipLab')||0;}catch(e){}
+  if(n>=3)return;
+  window._chipLabShown=true;
+  try{localStorage.setItem('tectosChipLab',n+1);}catch(e){}
+  chipLabels(5200);
+}
+{const pc=document.getElementById('polychips'); let t=null,fired=false,sx=0,sy=0;
+ pc.addEventListener('pointerdown',e=>{fired=false;sx=e.clientX;sy=e.clientY;
+   clearTimeout(t); t=setTimeout(()=>{fired=true;chipLabels(4200);},480);});
+ pc.addEventListener('pointermove',e=>{if(Math.hypot(e.clientX-sx,e.clientY-sy)>8)clearTimeout(t);});
+ ['pointerup','pointercancel','pointerleave'].forEach(ev=>pc.addEventListener(ev,()=>clearTimeout(t)));
+ pc.addEventListener('click',e=>{if(fired){e.stopPropagation();e.preventDefault();fired=false;}},true);}
 function hidePolyChips(){document.getElementById('polychips').style.display='none';}
 function positionPolyChips(){
   if(!polyDraw||!polyDraw.verts.length)return;
@@ -3080,7 +3129,17 @@ function positionPolyChips(){
   c.style.left=x+'px'; c.style.top=y+'px';
   document.getElementById('pcClose').style.display=(polyDraw.verts.length>=3)?'':'none';
   document.getElementById('pcMir').style.display=(polyDraw.verts.length>=2)?'':'none';
+  document.getElementById('pcLine').classList.toggle('on',polyDraw.nextType==='L');
   document.getElementById('pcArc').classList.toggle('on',polyDraw.nextType==='A');
+  document.getElementById('pcSpl').classList.toggle('on',polyDraw.nextType==='S');
+}
+function setPolyType(t){
+  if(!polyDraw)return;
+  polyDraw.nextType=t; if(t!=='A')polyDraw.arcPending=null;
+  positionPolyChips();
+  toast(t==='A'?'Próximo tramo: ARCO (punto de paso + final)'
+       :t==='S'?'Tramos SPLINE: curva suave por los vértices'
+       :'Tramos RECTOS');
 }
 function commitPolyTap(){
   const p=polyDraw.prov; polyDraw.dragging=false; if(!p)return;
@@ -3092,7 +3151,7 @@ function commitPolyTap(){
     if(polyDraw.arcPending){polyDraw.segTypes[i]='A';polyDraw.arcMids[i]=polyDraw.arcPending;polyDraw.arcPending=null;polyDraw.nextType='L';}
     else if(gp){polyDraw.segTypes[i]='G';                       // tramo GUIADO (siguió una guía del cilindro/láser)
       polyDraw.guidePts=polyDraw.guidePts||{}; gp[0]=polyDraw.verts[i].slice(); polyDraw.guidePts[i]=gp;}
-    else polyDraw.segTypes[i]='L';
+    else polyDraw.segTypes[i]=(polyDraw.nextType==='S')?'S':'L';   // el spline es pegajoso, como la recta
     polyDraw.verts.push(p.slice());}
   polyDraw.guidePath=null; polyDraw.guides=null; clearGuideViz();   // las guías se rehacen desde el nuevo vértice
   clearMirror();   // un vértice nuevo invalida el fantasma de simetría
@@ -3177,9 +3236,9 @@ function acceptMirror(){
 }
 document.getElementById('pcMir').onclick=()=>{if(!polyDraw)return;
   if(polyDraw.mirror)acceptMirror(); else showMirrorGhost();};
-document.getElementById('pcArc').onclick=()=>{if(!polyDraw)return;
-  polyDraw.nextType=(polyDraw.nextType==='A')?'L':'A'; if(polyDraw.nextType==='L')polyDraw.arcPending=null;
-  positionPolyChips(); toast(polyDraw.nextType==='A'?'Próximo tramo: ARCO (punto de paso + final)':'Próximo tramo: recta');};
+document.getElementById('pcLine').onclick=()=>setPolyType('L');
+document.getElementById('pcArc').onclick=()=>setPolyType(polyDraw&&polyDraw.nextType==='A'?'L':'A');
+document.getElementById('pcSpl').onclick=()=>setPolyType(polyDraw&&polyDraw.nextType==='S'?'L':'S');
 document.getElementById('pcUndo').onclick=()=>{if(!polyDraw)return;
   if(polyDraw.arcPending){polyDraw.arcPending=null;}
   else if(polyDraw.verts.length){polyDraw.verts.pop(); polyDraw.segTypes.pop();
