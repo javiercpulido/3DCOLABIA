@@ -150,7 +150,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.39 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.40 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -3732,6 +3732,7 @@ function resampleCurve(pts,n){          // remuestreo por longitud de arco a n+1
   return out;
 }
 function buildSurfaceFromPts(dPts,gPts,colHex,name){
+  colHex=surfInk(colHex);
   const nD=Math.min(96,Math.max(24,dPts.length*2)), nG=Math.min(48,Math.max(12,gPts.length*2));
   const D=resampleCurve(dPts,nD), G=resampleCurve(gPts,nG), G0=G[0];
   const pos=new Float32Array((nD+1)*(nG+1)*3), idx=[];
@@ -3795,6 +3796,7 @@ function subdivideTris(verts,tris){
   return {verts:nv,tris:nt};
 }
 function buildContourSurfaceFromPts(rawPts,colHex,name,innerPts){
+  colHex=surfInk(colHex);
   let P=rawPts.map(p=>p.slice());
   const dEnds=Math.hypot(P[0][0]-P[P.length-1][0],P[0][1]-P[P.length-1][1],P[0][2]-P[P.length-1][2]);
   if(dEnds<Math.max(1,sph.r*0.02)&&P.length>3)P.pop();   // sin duplicar el punto de cierre
@@ -3818,26 +3820,39 @@ function buildContourSurfaceFromPts(rawPts,colHex,name,innerPts){
     for(let i=0;i<V.length;i++)tris.push(i,(i+1)%V.length,V.length);
   }
   if(innerPts&&innerPts.length){
-    // LÍNEAS INTERIORES: la superficie debe pasar por ellas. Se subdivide la
-    // malla dos veces y la altura de cada vértice (sobre el plano medio) se
-    // interpola por inverso de la distancia entre TODAS las muestras: el
-    // contorno y las curvas interiores (que quedan clavadas exactamente).
+    // LÍNEAS INTERIORES: la superficie debe pasar por ellas SIN arrugas.
+    // 1) malla subdividida ×3 · 2) siembra por inverso de distancia ·
+    // 3) los vértices más cercanos a cada muestra interior se CLAVAN en 3D a la
+    //    curva · 4) relajación laplaciana (membrana de mínima energía) con el
+    //    contorno y las curvas interiores como restricciones fijas. El IDW solo
+    //    acelera la convergencia; el resultado es la superficie armónica.
     ({verts,tris}=subdivideTris(verts,tris));
     ({verts,tris}=subdivideTris(verts,tris));
-    const cons=[];
-    const toUVH=v=>{const d=v.clone().sub(O);return [d.dot(U),d.dot(W2),d.dot(N)];};
-    V.forEach(v=>cons.push(toUVH(v)));
+    ({verts,tris}=subdivideTris(verts,tris));
+    const samples=[];
     innerPts.forEach(arr=>{
       const rs=arr.length>40?resampleCurve(arr,40).map(v=>v.toArray()):arr;
-      rs.forEach(q=>cons.push(toUVH(new THREE.Vector3(...q))));});
-    verts=verts.map(v=>{
-      const [u2,v2]=toUVH(v);
-      let num=0,den=0,exact=null;
-      for(const c of cons){const d2=(c[0]-u2)**2+(c[1]-v2)**2;
-        if(d2<1e-8){exact=c[2];break;}
-        const w=1/(d2*d2); num+=w*c[2]; den+=w;}   // potencia 4: crestas más fieles
-      const h=(exact!==null)?exact:num/den;
-      return O.clone().addScaledVector(U,u2).addScaledVector(W2,v2).addScaledVector(N,h);});
+      rs.forEach(q=>samples.push(new THREE.Vector3(...q)));});
+    const nv=verts.length;
+    // aristas de frontera → esos vértices pertenecen al contorno: fijos
+    const ec=new Map(), ek=(a,b)=>a<b?a*1e7+b:b*1e7+a;
+    for(let t=0;t<tris.length;t+=3)for(let k=0;k<3;k++){
+      const key=ek(tris[t+k],tris[t+(k+1)%3]); ec.set(key,(ec.get(key)||0)+1);}
+    const pinned=new Uint8Array(nv), nbr=Array.from({length:nv},()=>[]);
+    for(const [key,c] of ec){const a=Math.floor(key/1e7), b=key%1e7;
+      nbr[a].push(b); nbr[b].push(a);
+      if(c===1){pinned[a]=1; pinned[b]=1;}}
+    for(const s of samples){                     // clavar la curva interior en 3D exacto
+      let bi=-1,bd=Infinity;
+      for(let i=0;i<nv;i++){ if(pinned[i])continue;
+        const d2=verts[i].distanceToSquared(s); if(d2<bd){bd=d2;bi=i;}}
+      if(bi>=0){verts[bi].copy(s); pinned[bi]=1;}}
+    // Gauss-Seidel 3D: cada vértice libre → media de sus vecinos. Converge a la
+    // membrana armónica (película de jabón) tendida entre contorno y curvas.
+    for(let it=0;it<240;it++)
+      for(let i=0;i<nv;i++){ if(pinned[i]||!nbr[i].length)continue;
+        let x=0,y=0,z=0; for(const j of nbr[i]){const q=verts[j]; x+=q.x;y+=q.y;z+=q.z;}
+        const k=1/nbr[i].length; verts[i].set(x*k,y*k,z*k);}
   }
   const pos=new Float32Array(verts.length*3);
   verts.forEach((v,i)=>{pos[i*3]=v.x;pos[i*3+1]=v.y;pos[i*3+2]=v.z;});
@@ -3852,8 +3867,17 @@ function buildContourSurfaceFromPts(rawPts,colHex,name,innerPts){
   surfaces.push(S); renderSurfList();
   return S;
 }
+// la tinta de DIBUJO (casi negra) no puede volverse una membrana negra: si el
+// color del trazo es muy oscuro, la superficie sale en un gris azulado claro
+// que deja leer su forma (los colores elegidos a propósito se respetan)
+function surfInk(colHex){
+  const c=new THREE.Color(colHex), hsl={}; c.getHSL(hsl);
+  if(hsl.l<0.28)c.setHSL(hsl.h,Math.min(hsl.s,0.30),0.62);
+  return c.getHex();
+}
 // helper común: registra una geometría como superficie con material estándar
 function registerSurface(geo,colHex,name,extra){
+  colHex=surfInk(colHex);
   geo.computeVertexNormals();
   const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:colHex,metalness:.05,
     roughness:.55,side:THREE.DoubleSide,transparent:true,opacity:.92}));

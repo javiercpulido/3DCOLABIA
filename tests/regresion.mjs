@@ -258,6 +258,17 @@ const secciones = {
         let best = 0; for (let i = 0; i < pos.count; i++) if (Math.abs(pos.getX(i) - 30) < 3 && Math.abs(pos.getY(i) - 75) < 3) best = Math.max(best, pos.getZ(i));
         return best > 4.5; })();
       out.crest = crest;
+      // membrana armónica: la superficie pasa EXACTAMENTE por la curva interior
+      const S0m = D.surfaces[0].mesh.geometry.attributes.position;
+      let dInner = Infinity;
+      const gm = inner[8]; // muestra central de la curva interior
+      for (let i = 0; i < S0m.count; i++)
+        dInner = Math.min(dInner, Math.hypot(S0m.getX(i) - gm[0], S0m.getY(i) - gm[1], S0m.getZ(i) - gm[2]));
+      out.clavada = dInner < 1e-6;
+      // tinta oscura → membrana clara (no negra); color elegido (azul) se respeta
+      const hsl1 = {}; D.surfaces[1].mesh.material.color.getHSL(hsl1);
+      const hsl0 = {}; D.surfaces[0].mesh.material.color.getHSL(hsl0);
+      out.tinta = hsl1.l > 0.4 && Math.abs(hsl0.h - 0.578) < 0.08;
       const row = document.querySelector('#surfList .secrow');
       out.fila = !!(row && row.querySelector('[data-sv]') && row.querySelector('[data-sk]') && row.querySelector('[data-sx]'));
       const S0 = D.surfaces[0]; S0.locked = true;
@@ -269,6 +280,8 @@ const secciones = {
     ok('submenú de superficies con 10 modos', r.menu);
     ok('los 9 constructores crean superficie y exportan su tipo', r.n === 9 && r.kinds);
     ok('cara con línea interior respeta la cresta', r.crest);
+    ok('membrana armónica clavada a la curva interior (0 mm)', r.clavada);
+    ok('tinta oscura → superficie clara · color elegido se respeta', r.tinta);
     ok('fila tipo pieza (ojo·candado·papelera) y candado bloquea borrar', r.fila && r.lockBorra);
   },
 
