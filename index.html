@@ -150,7 +150,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.40 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.41 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -503,6 +503,9 @@ gridDark.position.copy(grid.position); gridDark.visible=false; scene.add(gridDar
 // Se calcula al cargar y se RECALCULA cuando una pieza se mueve o gira.
 let interPairs=[], interOn=true;
 function computeIntersections(){
+  // una pieza pudo moverse/girar: su guía cilíndrica cacheada (en coords de mundo)
+  // queda obsoleta → se recalcula la próxima vez que un OSNAP la necesite
+  for(const nm in pieces)pieces[nm].userData._cyl=undefined;
   interPairs.forEach(ip=>{scene.remove(ip.l1);scene.remove(ip.l2);
     ip.l1.geometry.dispose();ip.l1.material.dispose();ip.l2.material.dispose();});
   interPairs=[];
@@ -902,7 +905,7 @@ function glue(pts){
     const q=(p.toArray)?p.clone():new THREE.Vector3(...p);
     const o=q.clone().addScaledVector(dir,-80); rc.set(o,dir);
     const hits=rc.intersectObjects(pickables.filter(x=>x.visible),false);
-    if(hits.length)return hits[0].point.clone().addScaledVector(dir,-0.6).toArray();
+    if(hits.length)return liftOff(hits[0]).toArray();
     return q.toArray();});
 }
 function snapPt(parr,exclude){
@@ -910,10 +913,12 @@ function snapPt(parr,exclude){
   const rct=renderer.domElement.getBoundingClientRect();
   const scr=p=>{const v=new THREE.Vector3(...p).project(cam);
     return [(v.x*0.5+0.5)*rct.width,(-v.y*0.5+0.5)*rct.height,v.z];};
-  const q=scr(parr); let best=null,bd=196;
+  const q=scr(parr); const P3=new THREE.Vector3(...parr); let best=null,bd=196;
+  const cap=R*0.6;   // no saltar a un extremo del otro lado del modelo (chequeo 3D)
   for(const st of strokes){ if(st===exclude)continue;
     for(const cand of [st.points[0],st.points[st.points.length-1]]){
       const c=scr(cand); if(c[2]>1)continue;
+      if(P3.distanceTo(new THREE.Vector3(...cand))>cap)continue;
       const d=(c[0]-q[0])**2+(c[1]-q[1])**2;
       if(d<bd){bd=d;best=cand;}}}
   return best?best.slice():null;}
@@ -939,7 +944,39 @@ function postLine(st,pts){
   const o=[];for(let i=0;i<=24;i++)o.push(a.clone().lerp(nb,i/24).toArray());
   return o;
 }
-function offPt(h){return h.point.clone().addScaledVector(cam.getWorldDirection(new THREE.Vector3()),-0.6);}
+// realinea el marco (U/V/pts2) de una línea a sus DOS extremos actuales SIN moverlos:
+// se usa cuando el extremo está clavado a un OSNAP y no debe enderezarse al eje.
+function reframeLine(st){
+  const pts=st.points; if(!pts||pts.length<2||!st.reg)return;
+  const a=new THREE.Vector3(...pts[0]), b=new THREE.Vector3(...pts[pts.length-1]);
+  const d=b.clone().sub(a), L=d.length(); if(L<1e-6)return;
+  const U=d.multiplyScalar(1/L);
+  st.reg.c=a.clone(); st.reg.U=U.clone();
+  st.reg.V=Math.abs(U.z)>0.9?new THREE.Vector3(1,0,0):new THREE.Vector3(0,0,1).cross(U).normalize();
+  st.reg.pts2=[[0,0],[L,0]];
+}
+// clava un extremo de una polilínea en un punto exacto REPARTIENDO la corrección
+// sobre los últimos puntos (mezcla suave): así no queda un codo en el último tramo.
+function blendEndTo(points,atEnd,target){
+  const n=points.length; if(n<2)return;
+  const i0=atEnd?n-1:0;
+  const d=[target[0]-points[i0][0],target[1]-points[i0][1],target[2]-points[i0][2]];
+  const K=Math.min(n-1,8);
+  for(let k=0;k<=K;k++){const idx=atEnd?n-1-k:k, w=1-k/(K+1);
+    points[idx]=[points[idx][0]+d[0]*w,points[idx][1]+d[1]*w,points[idx][2]+d[2]*w];}
+}
+// levanta el punto tocado un pelín SOBRE la cara (por su NORMAL, no por la
+// dirección de cámara) para que el trazo se dibuje delante sin z-fighting y sin
+// desplazarse lateralmente. El épsilon es proporcional al tamaño del modelo:
+// exacto sobre el OSNAP en modelos grandes y pequeños por igual.
+function liftOff(h){
+  const view=cam.getWorldDirection(new THREE.Vector3());
+  let n=(h.face&&h.object)?h.face.normal.clone().transformDirection(h.object.matrixWorld):view.clone().negate();
+  if(n.lengthSq()<1e-9)n=view.clone().negate(); n.normalize();
+  if(n.dot(view)>0)n.negate();                 // hacia la cámara
+  return h.point.clone().addScaledVector(n,Math.max(0.03,R*0.0025));
+}
+function offPt(h){return liftOff(h);}
 function castAt(e){ndc(e);let hits=ray.intersectObjects(pickables.filter(p=>p.visible),false);return hits.length?hits[0]:null;}
 function planePoint(e,dist){ndc(e);return ray.ray.at(dist,new THREE.Vector3());}
 const HAIRLINE=0.26;   // por debajo de esto el trazo se dibuja como LÍNEA de 1px (tipo arista de SketchUp)
@@ -1510,6 +1547,12 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     if(drawMode==='laser'){   // CALCO LÁSER: calca líneas láser, aristas y guías de cilindro
       buildCalcoPolys(); const hit=nearestLaserVertexScreen(e);
       if(!hit){toast('Acerca el lápiz a un láser, una arista o una guía'); return;}
+      // ARRANQUE con imán en vivo: si hay un OSNAP exacto a <16px del vértice de
+      // guía, engancha el vértice más cercano a él y destella (empieza clavado)
+      if(mag){const sq=snapQueryWorld(hit.poly[hit.idx].toArray(),16);
+        if(sq){const P=new THREE.Vector3(sq.p[0],sq.p[1],sq.p[2]); let bi=hit.idx,bd=1/0;
+          for(let i=0;i<hit.poly.length;i++){const dd=hit.poly[i].distanceToSquared(P); if(dd<bd){bd=dd;bi=i;}}
+          hit.idx=bi; flashSnapFix(sq.p,sq.kind);}}
       const closed=(hit.poly.length>2&&hit.poly[0].distanceTo(hit.poly[hit.poly.length-1])<Math.max(0.1,sph.r*0.01));
       drawing={points:[hit.poly[hit.idx].toArray()],color,w:lineW,sobre:'laser',laserArc:{poly:hit.poly,start:hit.idx,closed}};
       drawDist=cam.position.distanceTo(hit.poly[hit.idx]); lastMoveT=performance.now(); return;
@@ -1850,7 +1893,13 @@ addEventListener('pointermove',e=>{
       else reg.circ.r=Math.hypot(q[0]-reg.circ.cx,q[1]-reg.circ.cy);}
     s.points=genPoints(reg)||s.points;
     if((mag||s.magLock)&&s.sobre!=='aire')s.points=glue(s.points);
-    s.points=postLine(s,s.points);
+    // OSNAP EXACTO vs enderezado: si el extremo arrastrado está clavado a un OSNAP
+    // (y no hay eje bloqueado), el OSNAP manda — el extremo queda EXACTO sobre él y
+    // el marco se realinea, en vez de que postLine lo desplace al eje más próximo.
+    const osnapPinned=(reg.tipo==='linea'&&_snapState&&_snapState.mode==='mag'&&!axLock);
+    if(osnapPinned){const di=(handDrag.role==='p0')?0:s.points.length-1;
+      s.points[di]=[p.x,p.y,p.z]; reframeLine(s);}
+    else s.points=postLine(s,s.points);
     if(reg.tipo==='linea'&&s.points.length>1){const a=new THREE.Vector3(...s.points[0]),b=new THREE.Vector3(...s.points[s.points.length-1]);showDrawTag(p,a.distanceTo(b).toFixed(1)+' mm');}
     contactProbe(s);
     redraw();return;}
@@ -2023,7 +2072,7 @@ function endPointer(e){
     if(drawing.laserArc){   // CALCO: los DOS extremos se claven en OSNAP exactos si hay uno cerca
       if(mag)for(const wi of [0,drawing.points.length-1]){
         const q=snapQueryWorld(drawing.points[wi],14);
-        if(q){drawing.points[wi]=q.p.slice(); if(wi>0)flashSnapFix(q.p,q.kind);}}
+        if(q){blendEndTo(drawing.points,wi>0,q.p); if(wi>0)flashSnapFix(q.p,q.kind);}}   // mezcla suave: sin codo
       delete drawing.laserArc;}   // suelta la polilínea de referencia
     let selLine=null;
     if(drawing.straight){   // RECTA → línea regular (con tiradores y longitud editable)
@@ -3216,17 +3265,35 @@ function nearestVertexOnPolyScreen(e,poly){
 // (azul = guía, verde = fijado). Un solo glifo iluminado a la vez; "respira" al
 // insinuarse y muestra un halo al imantarse. Tamaño constante en pantalla.
 let _snapPts=null;
+// punto MEDIO por LONGITUD DE ARCO (no por índice): una recta guardada con solo
+// 2 puntos daba el △ sobre el extremo final; ahora cae en el centro real.
+function midByArc(pts){
+  if(!pts||!pts.length)return pts?pts[0]:null;
+  if(pts.length===1)return pts[0].slice();
+  const seg=[]; let L=0;
+  for(let i=1;i<pts.length;i++){const d=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1],pts[i][2]-pts[i-1][2]);seg.push(d);L+=d;}
+  if(L<1e-9)return pts[0].slice();
+  let half=L/2,acc=0;
+  for(let i=1;i<pts.length;i++){
+    if(acc+seg[i-1]>=half){const f=(half-acc)/seg[i-1];
+      return [pts[i-1][0]+(pts[i][0]-pts[i-1][0])*f, pts[i-1][1]+(pts[i][1]-pts[i-1][1])*f, pts[i-1][2]+(pts[i][2]-pts[i-1][2])*f];}
+    acc+=seg[i-1];}
+  return pts[pts.length-1].slice();
+}
 function buildSnapPts(exclude,noLaser){
   const pts=[]; const add=(p,kind)=>pts.push({p:(p.toArray?p.toArray():p.slice?p.slice():p),kind});
   for(const st of strokes){
     if(exclude&&(st===exclude||(Array.isArray(exclude)&&exclude.includes(st))))continue;
     const n=st.points.length; if(n<2)continue;
-    add(st.points[0],'end'); add(st.points[n-1],'end');
-    if(st.reg&&st.reg.tipo==='circulo'){
+    const isCirc=st.reg&&st.reg.tipo==='circulo';
+    // un CÍRCULO o una forma CERRADA no tiene extremos: nada de fantasma □
+    const closed=isCirc||Math.hypot(st.points[0][0]-st.points[n-1][0],st.points[0][1]-st.points[n-1][1],st.points[0][2]-st.points[n-1][2])<Math.max(0.05,sph.r*0.004);
+    if(!closed){add(st.points[0],'end'); add(st.points[n-1],'end');}
+    if(isCirc){
       const cc=st.reg.circ, c3=to3(st.reg,[cc.cx,cc.cy]); add(c3,'center');
       for(const a of [0,Math.PI/2,Math.PI,1.5*Math.PI])
         add(to3(st.reg,[cc.cx+cc.r*Math.cos(a),cc.cy+cc.r*Math.sin(a)]),'quad');
-    } else add(st.points[(n/2)|0],'mid');
+    } else add(midByArc(st.points),'mid');
   }
   // CILINDROS: intersecciones ✕ de sus líneas de cuadrante con las demás piezas,
   // y cuadrantes ◇ de las circunferencias de sus extremos
@@ -4568,7 +4635,8 @@ get selDrag(){return selDrag},get gizDrag(){return gizDrag},get axLock(){return 
 _polyStart(p){polyDraw={verts:[p.slice()],segTypes:[],arcMids:{},guidePts:{},nextType:'L',arcPending:null,dragging:false,prov:null};showPolyChips();redraw();},
 _polyVert(p){if(!polyDraw)return;polyDraw.prov=p.slice();polyDraw.dragging=true;commitPolyTap();},
 get applyImport(){return applyImport},get autosave(){return autosave},
-get rendererInfo(){return renderer.info.memory},updateLivePreview,nearestVertexOnPolyScreen,get liveObj(){return _liveObj},get strokeCache(){return _strokeObjs},get noteCache(){return _noteObjs}};
+get rendererInfo(){return renderer.info.memory},updateLivePreview,nearestVertexOnPolyScreen,get liveObj(){return _liveObj},get strokeCache(){return _strokeObjs},get noteCache(){return _noteObjs},
+computeIntersections,snapPt,midByArc};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());

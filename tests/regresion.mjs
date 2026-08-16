@@ -453,6 +453,50 @@ const secciones = {
     ok('barra «Recuperar» aparece y restaura el trabajo', r2.bar && r2.recovered && r2.gone);
   },
 
+  async precision_osnap() {   // FASE 2: exactitud de OSNAP y guías
+    const r = await page.evaluate(async () => {
+      const D = window._dbg, out = {};
+      // △ punto medio por LONGITUD DE ARCO: una recta de 2 puntos daba el △ en el extremo
+      const linea = { points: [[0, 0, 0], [40, 0, 0]], color: '#000', w: 0.2, sobre: 't' };
+      D.strokes.push(linea);
+      let sp = D.buildSnapPts(null, true);
+      const mid = sp.find(q => q.kind === 'mid');
+      out.midArc = !!mid && Math.abs(mid.p[0] - 20) < 1e-6 && Math.abs(mid.p[1]) < 1e-6;
+      // CÍRCULO: sin fantasma □ de extremo, con centro ⊙ y cuadrantes ◇
+      const circ = { points: [], color: '#000', w: 0.2, sobre: 't',
+        reg: { tipo: 'circulo', c: new THREE.Vector3(0, 0, 0), U: new THREE.Vector3(1, 0, 0), V: new THREE.Vector3(0, 1, 0),
+          circ: { cx: 0, cy: 30, r: 10 } } };
+      // muestrear el círculo en points para que closed lo detecte también por geometría
+      for (let i = 0; i <= 24; i++) { const a = 2 * Math.PI * i / 24; circ.points.push([10 * Math.cos(a), 30 + 10 * Math.sin(a), 0]); }
+      D.strokes.push(circ);
+      sp = D.buildSnapPts(null, true);
+      const delCirc = sp.filter(q => Math.abs(q.p[1] - 30) < 11 && Math.hypot(q.p[0], q.p[1] - 30, q.p[2]) <= 10.5 + 1);
+      out.circNoEnd = !delCirc.some(q => q.kind === 'end') &&
+        delCirc.some(q => q.kind === 'center') && delCirc.filter(q => q.kind === 'quad').length >= 4;
+      // imán de extremos con TOPE 3D: escenario controlado en la MISMA línea de
+      // visión (idéntica proyección en pantalla) pero lejos en 3D → no debe saltar
+      D.strokes.length = 0;
+      const cam = D.cam, Q = new THREE.Vector3(0, 0, 0);
+      const dir = Q.clone().sub(cam.position); const dist = dir.length(); dir.normalize();
+      const B = cam.position.clone().addScaledVector(dir, dist * 3);   // misma pantalla, 3× más lejos
+      D.strokes.push({ points: [B.toArray(), B.clone().add(new THREE.Vector3(5, 0, 0)).toArray()], color: '#000', w: 0.2, sobre: 't' });
+      const rFar = D.snapPt(Q.toArray(), null);        // único candidato en pantalla = B, más allá del tope → null
+      D.strokes.push({ points: [Q.toArray(), [5, 0, 0]], color: '#000', w: 0.2, sobre: 't' });
+      const rNear = D.snapPt([0.3, 0.3, 0], null);     // extremo en Q, dentro del tope → engancha
+      out.cap3d = !rFar && !!rNear && Math.hypot(rNear[0], rNear[1], rNear[2]) < 1e-6;
+      // caché del cilindro invalidada al mover una pieza
+      const m = D.pieces['2 cuello']; const c0 = D.pieceCylGuide(m);
+      if (c0) { const x0 = c0.C.x; m.position.x += 25; D.computeIntersections();
+        const c1 = D.pieceCylGuide(m); out.cylFresh = !!c1 && Math.abs(c1.C.x - (x0 + 25)) < 2; m.position.x -= 25; D.computeIntersections(); }
+      else out.cylFresh = true;
+      return out;
+    });
+    ok('△ punto medio por longitud de arco (recta de 2 puntos)', r.midArc);
+    ok('círculo: sin fantasma □, con ⊙ centro y ◇ cuadrantes', r.circNoEnd);
+    ok('imán de extremos con tope 3D (no salta al otro lado)', r.cap3d);
+    ok('caché de cilindro se refresca al mover la pieza', r.cylFresh);
+  },
+
   async rendimiento() {   // FASE 1: redibujado incremental, sin fuga de GPU
     const r = await page.evaluate(async () => {
       const D = window._dbg, out = {};
