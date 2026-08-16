@@ -541,12 +541,24 @@ const secciones = {
       const ex = D.buildExport ? window.buildExport() : null;
       const json = JSON.stringify(ex || {});
       out.fueraExport = !/rejilla|gridhelper|"suelo"/i.test(json);
+      // DATUM: esquina 0,0 en el suelo, ejes ahí, y sigue al suelo (cota 0)
+      const o0 = D.datumOrigin();
+      out.datumCorner = Math.abs(o0.x - (D.floor.x - 150)) < 1e-6 && Math.abs(o0.y - (D.floor.y - 150)) < 1e-6 && Math.abs(o0.z - D.floor.z) < 1e-6;
+      out.axesEnDatum = Math.abs(D.axesObj.position.x - o0.x) < 1e-6 && Math.abs(D.axesObj.position.z - o0.z) < 1e-6;
+      document.getElementById('floorUp').click();   // subir cota 0 → el datum sube con el suelo
+      out.datumSigue = Math.abs(D.datumOrigin().z - (o0.z + 5)) < 1e-6 && Math.abs(D.axesObj.position.z - (o0.z + 5)) < 1e-6;
+      document.getElementById('floorReset').click();
+      // lectura relativa al datum (cota): el hud usa X/Y/cota
+      D.updateCoordHud({ target: document.querySelector('canvas'), clientX: 600, clientY: 400 });
+      out.lectura = /cota/.test(document.getElementById('hud').textContent);
       return out;
     });
     ok('suelo: ojo oculta y muestra la rejilla', r.eyeExiste && r.oculto && r.visible);
     ok('suelo: altura por flechas y por casilla', r.sube && r.campo);
     ok('suelo: desplazamiento en planta y «Centrar»', r.mueve && r.centra);
     ok('suelo: capa de fondo (fuera de geometría y de la exportación)', r.fueraGeo && r.fueraExport);
+    ok('datum: esquina 0,0 en el suelo, ejes ahí, cota 0 sigue al suelo', r.datumCorner && r.axesEnDatum && r.datumSigue);
+    ok('datum: lectura de coordenadas relativa (X · Y · cota)', r.lectura);
   },
 
   async rendimiento() {   // FASE 1: redibujado incremental, sin fuga de GPU

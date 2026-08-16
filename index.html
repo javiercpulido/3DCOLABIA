@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.43 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.44 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -371,7 +371,7 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <div id="floorRow" style="margin-top:8px">
   <div style="display:flex;align-items:center;gap:6px">
    <button type="button" class="peye on" data-floor-eye title="Ver / ocultar el suelo (rejilla)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
-   <b style="flex:1">Suelo</b><span style="color:var(--mut);font-size:10px">rejilla 10 mm · capa de fondo</span>
+   <b style="flex:1">Suelo</b><span style="color:var(--mut);font-size:10px">cota 0 · esquina 0,0 · capa de fondo</span>
   </div>
   <div style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;color:var(--mut)">
    <span style="width:42px">Altura</span>
@@ -529,12 +529,13 @@ scene.add(grid); scene.add(gridDark);
 // y NO se incluye en las exportaciones (JSON/IFC BIM). Se puede ocultar con el ojo
 // y mover en altura y en planta, como una superficie más.
 const floorZ0=bbox.min.z-2;
-let floorZ=floorZ0, floorX=C.x, floorY=C.y, floorOn=true;
+let floorZ=floorZ0, floorX=C.x, floorY=C.y, floorOn=true, _datumReady=false;
 function applyFloor(){
   grid.position.set(floorX,floorY,floorZ); gridDark.position.copy(grid.position);
   grid.visible=floorOn&&!darkView; gridDark.visible=floorOn&&darkView;
   const e=document.querySelector('[data-floor-eye]'); if(e)e.classList.toggle('on',floorOn);
   const h=document.getElementById('floorZ'); if(h&&document.activeElement!==h)h.value=(floorZ-floorZ0).toFixed(0);
+  if(_datumReady)applyDatum();   // el datum (cota 0 · esquina 0,0) sigue al suelo
 }
 // posición inicial en línea (applyFloor usa darkView, aún no declarado aquí)
 grid.position.set(floorX,floorY,floorZ); gridDark.position.copy(grid.position); gridDark.visible=false;
@@ -752,7 +753,40 @@ function applySec(){
   lasers.forEach(L=>{L.matA.clippingPlanes=planes;L.matB.clippingPlanes=planes;});
   updatePoche();
 }
-let axes=new THREE.AxesHelper(40); axes.position.copy(bbox.min.clone().add(new THREE.Vector3(-8,-8,0))); scene.add(axes);
+let axes=new THREE.AxesHelper(40); scene.add(axes);
+// ---- DATUM (cota 0 = plano del suelo) ----
+// La esquina del suelo es el PUNTO BASE 0,0 del proyecto: ahí nacen los ejes de
+// color y desde ahí se leen las coordenadas — X, Y y COTA (altura sobre el suelo).
+// No cambia las coordenadas internas del modelo; es sólo la referencia visible.
+function datumOrigin(){return new THREE.Vector3(floorX-150,floorY-150,floorZ);}
+let _axesOn=true;
+let datumLbl=(function(){
+  const f='700 34px -apple-system,system-ui,sans-serif';
+  const cv=document.createElement('canvas'); let g=cv.getContext('2d'); g.font=f;
+  const t='0,0', w=Math.ceil(g.measureText(t).width); cv.width=w+8; cv.height=42;
+  g=cv.getContext('2d'); g.font=f; g.textBaseline='middle'; g.fillStyle='#e5433c'; g.fillText(t,4,23);
+  const tex=new THREE.CanvasTexture(cv); tex.minFilter=THREE.LinearFilter;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));
+  sp.userData.aspect=cv.width/cv.height; sp.renderOrder=13; scene.add(sp); return sp;
+})();
+function applyDatum(){
+  const o=datumOrigin();
+  axes.position.copy(o); axes.visible=_axesOn;
+  datumLbl.position.copy(o).add(new THREE.Vector3(-1.5,-1.5,0)); datumLbl.visible=_axesOn&&floorOn;
+}
+function updateDatumLabelScale(){const s=32*wppAt(datumLbl.position); datumLbl.scale.set(s*datumLbl.userData.aspect,s,1);}
+// lectura viva de coordenadas relativas al datum (X · Y · cota) al pasar el puntero
+function updateCoordHud(e){
+  if(e.target!==renderer.domElement)return;   // sólo sobre el lienzo
+  ndc(e); let p=null;
+  const hits=ray.intersectObjects(pickables.filter(x=>x.visible),false);
+  if(hits.length)p=hits[0].point;
+  else{const pl=new THREE.Plane(new THREE.Vector3(0,0,1),-floorZ); p=ray.ray.intersectPlane(pl,new THREE.Vector3());}
+  if(!p)return;
+  const o=datumOrigin();
+  document.getElementById('hud').textContent='X '+(p.x-o.x).toFixed(1)+' · Y '+(p.y-o.y).toFixed(1)+' · cota '+(p.z-floorZ).toFixed(1)+' mm';
+}
+_datumReady=true; applyDatum();
 
 // ---- camara orbital (Z arriba) — perspectiva u ortografica ----
 let target=C.clone(), sph={r:R*(vh()>vw()?3.2:2.2),th:-1.05,ph:1.15};
@@ -2075,7 +2109,7 @@ addEventListener('pointermove',e=>{
       updateLivePreview();}
     return;}
   if(imgDrag){let p=planePoint(e,imgDrag.dist);imgDrag.rec.mesh.position.copy(p);return;}
-  if(!dragging)return;
+  if(!dragging){updateCoordHud(e); return;}   // hover: coordenadas relativas al datum
   if(_tapDeselect){const mdx=e.clientX-_tapDeselect.x,mdy=e.clientY-_tapDeselect.y;
     if(mdx*mdx+mdy*mdy>36)_tapDeselect.moved=true;}   // se movió = es órbita, no deselección
   let dx=(e.clientX-lastX)/W,dy=(e.clientY-lastY)/H;lastX=e.clientX;lastY=e.clientY;
@@ -4646,7 +4680,7 @@ document.getElementById('vDark').onclick=()=>{
 document.getElementById('vInv').onclick=()=>setInv(!invView);
 document.getElementById('invA').oninput=e=>{invAlpha=Math.max(0.1,(+e.target.value||85)/100);
   if(invView)applyMode();};
-document.getElementById('axes').onchange=e=>axes.visible=e.target.checked;
+document.getElementById('axes').onchange=e=>{_axesOn=e.target.checked; applyDatum();};
 
 // ---- export / import ----
 function buildExport(){
@@ -4696,7 +4730,8 @@ _polyVert(p){if(!polyDraw)return;polyDraw.prov=p.slice();polyDraw.dragging=true;
 get applyImport(){return applyImport},get autosave(){return autosave},
 get rendererInfo(){return renderer.info.memory},updateLivePreview,nearestVertexOnPolyScreen,get liveObj(){return _liveObj},get strokeCache(){return _strokeObjs},get noteCache(){return _noteObjs},
 computeIntersections,snapPt,midByArc,get lineW(){return lineW},
-get grid(){return grid},get gridDark(){return gridDark},get floor(){return {on:floorOn,z:floorZ,z0:floorZ0,x:floorX,y:floorY}},get pickables(){return pickables}};
+get grid(){return grid},get gridDark(){return gridDark},get floor(){return {on:floorOn,z:floorZ,z0:floorZ0,x:floorX,y:floorY}},get pickables(){return pickables},
+datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes}};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());
@@ -5046,7 +5081,7 @@ applyMode();   // asegura la configuración del poché (stencil) tras crear las 
     const on=interOn&&pieces[ip.a]&&pieces[ip.a].visible&&pieces[ip.b]&&pieces[ip.b].visible;
     ip.l1.visible=on; ip.l2.visible=on;});
   if(gizmo&&gizmo.visible){const L=Math.max(10,sph.r*0.12);gizmo.scale.set(L,L,L);}
-  updateSilh(); updateSecMarkers(); updateNoteScales(); updateSnapGlyphs();
+  updateSilh(); updateSecMarkers(); updateNoteScales(); updateSnapGlyphs(); updateDatumLabelScale();
   if(polyDraw)positionPolyChips();
   renderer.render(scene,cam);})();
 </script>
