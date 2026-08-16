@@ -427,6 +427,16 @@ const secciones = {
       lwn.value = '0.15'; lwn.dispatchEvent(new Event('input', { bubbles: true }));
       document.getElementById('lwDn').click();
       out.clamp = Math.abs(D.lineW - 0.15) < 1e-9;
+      // GROSOR VISUAL (aristas, px) independiente del grosor real (mm)
+      const en = document.getElementById('edgeNum');
+      out.edgeExiste = !!en && en.type === 'number';
+      en.value = '3'; en.dispatchEvent(new Event('input', { bubbles: true }));
+      out.edgeSet = Math.abs(D.edgePx - 3) < 1e-9;
+      // una arista (w ≤ HAIRLINE) se dibuja como fatLine (malla con atributo pA), no THREE.Line 1px
+      const se = { points: [[0, 0, 0], [30, 0, 0]], color: '#111', w: 0.2, sobre: 't' };
+      D.strokes.push(se); D.redraw();
+      const o = D.strokeCache.get(se);
+      out.fatEdge = !!o && o.isMesh === true && !!o.geometry.getAttribute('pA');
       // paleta de colores ampliada
       const sws = document.querySelectorAll('#colors .sw');
       out.paleta = sws.length >= 14;
@@ -438,8 +448,9 @@ const secciones = {
         document.querySelectorAll('#polychips .pclab').length === 8;
       return out;
     });
-    ok('grosor: casilla numérica precisa, sin deslizador, con flechas ▲/▼', r.spinner && r.noSlider && r.arrows);
-    ok('grosor: teclear y flechas de paso fino (0,05 mm) con tope', r.typed && r.stepDn && r.stepUp && r.clamp);
+    ok('grosor real (mm): casilla precisa, sin deslizador, con flechas ▲/▼', r.spinner && r.noSlider && r.arrows);
+    ok('grosor real (mm): teclear y flechas de paso fino (0,05 mm) con tope', r.typed && r.stepDn && r.stepUp && r.clamp);
+    ok('grosor visual (aristas, px) independiente y aristas como fatLine', r.edgeExiste && r.edgeSet && r.fatEdge);
     ok('paleta de colores ampliada (≥14) y selección', r.paleta && r.eligeColor);
     ok('chips de la Poli con sus 8 mini-etiquetas', r.chips);
   },

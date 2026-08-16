@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.48 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.49 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -378,16 +378,26 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
 <div id="side" class="pill"><div class="grip" data-grip title="Mover panel" style="width:100%;height:14px;margin:-4px 0 4px"><svg width="20" height="10" viewBox="0 0 40 12" fill="currentColor"><circle cx="14" cy="6" r="1.5"/><circle cx="20" cy="6" r="1.5"/><circle cx="26" cy="6" r="1.5"/></svg></div><div style="display:flex;align-items:center;justify-content:space-between"><b>Piezas</b><button id="pieceAlphaTgl" title="Transparencia por pieza" style="border:0;background:transparent;color:var(--mut);cursor:pointer;padding:2px;border-radius:7px;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z"/><path d="M9 14a3 3 0 0 0 3 3" opacity=".5"/></svg></button></div><div id="pieces"></div>
  <div style="margin-top:8px"><b>Opacidad</b><br><input type="range" id="op" min="15" max="100" value="100"></div>
  <div id="invARow" style="margin-top:6px;display:none"><b>Transparencia volúmenes (invertido)</b><br><input type="range" id="invA" min="10" max="100" value="85"></div>
- <div style="margin-top:6px"><b>Grosor trazo</b><br>
+ <div style="margin-top:6px"><b>Grosor visual (aristas)</b><br>
   <span style="display:flex;align-items:center;gap:6px;margin-top:2px">
-   <input type="number" id="lwNum" min="0.15" max="3" step="0.05" value="0.2" inputmode="decimal" title="Grosor en mm (≤0.26 = línea fina de 1px)" style="width:74px;font-size:13px;padding:5px 6px;border:1px solid #ddd;border-radius:8px;text-align:right">
+   <input type="number" id="edgeNum" min="0.5" max="6" step="0.25" value="1.6" inputmode="decimal" title="Ancho en píxeles (constante en pantalla) de todas las aristas/líneas finas" style="width:74px;font-size:13px;padding:5px 6px;border:1px solid #ddd;border-radius:8px;text-align:right">
+   <span style="color:var(--mut);font-size:11px">px</span>
+   <span style="display:flex;flex-direction:column;gap:3px">
+    <button type="button" id="edgeUp" class="lwstep" title="Aristas más gruesas (+0,25 px)"><svg width="13" height="8" viewBox="0 0 14 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7 7 2l5 5"/></svg></button>
+    <button type="button" id="edgeDn" class="lwstep" title="Aristas más finas (−0,25 px)"><svg width="13" height="8" viewBox="0 0 14 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2 7 7l5-5"/></svg></button>
+   </span>
+  </span>
+  <span style="font-size:10px;color:var(--mut)">cómo se ven TODAS las líneas en pantalla (láser aparte, en su menú)</span></div>
+ <div style="margin-top:6px"><b>Grosor real (mm)</b> <span style="color:var(--mut);font-size:10px">· material</span><br>
+  <span style="display:flex;align-items:center;gap:6px;margin-top:2px">
+   <input type="number" id="lwNum" min="0.15" max="3" step="0.05" value="0.2" inputmode="decimal" title="Grosor físico en mm: por encima de 0,26 el trazo pasa a ser un TUBO con volumen real (material)" style="width:74px;font-size:13px;padding:5px 6px;border:1px solid #ddd;border-radius:8px;text-align:right">
    <span style="color:var(--mut);font-size:11px">mm</span>
    <span style="display:flex;flex-direction:column;gap:3px">
     <button type="button" id="lwUp" class="lwstep" title="Más grueso (+0,05 mm)"><svg width="13" height="8" viewBox="0 0 14 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7 7 2l5 5"/></svg></button>
     <button type="button" id="lwDn" class="lwstep" title="Más fino (−0,05 mm)"><svg width="13" height="8" viewBox="0 0 14 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2 7 7l5-5"/></svg></button>
    </span>
   </span>
-  <span style="font-size:10px;color:var(--mut)">fino = línea 1px (tipo SketchUp)</span></div>
+  <span style="font-size:10px;color:var(--mut)">≤0,26 = arista (usa el grosor visual) · &gt; = tubo de material</span></div>
  <div style="margin-top:6px"><b>Tam. imagen</b><br><input type="range" id="imsc" min="10" max="200" value="60"> mm</div>
  <label><input type="checkbox" id="meshChk"> Malla (aristas de triángulos)</label>
  <div id="frameRow" style="margin-top:8px">
@@ -1077,7 +1087,48 @@ function liftOff(h){
 function offPt(h){return liftOff(h);}
 function castAt(e){ndc(e);let hits=ray.intersectObjects(pickables.filter(p=>p.visible),false);return hits.length?hits[0]:null;}
 function planePoint(e,dist){ndc(e);return ray.ray.at(dist,new THREE.Vector3());}
-const HAIRLINE=0.26;   // por debajo de esto el trazo se dibuja como LÍNEA de 1px (tipo arista de SketchUp)
+const HAIRLINE=0.26;   // por debajo de esto el trazo es una ARISTA (grosor VISUAL en px); por encima, TUBO con grosor REAL en mm
+// GROSOR VISUAL de aristas (px en pantalla, constante con el zoom). WebGL ignora
+// el ancho de THREE.Line (siempre 1px), así que las aristas se dibujan con una
+// cinta expandida en el shader a un ancho exacto en píxeles — control fino y
+// perceptible de cómo se ven TODAS las líneas de la escena.
+let edgePx=1.6;
+const _fatRes={value:new THREE.Vector2(1,1)};
+const _FAT_VS=`attribute vec3 pA; attribute vec3 pB; attribute float side; attribute float endv;
+  uniform vec2 uRes; uniform float uPx;
+  void main(){
+    vec4 a=projectionMatrix*modelViewMatrix*vec4(pA,1.0);
+    vec4 b=projectionMatrix*modelViewMatrix*vec4(pB,1.0);
+    vec2 sa=a.xy/a.w, sb=b.xy/b.w;
+    vec2 dir=normalize((sb-sa)*uRes+vec2(1e-6,0.0));
+    vec2 nrm=vec2(-dir.y,dir.x);
+    vec4 clip=(endv<0.5)?a:b;
+    vec2 off=nrm*(uPx*0.5)*side;
+    clip.xy+=(off/uRes)*2.0*clip.w;
+    gl_Position=clip;}`;
+const _FAT_FS=`uniform vec3 uColor; uniform float uOpacity;
+  void main(){ gl_FragColor=vec4(uColor,uOpacity); }`;
+function fatLineMat(colHex,px,op,depthTest){
+  return new THREE.ShaderMaterial({uniforms:{uColor:{value:new THREE.Color(colHex)},uPx:{value:px},uOpacity:{value:op==null?1:op},uRes:_fatRes},
+    vertexShader:_FAT_VS,fragmentShader:_FAT_FS,side:THREE.DoubleSide,
+    transparent:true,depthTest:depthTest!==false,depthWrite:depthTest!==false});
+}
+function fatLine(points,colHex,px,op,depthTest){
+  const n=points.length; if(n<2)return new THREE.Object3D();
+  const pA=[],pB=[],side=[],endv=[],posv=[],idx=[];
+  for(let i=0;i+1<n;i++){const a=points[i],b=points[i+1];
+    for(const [e,s] of [[0,-1],[0,1],[1,-1],[1,1]]){
+      pA.push(a[0],a[1],a[2]); pB.push(b[0],b[1],b[2]); endv.push(e); side.push(s); posv.push(a[0],a[1],a[2]);}
+    const o=i*4; idx.push(o,o+2,o+1, o+1,o+2,o+3);}
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(posv,3));
+  g.setAttribute('pA',new THREE.Float32BufferAttribute(pA,3));
+  g.setAttribute('pB',new THREE.Float32BufferAttribute(pB,3));
+  g.setAttribute('side',new THREE.Float32BufferAttribute(side,1));
+  g.setAttribute('endv',new THREE.Float32BufferAttribute(endv,1));
+  g.setIndex(idx);
+  const m=new THREE.Mesh(g,fatLineMat(colHex,px,op,depthTest)); m.frustumCulled=false; return m;
+}
 function strokeLine(s){
   // TRAZO fino → LÍNEA de 1px constante en pantalla (aristas/construcción tipo SketchUp).
   // TRAZO grueso → TUBO 3D con grosor real en mm (SIEMPRE VISIBLE, depthTest off).
@@ -1088,9 +1139,8 @@ function strokeLine(s){
     const selMe=(selected&&selected.ref===s)||selSet.includes(s);
     const op=(s.paperRef&&s.paperRef.lineAlpha!=null)?s.paperRef.lineAlpha:1;   // transparencia de líneas del papel
     const w=(s.w!=null?s.w:0.8);
-    if(w<=HAIRLINE&&!selMe){   // línea fina de 1px (grosor constante en pantalla, como SketchUp)
-      obj=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({color:s.color,depthTest:false,transparent:true,opacity:op}));
+    if(w<=HAIRLINE){   // ARISTA: grosor VISUAL en px (constante en pantalla, tipo SketchUp)
+      obj=fatLine(s.points,selMe?'#0a84ff':s.color,edgePx*(selMe?2.1:1),op,false);
     }else{
       const mkTube=(pp)=>{let path=new THREE.CurvePath();
         for(let i=1;i<pp.length;i++)path.add(new THREE.LineCurve3(pp[i-1],pp[i]));
@@ -4855,6 +4905,16 @@ document.getElementById('lwDn').onclick=()=>setLineW(lineW-0.05);
   lwNum.addEventListener('input',e=>{const v=parseFloat(String(e.target.value).replace(',','.'));
     if(isFinite(v))lineW=Math.max(0.15,Math.min(3,v));});   // sin reescribir el campo mientras se teclea
   lwNum.addEventListener('change',()=>setLineW(lineW));})();  // normaliza (2 decimales) al salir
+// GROSOR VISUAL (aristas, px en pantalla): control global, afecta a TODAS las líneas finas
+function setEdgePx(v){edgePx=Math.max(0.5,Math.min(6,Math.round(v*4)/4));
+  const n=document.getElementById('edgeNum'); if(n)n.value=edgePx.toFixed(2);
+  strokes.forEach(s=>s._dirty=true); redraw();}
+document.getElementById('edgeUp').onclick=()=>setEdgePx(edgePx+0.25);
+document.getElementById('edgeDn').onclick=()=>setEdgePx(edgePx-0.25);
+(function(){const en=document.getElementById('edgeNum');
+  en.addEventListener('input',e=>{const v=parseFloat(String(e.target.value).replace(',','.'));
+    if(isFinite(v)){edgePx=Math.max(0.5,Math.min(6,v)); strokes.forEach(s=>s._dirty=true); redraw();}});
+  en.addEventListener('change',()=>setEdgePx(edgePx));})();
 axSnap.onchange=e=>{axisSnap=e.target.checked;};
 document.getElementById('meshChk').onchange=e=>{meshOverlay=e.target.checked;};
 // MARCO LOCAL: ojo para ver/ocultar la referencia (cara de montaje + eje del
@@ -4923,7 +4983,8 @@ get rendererInfo(){return renderer.info.memory},updateLivePreview,nearestVertexO
 computeIntersections,snapPt,midByArc,get lineW(){return lineW},
 get faceRef(){return faceRef},get frame(){return {on:frameOn,Rface}},get pickables(){return pickables},
 datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes},
-updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn}};
+updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},
+get edgePx(){return edgePx},fatLine,get HAIRLINE(){return HAIRLINE}};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());
@@ -5277,7 +5338,7 @@ applyMode();   // asegura la configuración del poché (stencil) tras crear las 
     const on=interOn&&pieces[ip.a]&&pieces[ip.a].visible&&pieces[ip.b]&&pieces[ip.b].visible;
     ip.l1.visible=on; ip.l2.visible=on;});
   if(gizmo&&gizmo.visible){const L=Math.max(10,sph.r*0.12);gizmo.scale.set(L,L,L);}
-  updateSilh(); updateSecMarkers(); updateNoteScales(); updateSnapGlyphs(); updateDatumLabelScale();
+  updateSilh(); updateSecMarkers(); updateNoteScales(); updateSnapGlyphs(); updateDatumLabelScale(); _fatRes.value.set(W,H);
   if(polyDraw)positionPolyChips();
   renderer.render(scene,cam);})();
 </script>

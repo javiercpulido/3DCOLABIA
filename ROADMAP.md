@@ -24,6 +24,16 @@ editar el elemento viendo algo del contexto.
   en su marco local propaga a todas las instancias; editar solo una instancia crea
   una variante local.
 
+## Grosor de las líneas láser (control aparte en el menú del láser)
+
+Ya existe el motor de ancho en pantalla por shader (`fatLine`, v6.49) usado para
+el **grosor visual de aristas**. Falta aplicarlo a las **líneas del láser** con su
+propio control en el **menú del láser** (independiente del grosor de aristas). Dos
+matices técnicos: las líneas del láser se reconstruyen cada frame (rebuild del
+`fatLine` en `updateLasers`, en modo «segmentos» = pares, no polilínea) y usan
+planos de recorte (clipping), que habría que llevar al shader de `fatLine` o
+aceptar sin recorte para sus propias líneas.
+
 ## Booleanas — completar el set
 
 - **Restar** e **Intersecar** (ya está **Unir**, v6.47), con el mismo patrón no
