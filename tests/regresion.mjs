@@ -214,6 +214,11 @@ const secciones = {
       const nOff = L.geo.attributes.position.count;
       out.planoBase = D.groundLaserOn === false && nOff < nOn && nOff > 0;   // quita la proyección de fondo, mantiene la de piezas
       gl.checked = true; gl.dispatchEvent(new Event('change', { bubbles: true }));
+      // SECCIÓN NEGRA: la línea del láser pasa a negro (línea técnica) y oculta el aparato
+      D.setLaserBlack(L, true);
+      out.negro = L.black === true && L.matA.color.getHex() === 0x1c1c1e && L.mesh.visible === false && L.matB.opacity === 0;
+      D.setLaserBlack(L, false);
+      out.verde = L.black === false && L.matA.color.getHex() === 0x00c853 && L.mesh.visible === true;
       D.deselect();
       return out;
     });
@@ -222,6 +227,7 @@ const secciones = {
     ok('candado bloquea (reset y gizmo) y desbloquea', r.lock && r.lockReset && r.gizmoOculto && r.unlock);
     ok('otra herramienta cierra el menú de láseres', r.menuCerrado);
     ok('plano base del láser desactivable (proyección de fondo)', r.planoBase);
+    ok('sección negra: la línea del láser en negro (línea técnica) y de vuelta', r.negro && r.verde);
   },
 
   async poche() {
@@ -696,6 +702,45 @@ const secciones = {
     ok('fillet: herramienta arma con marcadores por esquina', r.arma);
     ok('fillet: «aplicar a todas» suaviza (tangente, sin esquina viva)', r.suave);
     ok('fillet: deshacer y rehacer', r.undo && r.redo && r.cierra);
+  },
+
+  async unir_descomponer() {   // unir formas en una · descomponer en segmentos
+    const r = await page.evaluate(async () => {
+      const D = window._dbg, out = {};
+      const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 15)));
+      // UNIR: 3 líneas encadenadas → una sola continua con soldaduras
+      const s1 = { points: [[0, 0, 0], [40, 0, 0]], color: '#111', w: 0.2, sobre: 't' };
+      const s2 = { points: [[40, 0, 0], [40, 40, 0]], color: '#111', w: 0.2, sobre: 't' };
+      const s3 = { points: [[40, 40, 0], [80, 40, 0]], color: '#111', w: 0.2, sobre: 't' };
+      const u = D.uniteStrokes([s1, s2, s3]);
+      out.unir = u.uni.cont === true && u.uni.points.length === 4 &&
+        JSON.stringify(u.uni.joints) === JSON.stringify([1, 2]) && u.leftover.length === 0;
+      // integración: multi-selección + «Unir en una» desde el botón
+      D.strokes.push(s1, s2, s3); D.redraw();
+      D.select('trazo', s1, 'sel'); D.selSet = [s1, s2, s3];   // selección múltiple (select limpia selSet, se fija después)
+      const nA = D.strokes.length;
+      document.getElementById('selGrp').click(); await frame();
+      out.popup = document.getElementById('grouppop').style.display === 'flex';
+      document.getElementById('gpUnite').click(); await frame();
+      out.unido = D.strokes.length === nA - 2 && D.strokes[D.strokes.length - 1].cont === true;
+      // DESCOMPONER esa forma → vuelve a 3 segmentos
+      const uni = D.strokes[D.strokes.length - 1];
+      D.select('trazo', uni, 'sel'); D.selSet = [];
+      const nB = D.strokes.length;
+      document.getElementById('selDecomp').click(); await frame();
+      out.descomp = D.strokes.length === nB - 1 + 3;
+      document.getElementById('undo').click(); await frame();
+      out.undo = D.strokes.length === nB;
+      // descomponer un poli recta+arco → 2 segmentos, el arco muestreado
+      const poly = { poly: true, verts: [[0, 0, 0], [20, 0, 0], [20, 20, 0]], segTypes: ['L', 'A'], arcMids: { 1: [24, 4, 0] }, closed: false, points: [[0, 0, 0], [20, 0, 0], [20, 20, 0]] };
+      const segs = D.decomposeStroke(poly);
+      out.poly = segs.length === 2 && segs[1].points.length > 2;
+      return out;
+    });
+    ok('unir: encadena varias líneas en UNA continua con soldaduras', r.unir);
+    ok('agrupar/unir: el botón pregunta y «Unir en una» funde la selección', r.popup && r.unido);
+    ok('descomponer: separa la forma en sus segmentos (con deshacer)', r.descomp && r.undo);
+    ok('descomponer poli: recta y arco como segmentos separados', r.poly);
   },
 
   async rendimiento() {   // FASE 1: redibujado incremental, sin fuga de GPU

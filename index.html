@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.50 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.51 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -165,8 +165,9 @@
  <span id="strokeOps">
   <button id="selMag" title="Imán fijo: pegar el trazo a la superficie y bloquearlo">🧲</button>
   <button id="selDup" title="Duplicar selección">⎘</button>
-  <button id="selGrp" title="Agrupar / desagrupar">🔗</button>
+  <button id="selGrp" title="Agrupar / unir / desagrupar">🔗</button>
   <button id="selSplit" title="Partir la línea por un punto (sin separar las partes)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M3 12 H10 M14 12 H21"/><path d="M12 8 V16" stroke-dasharray="2 2.4"/></svg></button>
+  <button id="selDecomp" title="Descomponer: separar la forma en segmentos (cada recta y cada arco entre puntos de control)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8 H8"/><path d="M11 8 H16"/><path d="M19 8 Q21 12 19 16"/><path d="M3 16 H8"/><circle cx="9.5" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="9.5" cy="16" r="1" fill="currentColor" stroke="none"/></svg></button>
  </span>
  <span id="xformOps">
   <button class="mvax" data-ax="x">X</button><button class="mvax" data-ax="y">Y</button><button class="mvax" data-ax="z">Z</button>
@@ -204,6 +205,12 @@
 <div id="joinpop" style="position:fixed;z-index:15;display:none;gap:4px;align-items:center;background:var(--bg,#fff);border:1px solid rgba(0,0,0,.12);border-radius:10px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,.18)">
  <button id="jpJoin" class="pchip pcok" style="width:auto;padding:0 10px">Unir</button>
  <button id="jpCancel" class="pchip" style="width:auto;padding:0 10px">Cancelar</button>
+</div>
+<div id="grouppop" style="position:fixed;z-index:15;display:none;gap:5px;align-items:center;background:var(--bg,#fff);border:1px solid rgba(0,0,0,.12);border-radius:10px;padding:6px;box-shadow:0 6px 20px rgba(0,0,0,.18)">
+ <span style="font-size:12px;color:var(--mut);padding:0 4px">¿Qué hago con la selección?</span>
+ <button id="gpUnite" class="pchip pcok" style="width:auto;padding:0 10px">Unir en una</button>
+ <button id="gpGroup" class="pchip" style="width:auto;padding:0 10px">Agrupar</button>
+ <button id="gpCancel" class="pchip" style="width:auto;padding:0 10px">Cancelar</button>
 </div>
 <div id="surfpop" style="position:fixed;left:50%;transform:translateX(-50%);bottom:78px;z-index:16;display:none;align-items:center;gap:10px;background:var(--bg,#fff);border:1px solid rgba(0,0,0,.12);border-radius:12px;padding:7px 9px 7px 12px;box-shadow:0 8px 28px rgba(0,0,0,.20);font-size:13px;color:var(--ink)">
  <span style="display:flex;flex-direction:column;line-height:1.25;min-width:120px">
@@ -729,8 +736,8 @@ function applyTheme(){
   const ir=document.getElementById('invARow'); if(ir)ir.style.display=invView?'block':'none';
   applyFrame();
   // el laser gana contraste: verde mas brillante y halo mas presente en oscuro
-  lasers.forEach(L=>{L.matA.color.setHex(darkView?0x00e676:0x00c853);
-    L.matB.opacity=darkView?0.38:0.25;});
+  lasers.forEach(L=>{ if(L.black){L.matA.color.setHex(darkView?0xf2f2f4:0x1c1c1e);L.matB.opacity=0;return;}   // sección negra (blanca en oscuro)
+    L.matA.color.setHex(darkView?0x00e676:0x00c853); L.matB.opacity=darkView?0.38:0.25;});
   if(typeof pocheColor!=='undefined'){pocheColor=darkView?0xaab0b7:0x3c4046; if(typeof updatePoche==='function')updatePoche();}
   applyMode();
   try{localStorage.setItem('tectosDark',darkView?'1':'0');
@@ -2506,13 +2513,79 @@ document.getElementById('selDup').onclick=()=>{
   document.getElementById('selbar').style.display='flex';
   updOpsBar(); redraw();
   toast('duplicado ⎘ — arrastra o teclea Δmm para separar');};
+// UNIR varios trazos en UNA sola forma continua: encadena por extremos coincidentes.
+function uniteStrokes(list){
+  const tol=Math.max(0.8,sph.r*0.02), d=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]);
+  const rem=list.map(s=>s.points.map(p=>p.slice()));
+  let chain=rem.shift(); const junc=[]; let changed=true;
+  while(rem.length&&changed){changed=false;
+    const A=chain[0], B=chain[chain.length-1];
+    for(let i=0;i<rem.length;i++){const c=rem[i], oa=c[0], ob=c[c.length-1];
+      if(d(B,oa)<tol){junc.push(B.slice()); chain=chain.concat(c.slice(1)); rem.splice(i,1); changed=true; break;}
+      if(d(B,ob)<tol){junc.push(B.slice()); chain=chain.concat(c.slice().reverse().slice(1)); rem.splice(i,1); changed=true; break;}
+      if(d(A,ob)<tol){junc.push(A.slice()); chain=c.slice(0,c.length-1).concat(chain); rem.splice(i,1); changed=true; break;}
+      if(d(A,oa)<tol){junc.push(A.slice()); chain=c.slice().reverse().slice(0,c.length-1).concat(chain); rem.splice(i,1); changed=true; break;}}}
+  const joints=[]; for(const j of junc){let bi=-1,bd=1e9; for(let k=1;k<chain.length-1;k++){const dd=d(chain[k],j); if(dd<bd){bd=dd;bi=k;}} if(bi>0)joints.push(bi);}
+  return {uni:{points:chain,color:list[0].color,w:list[0].w,sobre:list[0].sobre,cont:true,joints:[...new Set(joints)].sort((a,b)=>a-b)}, leftover:rem};
+}
+function doGroupChoice(unite){
+  const list=effSel(); if(list.length<2)return;
+  const prev=strokes.slice();
+  if(unite){
+    const {uni,leftover}=uniteStrokes(list);
+    strokes=strokes.filter(s=>!list.includes(s)); strokes.push(uni);
+    leftover.forEach(pts=>strokes.push({points:pts,color:uni.color,w:uni.w,sobre:uni.sobre}));
+    const after=strokes.slice();
+    pushUndo('unir en una',()=>{strokes=prev.slice();},()=>{strokes=after.slice();});
+    deselect(); selectStroke(uni); redraw();
+    toast(leftover.length?('unido · '+leftover.length+' sin conectar quedaron sueltos'):'formas unidas en una ✓');
+  } else {
+    const g=++grpN; list.forEach(s=>s.grp=g);
+    pushUndo('agrupar',()=>{list.forEach(s=>{delete s.grp;});updOpsBar();},()=>{list.forEach(s=>s.grp=g);updOpsBar();});
+    toast('grupo de '+list.length+' trazos 🔗'); updOpsBar();
+  }
+}
 document.getElementById('selGrp').onclick=()=>{
   const list=effSel(); if(!list.length)return;
   const grouped=list.length>1&&list.every(s=>s.grp!=null&&s.grp===list[0].grp);
-  if(grouped){list.forEach(s=>{delete s.grp;});toast('desagrupado');}
-  else if(list.length>1){const g=++grpN;list.forEach(s=>s.grp=g);toast('grupo de '+list.length+' trazos 🔗');}
-  else toast('para agrupar: suma más trazos con el botón de multi-selección');
-  updOpsBar();};
+  if(grouped){list.forEach(s=>{delete s.grp;});toast('desagrupado');updOpsBar();return;}
+  if(list.length<2){toast('para agrupar/unir: suma más trazos con la multi-selección');return;}
+  const gp=document.getElementById('grouppop'), r=document.getElementById('selGrp').getBoundingClientRect();
+  gp.style.display='flex'; gp.style.left=Math.max(6,Math.min(r.left,innerWidth-300))+'px'; gp.style.top=Math.max(6,r.top-48)+'px';
+};
+document.getElementById('gpUnite').onclick=()=>{document.getElementById('grouppop').style.display='none';doGroupChoice(true);};
+document.getElementById('gpGroup').onclick=()=>{document.getElementById('grouppop').style.display='none';doGroupChoice(false);};
+document.getElementById('gpCancel').onclick=()=>{document.getElementById('grouppop').style.display='none';};
+// DESCOMPONER: separar una forma en sus segmentos (cada recta y cada arco entre puntos de control)
+function decomposeStroke(st){
+  const out=[], col=st.color, w=st.w, sob=st.sobre;
+  if(st.cont&&st.joints&&st.joints.length){
+    const P=st.points,n=P.length,anchors=[...new Set([0,...st.joints,n-1])].sort((a,b)=>a-b);
+    for(let k=0;k+1<anchors.length;k++)out.push({points:P.slice(anchors[k],anchors[k+1]+1).map(p=>p.slice()),color:col,w,sobre:sob});
+  } else if(st.poly&&st.verts){
+    const V=st.verts,n=V.length,closed=st.closed,cnt=closed?n:n-1;
+    for(let k=0;k<cnt;k++){const a=V[k],b=V[(k+1)%n],type=(st.segTypes&&st.segTypes[k])||'L';
+      const pts=(type==='A'&&st.arcMids&&st.arcMids[k])?arc3d(a,st.arcMids[k],b):[a.slice(),b.slice()];
+      out.push({points:pts.map(p=>p.slice?p.slice():p),color:col,w,sobre:sob});}
+  } else {
+    const P=st.points; let start=0;
+    for(let i=1;i+1<P.length;i++){
+      const a=new THREE.Vector3(...P[i-1]).sub(new THREE.Vector3(...P[i])), b=new THREE.Vector3(...P[i+1]).sub(new THREE.Vector3(...P[i]));
+      if(a.lengthSq()<1e-9||b.lengthSq()<1e-9)continue;
+      const ang=Math.acos(Math.max(-1,Math.min(1,a.normalize().dot(b.normalize()))))*180/Math.PI;
+      if(ang<150){out.push({points:P.slice(start,i+1).map(p=>p.slice()),color:col,w,sobre:sob});start=i;}}
+    out.push({points:P.slice(start).map(p=>p.slice()),color:col,w,sobre:sob});
+  }
+  return out;
+}
+document.getElementById('selDecomp').onclick=()=>{
+  const list=effSel().filter(s=>s.points); if(!list.length){toast('selecciona una forma para descomponer');return;}
+  const prev=strokes.slice(); let n=0;
+  for(const st of list){const segs=decomposeStroke(st); if(segs.length>1){strokes=strokes.filter(s=>s!==st); segs.forEach(s=>strokes.push(s)); n+=segs.length;}}
+  if(n){const after=strokes.slice(); pushUndo('descomponer',()=>{strokes=prev.slice();},()=>{strokes=after.slice();});
+    deselect(); redraw(); toast('descompuesto en '+n+' segmentos');}
+  else toast('esta forma no tiene segmentos que separar');
+};
 document.getElementById('selMag').onclick=()=>{
   const list=effSel(); if(!list.length)return;
   const activar=list.some(s=>!s.magLock);
@@ -4933,7 +5006,7 @@ function addLaser(silent){
   const lA=new THREE.LineSegments(geo,matA), lB=new THREE.LineSegments(geo,matB);
   lA.frustumCulled=lB.frustumCulled=false; lA.renderOrder=3; lB.renderOrder=9;
   const L={mesh:g,on:{h:true,v:true,v2:false},n:1,sp:20,off:false,geo,matA,matB,
-    linesA:lA,linesB:lB,cubeMat,topMat,edgeMat,name:'L'+(++laserCount)};
+    linesA:lA,linesB:lB,cubeMat,topMat,edgeMat,black:false,name:'L'+(++laserCount)};
   L.pos0=g.position.clone(); L.quat0=g.quaternion.clone();
   L.on0=Object.assign({},L.on); L.n0=L.n; L.sp0=L.sp;   // estado inicial para "restablecer"
   {const cp=curClipPlanes();matA.clippingPlanes=cp;matB.clippingPlanes=cp;}
@@ -4994,6 +5067,15 @@ function removeLaser(L,noUndo){
 }
 // ---- Menú de láseres (mismo sistema que las secciones: crear, activar varios,
 //      restablecer, borrar; el borde inferior de cada fila selecciona para editar) ----
+// SECCIÓN NEGRA: el láser muestra su línea de sección en negro (línea técnica),
+// como un plano de sección de dibujo, en vez del verde. Oculta el aparato verde
+// y su halo; se sigue moviendo/seleccionando desde la lista (o su gizmo).
+function setLaserBlack(L,on){
+  L.black=on;
+  if(on){L.matA.color.setHex(darkView?0xf2f2f4:0x1c1c1e); L.matB.opacity=0; if(L.mesh)L.mesh.visible=false;}
+  else{L.matA.color.setHex(darkView?0x00e676:0x00c853); L.matB.opacity=darkView?0.38:0.25; if(L.mesh)L.mesh.visible=true;}
+  toast(on?(L.name+': sección en negro (línea técnica) ▦'):(L.name+': láser verde'));
+}
 function renderLaserList(){
   const d=document.getElementById('laserList'); if(!d)return; d.innerHTML='';
   lasers.forEach((L,i)=>{
@@ -5002,12 +5084,15 @@ function renderLaserList(){
     row.innerHTML='<button data-p="'+i+'" class="secbtn'+(on?' on':'')+'" title="encender / apagar (fantasma)">'+IC_POWER+'</button>'+
       '<span data-s="'+i+'" style="flex:1;cursor:pointer;font-weight:600;color:'+(on?'#0a9f57':'inherit')+'">'+escH(L.name)+'</span>'+
       '<button data-r="'+i+'" class="secbtn" title="restablecer posición y ángulo">'+IC_RESET+'</button>'+
+      '<button data-b="'+i+'" class="secbtn'+(L.black?' on':'')+'" title="Sección en NEGRO (línea técnica) en vez del verde láser">'+
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 13 13 4M10 20 20 10"/></svg></button>'+
       '<button data-k="'+i+'" class="secbtn'+(L.locked?' on':'')+'" title="bloquear posición y giro (toca de nuevo para desbloquear)">'+(L.locked?IC_LOCK:IC_UNLOCK)+'</button>'+
       '<button data-x="'+i+'" class="secbtn del" title="eliminar">'+IC_TRASH+'</button>';
     d.appendChild(row);});
   if(!lasers.length)d.innerHTML='<span style="color:var(--mut);font-size:11px">Sin láseres. Pulsa «Nuevo láser».</span>';
 }
 document.getElementById('laserList').addEventListener('click',e=>{
+  const bt=e.target.closest('[data-b]'); if(bt){const L=lasers[+bt.dataset.b]; setLaserBlack(L,!L.black); renderLaserList(); return;}
   const t=e.target.dataset, i=+(t.p??t.s??t.r??t.k??t.x);
   if(t.p!==undefined)toggleLaser(lasers[i]);
   else if(t.s!==undefined){setMode('sel');select('laser',lasers[i],lasers[i].name);}
@@ -5110,7 +5195,7 @@ function buildExport(){
       paperAlpha:s.paper?s.paperAlpha:undefined,lineAlpha:s.paper?s.lineAlpha:undefined,paperHidden:s.paper?!!s.paperHidden:undefined,
       roll:s.paper?s.roll:undefined,size:s.paper?s.size:undefined})),
     lasers:lasers.map(L=>({name:L.name,pos:L.mesh.position.toArray(),quat:L.mesh.quaternion.toArray(),
-      h:L.on.h,v:L.on.v,v2:L.on.v2,n:L.n,sp:L.sp,off:L.off||undefined,locked:L.locked||undefined})),
+      h:L.on.h,v:L.on.v,v2:L.on.v2,n:L.n,sp:L.sp,off:L.off||undefined,locked:L.locked||undefined,black:L.black||undefined})),
     superficies:surfaces.map(S=>{
       const base={name:S.name,col:S.colorHex,vis:S.mesh.visible,locked:S.locked||undefined};
       if(S.kind==='cont')return Object.assign(base,{kind:'cont',pts:S.pts,inner:(S.inner&&S.inner.length)?S.inner:undefined});
@@ -5142,7 +5227,8 @@ get faceRef(){return faceRef},get frame(){return {on:frameOn,Rface}},get pickabl
 datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes},
 updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},
 get edgePx(){return edgePx},fatLine,get HAIRLINE(){return HAIRLINE},
-filletStart,filletStop,filletApplyAll,computeFilletCorners,applyFilletCorner,filletArc,setFilletR,get filletR(){return filletR},get filletMarkers(){return filletMarkers}};
+filletStart,filletStop,filletApplyAll,computeFilletCorners,applyFilletCorner,filletArc,setFilletR,get filletR(){return filletR},get filletMarkers(){return filletMarkers},
+uniteStrokes,decomposeStroke,get selSet(){return selSet},set selSet(v){selSet=v},setLaserBlack};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());
@@ -5191,7 +5277,8 @@ function applyImport(d){
         L.on={h:!!ld.h,v:!!ld.v,v2:!!ld.v2}; L.n=ld.n||1; L.sp=ld.sp||20;
         L.pos0=L.mesh.position.clone();L.quat0=L.mesh.quaternion.clone();L.on0=Object.assign({},L.on);L.n0=L.n;L.sp0=L.sp;
         if(ld.off)setLaserPower(L,false);
-        if(ld.locked)L.locked=true;});
+        if(ld.locked)L.locked=true;
+        if(ld.black)setLaserBlack(L,true);});
       updateLasers(); renderLaserList();}
     if(d.superficies){surfaces.slice().forEach(S=>removeSurface(S,true)); surfCount=0;
       d.superficies.forEach(sd=>{
