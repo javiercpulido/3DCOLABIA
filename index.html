@@ -150,7 +150,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.38 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.39 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -675,7 +675,7 @@ function rayToPaper(e,s){ndc(e);const pl=new THREE.Plane().setFromNormalAndCopla
 // al crear/mover/girar un papel, recoloca sus trazos vinculados (guardados en uv locales)
 function updatePaperStrokes(s){
   if(!s||!s.paper)return; let any=false;
-  strokes.forEach(st=>{if(st.paperRef===s&&st.uv){st.points=st.uv.map(q=>paperXY(s,q[0],q[1]).toArray());
+  strokes.forEach(st=>{if(st.paperRef===s&&st.uv){st._dirty=true;st.points=st.uv.map(q=>paperXY(s,q[0],q[1]).toArray());
     if(st.reg&&st.reg.c){/* el reg se recalculará al editar; para mover basta points */}
     any=true;}});
   if(any)redraw();
@@ -809,6 +809,7 @@ document.getElementById('dmJoin').onclick=function(){contJoin=!contJoin;
 // se reparte elásticamente hasta las anclas vecinas, que no se mueven; en un
 // contorno CERRADO los dos extremos van juntos (el anillo no se abre).
 function moveContPoint(s,idx,np){
+  s._dirty=true;
   const P=s.points, n=P.length;
   const ring=Math.hypot(P[0][0]-P[n-1][0],P[0][1]-P[n-1][1],P[0][2]-P[n-1][2])<1e-6;
   const anchors=[...new Set([0,...(s.joints||[]),n-1])].sort((a,b)=>a-b);
@@ -1108,13 +1109,72 @@ function makeHandles(){
     const sz=handleSize()*1.15; sp.scale.set(sz,sz,1); sp.renderOrder=11;
     handles.push({mesh:sp,stroke:s,role});});
 }
+// ================= REDIBUJADO INCREMENTAL (FASE 1) =================
+// Antes: cada redraw reconstruía TODOS los trazos (TubeGeometry incluida) y una
+// textura de canvas por nota, sin liberar nada → tirones y fuga de memoria GPU.
+// Ahora: caché por trazo con bandera «sucio» (o cambio de selección/alfa), caché
+// de la textura de cada nota por (texto,color), y dispose() de todo lo que se
+// descarta. Los efímeros (guías de nota, preview de poli, tiradores) se liberan
+// en el redraw siguiente.
+const _strokeObjs=new Map(), _noteObjs=new Map();
+let _ephObjs=[], _liveObj=null;
+function _dispose(o){o.traverse(x=>{
+  if(x.geometry)x.geometry.dispose();
+  const ms=Array.isArray(x.material)?x.material:(x.material?[x.material]:[]);
+  for(const m of ms){ if(m.map&&m.map!==_ringTex)m.map.dispose(); m.dispose(); }});}
+// vista previa del trazo EN CURSO: un solo objeto que se sustituye (sin redraw completo)
+function updateLivePreview(){
+  if(_liveObj){annGroup.remove(_liveObj);_dispose(_liveObj);_liveObj=null;}
+  if(drawing&&drawing.points&&drawing.points.length>1){_liveObj=strokeLine(drawing);annGroup.add(_liveObj);}
+}
 function redraw(){
+  _ephObjs.forEach(_dispose); _ephObjs=[];
+  if(_liveObj){annGroup.remove(_liveObj);_dispose(_liveObj);_liveObj=null;}
   while(annGroup.children.length)annGroup.remove(annGroup.children[0]);
-  strokes.forEach(s=>{if(s.paperRef&&s.paperRef.paperHidden)return; annGroup.add(strokeLine(s));});
-  if(polyDraw&&polyDraw.verts.length)annGroup.add(strokeLine(polyPreviewObj()));   // vista previa de la Poli 3D
-  texts.forEach(t=>{const o=makeText(t); if(Array.isArray(o))o.forEach(x=>annGroup.add(x)); else annGroup.add(o);});
+  const inS=new Set(strokes);
+  for(const [s,o] of _strokeObjs) if(!inS.has(s)){_dispose(o);_strokeObjs.delete(s);}
+  strokes.forEach(s=>{
+    if(s.paperRef&&s.paperRef.paperHidden)return;
+    const selMe=(selected&&selected.ref===s)||selSet.includes(s);
+    const op=(s.paperRef&&s.paperRef.lineAlpha!=null)?s.paperRef.lineAlpha:1;
+    let o=_strokeObjs.get(s);
+    if(!o||s._dirty||o.userData._selMe!==selMe||o.userData._op!==op){
+      if(o)_dispose(o);
+      o=strokeLine(s); o.userData._selMe=selMe; o.userData._op=op;
+      _strokeObjs.set(s,o); s._dirty=false;
+    }
+    annGroup.add(o);
+  });
+  if(polyDraw&&polyDraw.verts.length){const pv=strokeLine(polyPreviewObj()); _ephObjs.push(pv); annGroup.add(pv);}
+  const inT=new Set(texts);
+  for(const [t,ent] of _noteObjs) if(!inT.has(t)){_dispose(ent.sp);_noteObjs.delete(t);}
+  texts.forEach(t=>{
+    const key=t.text+'|'+t.color;
+    let ent=_noteObjs.get(t);
+    if(!ent||ent.key!==key){
+      if(ent)_dispose(ent.sp);
+      const cv=noteCanvas(t);
+      const map=new THREE.CanvasTexture(cv); map.minFilter=THREE.LinearFilter; map.magFilter=THREE.LinearFilter;
+      const sp=new THREE.Sprite(new THREE.SpriteMaterial({map,depthTest:false,transparent:true}));
+      sp.userData.rec=t; sp.userData.noteAspect=cv.width/cv.height; sp.renderOrder=12;
+      ent={key,sp}; _noteObjs.set(t,ent);
+    }
+    ent.sp.position.set(...t.pos); annGroup.add(ent.sp);
+    if(t.anchor){   // guía + cabeza: efímeras (siguen a la posición y son baratas)
+      const A=new THREE.Vector3(...t.pos), B=new THREE.Vector3(...t.anchor);
+      const u=new THREE.Vector3().subVectors(B,A); if(u.lengthSq()<1e-9)u.set(0,0,1); u.normalize();
+      const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([A,B.clone()]),
+        new THREE.LineBasicMaterial({color:t.color,depthTest:false,transparent:true,opacity:.9}));
+      line.renderOrder=11; line.userData.rec=t;
+      const cone=new THREE.Mesh(new THREE.ConeGeometry(0.42,1,14),
+        new THREE.MeshBasicMaterial({color:t.color,depthTest:false}));
+      cone.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),u);
+      cone.userData.rec=t; cone.userData.noteHead={B:B.toArray(),u:u.toArray()}; cone.renderOrder=11;
+      _ephObjs.push(line,cone); annGroup.add(line); annGroup.add(cone);
+    }
+  });
   images.forEach(im=>annGroup.add(im.mesh));
-  makeHandles(); handles.forEach(h=>annGroup.add(h.mesh));
+  makeHandles(); handles.forEach(h=>{_ephObjs.push(h.mesh); annGroup.add(h.mesh);});
   if(gizmo)updateGizmo();
 }
 
@@ -1263,7 +1323,7 @@ document.getElementById('selLen').addEventListener('change',e=>{
   st.reg.V=Math.abs(U.z)>0.9?new THREE.Vector3(1,0,0):new THREE.Vector3(0,0,1).cross(U).normalize();
   st.reg.pts2=[[0,0],[L,0]];
   const smp=[];for(let i=0;i<=24;i++)smp.push(a.clone().lerp(nb,i/24).toArray());
-  st.points=((mag||st.magLock)&&st.sobre!=='aire')?glue(smp):smp;
+  st.points=((mag||st.magLock)&&st.sobre!=='aire')?glue(smp):smp; st._dirty=true;
   redraw(); toast('longitud = '+L.toFixed(1)+' mm');});
 function renderTrash(){
   const d=document.getElementById('trashList');d.innerHTML='';
@@ -1705,6 +1765,7 @@ addEventListener('pointermove',e=>{
       else clearSnapState();
     }
     selDrag.list.forEach((s,i)=>{
+      s._dirty=true;
       s.points=selDrag.orig[i].map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);
       if(selDrag.origC[i])s.reg.c.copy(selDrag.origC[i]).add(d);
       if(s.poly&&selDrag.origV&&selDrag.origV[i]){   // la poli traslada también sus vértices, arcos y tramos guiados
@@ -1719,7 +1780,7 @@ addEventListener('pointermove',e=>{
     contactProbe(selDrag.list[0]);
     redraw(); return;}
   if(handDrag){
-    let s=handDrag.stroke,reg=s.reg;
+    let s=handDrag.stroke,reg=s.reg; s._dirty=true;
     let h=mag?castAt(e):null;
     let p=h?offPt(h)
            :planePoint(e,handDrag.dist);
@@ -1840,8 +1901,8 @@ addEventListener('pointermove',e=>{
   if(drawing){
     if(drawing.laserArc){   // ARCO LÁSER: el trazo sigue la polilínea del láser desde el inicio hasta el cursor
       const arc=drawing.laserArc, poly=arc.poly, N=poly.length;
-      const hit=nearestLaserVertexScreen(e);
-      if(hit&&hit.poly===poly){
+      const hit=nearestVertexOnPolyScreen(e,poly);   // sigue SU guía sin congelarse
+      if(hit){
         let seg;
         if(arc.closed){   // bucle: índice desenrollado → permite dar la vuelta completa
           if(arc.lastRaw==null){arc.lastRaw=arc.start; arc.acc=0;}
@@ -1855,7 +1916,7 @@ addEventListener('pointermove',e=>{
         }
         if(seg.length>=1){drawing.points=seg.map(v=>v.toArray());
           document.getElementById('hud').textContent='Calco láser · '+seg.length+' pts';
-          showDrawTag(hit.point,'calco'); redraw(); annGroup.add(strokeLine(drawing));}}
+          showDrawTag(hit.point,'calco'); updateLivePreview();}}
       return;}
     if(drawing.editEnd){
       let reg=drawing.reg;
@@ -1872,7 +1933,7 @@ addEventListener('pointermove',e=>{
       if(mag&&drawing.sobre!=='aire')drawing.points=glue(drawing.points);
       drawing.points=postLine(drawing,drawing.points);
       if(reg.tipo==='linea'&&drawing.points.length>1){const a=new THREE.Vector3(...drawing.points[0]),b=new THREE.Vector3(...drawing.points[drawing.points.length-1]);showDrawTag(p,a.distanceTo(b).toFixed(1)+' mm');}
-      redraw(); annGroup.add(strokeLine(drawing)); return;}
+      updateLivePreview(); return;}
     if(drawing.straight){   // MODO RECTA: sólo inicio→punto actual, con longitud en vivo
       let p, badge='';
       if(drawing.paperRef){p=rayToPaper(e,drawing.paperRef)||planePoint(e,drawDist);
@@ -1908,7 +1969,7 @@ addEventListener('pointermove',e=>{
       const Lstr=A.distanceTo(p).toFixed(1)+' mm'+(badge?'  '+badge:'');
       document.getElementById('hud').textContent='Longitud '+Lstr;
       showDrawTag(p,Lstr);   // cifra pequeña en el extremo
-      redraw(); annGroup.add(strokeLine(drawing)); return;}
+      updateLivePreview(); return;}
     let p;
     if(drawing.paperRef){p=rayToPaper(e,drawing.paperRef)||planePoint(e,drawDist);   // restringido al papel
       if(mag){const g=paperGuideSnap(p,drawing.paperRef);if(g)p.copy(g);}}            // imán-guía en el plano
@@ -1921,7 +1982,7 @@ addEventListener('pointermove',e=>{
     let lp=drawing.points[drawing.points.length-1];
     if(p.distanceToSquared(new THREE.Vector3(...lp))>0.15){
       drawing.points.push(p.toArray()); lastMoveT=performance.now();
-      redraw(); annGroup.add(strokeLine(drawing));}
+      updateLivePreview();}
     return;}
   if(imgDrag){let p=planePoint(e,imgDrag.dist);imgDrag.rec.mesh.position.copy(p);return;}
   if(!dragging)return;
@@ -2006,7 +2067,7 @@ function endPointer(e){
     for(const ep of [s.points[0],s.points[s.points.length-1]]){
       const sn=snapPt(ep,s);
       if(sn){const d=new THREE.Vector3(sn[0]-ep[0],sn[1]-ep[1],sn[2]-ep[2]);
-        selDrag.list.forEach(st=>{st.points=st.points.map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);
+        selDrag.list.forEach(st=>{st._dirty=true;st.points=st.points.map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);
           if(st.reg&&st.reg.c)st.reg.c.add(d);});
         toast('extremo unido 🧲');break;}}}
   if(selDrag)hideContact();
@@ -2071,7 +2132,7 @@ function checkHold(){
       if(pts&&mag&&drawing.sobre!=='aire')pts=glue(pts);
       if(pts){drawing.reg=reg;drawing.editEnd=true;drawing.points=pts;
         drawing.points=postLine(drawing,drawing.points);
-        redraw();annGroup.add(strokeLine(drawing));
+        updateLivePreview();
         toast('→ '+reg.tipo+' · arrastra para ajustar');}}
     else lastMoveT=performance.now();
   }
@@ -2088,12 +2149,15 @@ function pushUndo(label,fn,redoFn){
 undo.onclick=()=>{
   const a=undoActs.pop();
   if(a){a.fn(); if(a.redoFn)redoActs.push(a); else redoActs.length=0;
+    strokes.forEach(s=>s._dirty=true);   // una acción puede haber tocado cualquier trazo
     redraw(); toast('Deshecho: '+a.label);}
   else toast('Nada que deshacer');
 };
 document.getElementById('redo').onclick=()=>{
   const a=redoActs.pop();
-  if(a){a.redoFn(); undoActs.push(a); redraw(); toast('Rehecho: '+a.label);}
+  if(a){a.redoFn(); undoActs.push(a);
+    strokes.forEach(s=>s._dirty=true);
+    redraw(); toast('Rehecho: '+a.label);}
   else toast('Nada que rehacer');
 };
 // OJO (ver/ocultar) y CANDADO (bloquear posición y giro) por pieza
@@ -2127,6 +2191,7 @@ document.querySelectorAll('.mvax').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.mvax').forEach(x=>x.classList.toggle('on',x.dataset.ax===axLock));
   toast(axLock?('eje '+axLock.toUpperCase()+' bloqueado: mover/dibujar/girar solo en '+axLock.toUpperCase()):'ejes libres');});
 function moveSel(d){effSel().forEach(s=>{
+  s._dirty=true;
   s.points=s.points.map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);
   if(s.reg&&s.reg.c)s.reg.c.add(d);});redraw();}
 document.getElementById('selMove').addEventListener('change',e=>{
@@ -2194,6 +2259,7 @@ document.getElementById('selRot').addEventListener('change',e=>{
   list.forEach(s=>s.points.forEach(p=>{cen.x+=p[0];cen.y+=p[1];cen.z+=p[2];n++;}));
   cen.multiplyScalar(1/n);
   list.forEach(s=>{
+    s._dirty=true;
     s.points=s.points.map(p=>new THREE.Vector3(...p).sub(cen).applyAxisAngle(u,ang).add(cen).toArray());
     if(s.reg){if(s.reg.c)s.reg.c.sub(cen).applyAxisAngle(u,ang).add(cen);
       if(s.reg.U)s.reg.U.applyAxisAngle(u,ang);
@@ -2245,7 +2311,7 @@ document.getElementById('selMag').onclick=()=>{
         const rc=new THREE.Raycaster(new THREE.Vector3(...mid).addScaledVector(dir,-80),dir);
         const h=rc.intersectObjects(pickables.filter(x=>x.visible),false)[0];
         if(h)s.sobre=h.object.name;}
-      if(s.sobre!=='aire'){s.points=glue(s.points);s.magLock=true;}
+      if(s.sobre!=='aire'){s.points=glue(s.points);s.magLock=true;s._dirty=true;}
     } else s.magLock=false;});
   updOpsBar(); redraw();
   toast(activar?('imán fijo 🧲: pegado a '+(list[0].sobre==='aire'?'…apunta la cámara a una pieza':list[0].sobre))
@@ -2397,6 +2463,7 @@ function applyGiz(d,ang){
   const g=gizDrag;
   if(g.t==='trazo'){
     g.list.forEach((s,i)=>{
+      s._dirty=true;
       if(d){s.points=g.orig[i].map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);
         const or=g.origReg[i];
         if(s.reg&&or&&or.c)s.reg.c.copy(or.c).add(d);}
@@ -2717,7 +2784,7 @@ function renderPaperList(){
   if(!ps.length)d.innerHTML='<span style="color:var(--mut);font-size:11px">Sin papeles. Elige Cara o X/Y/Z y toca el modelo.</span>';
 }
 function setPaperColor(s,hex){s.color=parseInt(hex.slice(1),16); styleSecWidget(s); refreshStrokesOf(s); renderPaperList();}
-function refreshStrokesOf(s){ /* recolorea/opacidad de líneas del papel */ redraw(); }
+function refreshStrokesOf(s){ /* recolorea/opacidad de líneas del papel */ strokes.forEach(st=>{if(st.paperRef===s)st._dirty=true;}); redraw(); }
 document.getElementById('paperList').addEventListener('input',e=>{
   const t=e.target.dataset;
   if(t.pp!==undefined){const s=sections[+t.pp]; s.paperAlpha=+e.target.value; styleSecWidget(s);}
@@ -3097,7 +3164,9 @@ function densifyPoly(poly,step){
 function buildCalcoPolys(){
   buildLaserPolys();
   const step=Math.max(0.5,sph.r*0.008);
-  const polys=(_laserPolys||[]).slice();
+  // las polilíneas del láser también se densifican: el calco puede parar
+  // en cualquier punto intermedio, no solo en los vértices originales
+  const polys=(_laserPolys||[]).map(p=>densifyPoly(p,step));
   for(const ch of chainSegs(buildEdgeSegs(),Math.max(0.02,sph.r*0.0006)))
     polys.push(densifyPoly(ch,step));
   for(const nm in pieces){const m=pieces[nm]; if(!m.visible)continue;
@@ -3129,6 +3198,18 @@ function nearestLaserVertexScreen(e){   // el vértice de guía más cercano al 
     const sx=(v.x*0.5+0.5)*rct.width, sy=(-v.y*0.5+0.5)*rct.height;
     const d2=(sx-px)**2+(sy-py)**2; if(d2<bd){bd=d2;best={poly,idx:i};}}
   if(best)best.point=best.poly[best.idx].clone(); return best;
+}
+// seguimiento del CALCO: vértice más cercano SOLO en la guía activa y SIN tope
+// de distancia — así el trazo nunca se congela aunque el cursor se separe o
+// pase cerca de otra guía (el calco quedó anclado a SU polilínea al empezar)
+function nearestVertexOnPolyScreen(e,poly){
+  const rct=renderer.domElement.getBoundingClientRect();
+  const px=e.clientX-rct.left, py=e.clientY-rct.top; let bi=-1,bd=Infinity; const v=new THREE.Vector3();
+  for(let i=0;i<poly.length;i++){
+    v.copy(poly[i]).project(cam); if(v.z>1)continue;
+    const sx=(v.x*0.5+0.5)*rct.width, sy=(-v.y*0.5+0.5)*rct.height;
+    const d2=(sx-px)**2+(sy-py)**2; if(d2<bd){bd=d2;bi=i;}}
+  return bi<0?null:{poly,idx:bi,point:poly[bi].clone()};
 }
 // ================= MOTOR OSNAP (puntos de control tipo CAD, pensado para Pencil) =================
 // Forma = tipo (□ extremo · △ medio · ⊙ centro · ◇ cuadrante) · Color = estado
@@ -3470,7 +3551,7 @@ function flattenPoly(pd,prov){
   if(!pts.length&&V.length)pts.push(V[0]);
   return {pts,breaks};
 }
-function rebuildPoly(st){const f=flattenPoly(st,null); st.points=f.pts; st._breaks=f.breaks;}
+function rebuildPoly(st){const f=flattenPoly(st,null); st.points=f.pts; st._breaks=f.breaks; st._dirty=true;}
 function polyPreviewObj(){
   const f=flattenPoly(polyDraw,polyDraw.dragging?polyDraw.prov:null);
   return {points:f.pts,_breaks:f.breaks,poly:true,color,w:lineW,sobre:'poli'};
@@ -4178,7 +4259,7 @@ function trySplitAt(e){
     if(st.cont){b.cont=true;   // las soldaduras se reparten entre ambas mitades (reindexadas)
       b.joints=(st.joints||[]).filter(j=>j>bi).map(j=>j-bi).filter(j=>j>0&&j<b.points.length-1);
       st.joints=(st.joints||[]).filter(j=>j<=bi&&j>0);}
-    st.points=[...st.points.slice(0,bi+1),sp.slice()]; delete st.reg;   // las partes pasan a trazos simples
+    st.points=[...st.points.slice(0,bi+1),sp.slice()]; delete st.reg; st._dirty=true;   // las partes pasan a trazos simples
     strokes.push(b);
   }
   redraw(); select('trazo',selected.ref,'trazo (partido)');
@@ -4221,6 +4302,7 @@ function checkJoinOnRelease(st,role){
   if(!hit)return;
   // pegar el extremo exactamente y preguntar
   if(myEnd==='start')st.points[0]=hit.op.slice(); else st.points[st.points.length-1]=hit.op.slice();
+  st._dirty=true;
   if(st.poly){const vi=(myEnd==='start')?0:st.verts.length-1; st.verts[vi]=hit.op.slice(); rebuildPoly(st);}
   redraw();
   showJoinPop(q[0]+rct.left,q[1]+rct.top,{a:st,aEnd:myEnd,b:hit.o,bEnd:hit.oe});
@@ -4458,10 +4540,11 @@ buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get cont
 buildContourSurfaceFromPts,get axGhost(){return axGhost},selectStroke,surfToolStart,surfToolTap,get surfTool(){return surfTool},moveContPoint,
 buildRevolveFromPts,buildCoonsFromPts,buildExtrudeFromPts,buildTubeFromPts,chain4,buildExport,
 buildRuledFromPts,buildLoftFromPts,buildSweepFromPts,
-get selDrag(){return selDrag},get gizDrag(){return gizDrag},get axLock(){return axLock},get drawing(){return drawing},get laserDrag(){return laserDrag},
+get selDrag(){return selDrag},get gizDrag(){return gizDrag},get axLock(){return axLock},get drawing(){return drawing},set drawing(v){drawing=v},get laserDrag(){return laserDrag},
 _polyStart(p){polyDraw={verts:[p.slice()],segTypes:[],arcMids:{},guidePts:{},nextType:'L',arcPending:null,dragging:false,prov:null};showPolyChips();redraw();},
 _polyVert(p){if(!polyDraw)return;polyDraw.prov=p.slice();polyDraw.dragging=true;commitPolyTap();},
-get applyImport(){return applyImport},get autosave(){return autosave}};
+get applyImport(){return applyImport},get autosave(){return autosave},
+get rendererInfo(){return renderer.info.memory},updateLivePreview,nearestVertexOnPolyScreen,get liveObj(){return _liveObj},get strokeCache(){return _strokeObjs},get noteCache(){return _noteObjs}};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());

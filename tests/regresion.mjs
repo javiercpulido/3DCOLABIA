@@ -439,6 +439,44 @@ const secciones = {
     await seeded.close();
     ok('barra «Recuperar» aparece y restaura el trabajo', r2.bar && r2.recovered && r2.gone);
   },
+
+  async rendimiento() {   // FASE 1: redibujado incremental, sin fuga de GPU
+    const r = await page.evaluate(async () => {
+      const D = window._dbg, out = {};
+      const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 5)));
+      for (let i = 0; i < 60; i++)
+        D.strokes.push({ points: [[i, 0, 0], [i, 20, 0], [i, 20, 10]], color: '#000', w: 0.8, sobre: 't' });
+      for (let i = 0; i < 5; i++)
+        D.texts.push({ text: 'nota ' + i, color: '#111', pos: [i * 10, -20, 0] });
+      D.redraw(); await frame();
+      const m0 = { ...D.rendererInfo };
+      const t0 = performance.now();
+      for (let i = 0; i < 300; i++) D.redraw();
+      out.msMedia = (performance.now() - t0) / 300;
+      await frame();
+      const m1 = { ...D.rendererInfo };
+      // los redraws sin cambios no acumulan memoria GPU (tolerancia mínima por efímeros)
+      out.geomEstable = m1.geometries - m0.geometries <= 2;
+      out.texEstable = m1.textures - m0.textures <= 2;
+      // vista previa en vivo: 300 sustituciones tampoco acumulan
+      D.drawing = { points: [[0, 0, 0], [10, 5, 0], [20, 0, 5]], color: '#d500f9', w: 0.8, sobre: 't' };
+      const g0 = D.rendererInfo.geometries;
+      for (let i = 0; i < 300; i++) D.updateLivePreview();
+      out.previewOk = !!D.liveObj;
+      out.previewEstable = D.rendererInfo.geometries - g0 <= 2;
+      D.drawing = null; D.redraw(); await frame();
+      // trazo sucio: SÍ se reconstruye (la caché no congela la geometría)
+      const st = D.strokes[D.strokes.length - 1];
+      st.points = st.points.map(p => [p[0] + 5, p[1], p[2]]); st._dirty = true; D.redraw();
+      const o = D.strokeCache.get(st);
+      out.dirtyRebuild = !!o && !st._dirty;
+      return out;
+    });
+    ok('300 redraws sin cambios: memoria GPU estable', r.geomEstable && r.texEstable);
+    ok('redraw amortizado < 3 ms con 60 trazos + 5 notas', r.msMedia < 3);
+    ok('vista previa en vivo sin acumular geometrías', r.previewOk && r.previewEstable);
+    ok('trazo «sucio» se reconstruye al instante', r.dirtyRebuild);
+  },
 };
 
 // ---------------------------------------------------------------- runner
