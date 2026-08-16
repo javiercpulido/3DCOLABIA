@@ -24,6 +24,15 @@ editar el elemento viendo algo del contexto.
   en su marco local propaga a todas las instancias; editar solo una instancia crea
   una variante local.
 
+## Redondear (fillet) — redondeo de ARISTAS 3D
+
+Hecho el **fillet de líneas** (v6.50): arco tangente de radio r en las esquinas de
+líneas unidas (⛓), con radio en vivo (casilla + flechas + deslizador), fantasma
+azul, ✓ por esquina y «Aplicar a todas». Falta el segundo modo que pidió el
+usuario: **tocar una ARISTA de una pieza/sólido y generar el redondeo 3D**
+(superficie de cuarto de caña tangente a las dos caras), apoyándose en el motor
+de superficies + booleanas. Mismo control de radio y misma interfaz.
+
 ## Grosor de las líneas láser (control aparte en el menú del láser)
 
 Ya existe el motor de ancho en pantalla por shader (`fatLine`, v6.49) usado para

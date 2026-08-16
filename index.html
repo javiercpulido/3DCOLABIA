@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.49 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.50 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -213,6 +213,20 @@
  <button type="button" data-sp-create style="border:0;background:var(--acc);color:#fff;border-radius:9px;padding:8px 13px;font-weight:600;cursor:pointer">✓ Crear superficie</button>
  <button type="button" data-sp-cancel style="border:0;background:rgba(0,0,0,.06);color:var(--ink);border-radius:9px;padding:8px 10px;cursor:pointer">Cancelar</button>
 </div>
+<div id="filletpop" style="position:fixed;left:50%;transform:translateX(-50%);bottom:78px;z-index:16;display:none;align-items:center;gap:10px;background:var(--bg,#fff);border:1px solid rgba(0,0,0,.12);border-radius:12px;padding:7px 10px 7px 12px;box-shadow:0 8px 28px rgba(0,0,0,.20);font-size:13px;color:var(--ink);max-width:94vw;flex-wrap:wrap;justify-content:center">
+ <span style="display:flex;flex-direction:column;line-height:1.2"><b style="font-size:12px">Redondear</b><span data-fi-status style="color:var(--mut);font-size:11px">—</span></span>
+ <span style="display:flex;align-items:center;gap:5px"><span style="color:var(--mut);font-size:11px">Radio</span>
+  <input type="number" id="filletNum" min="0.2" max="200" step="0.5" value="8" inputmode="decimal" style="width:66px;font-size:13px;padding:5px 6px;border:1px solid #ddd;border-radius:8px;text-align:right">
+  <span style="color:var(--mut);font-size:11px">mm</span>
+  <span style="display:flex;flex-direction:column;gap:3px">
+   <button type="button" id="filletUp" class="lwstep" title="+0,5 mm"><svg width="13" height="8" viewBox="0 0 14 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7 7 2l5 5"/></svg></button>
+   <button type="button" id="filletDn" class="lwstep" title="−0,5 mm"><svg width="13" height="8" viewBox="0 0 14 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2 7 7l5-5"/></svg></button>
+  </span>
+  <input type="range" id="filletSlider" min="0.2" max="60" step="0.2" value="8" style="width:120px">
+ </span>
+ <button type="button" id="filletAll" style="border:0;background:var(--acc);color:#fff;border-radius:9px;padding:8px 12px;font-weight:600;cursor:pointer">Aplicar a todas</button>
+ <button type="button" id="filletClose" style="border:0;background:rgba(0,0,0,.06);color:var(--ink);border-radius:9px;padding:8px 10px;cursor:pointer">Cerrar</button>
+</div>
 <style>
 .pchip{position:relative;height:28px;min-width:28px;border:1px solid rgba(0,0,0,.1);border-radius:9px;background:rgba(255,255,255,.94);color:#1c1c1e;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12);padding:0}
 .pcdiv{width:1px;height:18px;background:rgba(0,0,0,.16);flex:none;margin:0 1px}
@@ -269,6 +283,7 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
   <button id="mDraw" title="Trazo (2º toque: candado)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg><span id="lockDot" style="position:absolute;top:2px;right:4px;font-size:9px;line-height:1;display:none">🔒</span></button>
   <button id="mErase" title="Borrar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg></button>
   <button id="mSplitTool" title="Partir: toca cualquier línea por el punto donde partirla (las partes quedan unidas por ese punto)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h7M14 12h7"/><path d="M12 6.5v11" stroke-dasharray="2.4 2.8"/></svg></button>
+  <button id="mFillet" title="Redondear (fillet): arco tangente en las esquinas de líneas unidas, con radio en vivo · confirma por esquina o todas"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19V13a8 8 0 0 1 8-8h6"/><path d="M5 19H3M5 19v2" opacity=".5"/><path d="M19 5h2M19 5V3" opacity=".5"/></svg></button>
   <button id="mSurf" title="Superficies: crear caras a partir de contornos y curvas"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16.5 8 5.5 20 7.5 16 18.5Z"/><path d="M7 14l4-5 3 2 3-3" opacity=".45" stroke-width="1.4"/></svg></button>
   <button id="mag" class="on" title="Imán"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15-4-4 6.75-6.77a7.79 7.79 0 0 1 11 11L13 22l-4-4 6.39-6.36a2.14 2.14 0 0 0-3-3L6 15"/><path d="m5 8 4 4"/><path d="m12 15 4 4"/></svg></button>
   <button id="mLaser" title="Láser de obra: inserta un nivel láser con rayos verdes"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="2" y1="12" x2="22" y2="12" stroke="#00c853"/><line x1="12" y1="2" x2="12" y2="22" stroke="#00c853"/><rect x="8.3" y="8.3" width="7.4" height="7.4" rx="1.6" fill="#fff" stroke="currentColor" stroke-width="1.8"/></svg></button>
@@ -1656,6 +1671,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
       if(trySplitAt(e))toast('✂ Línea partida · toca otra o vuelve a pulsar ✂ para salir');}
     else toast('✂ Toca una línea para partirla');
     return;}
+  if(window._filletAny&&e.button===0&&e.isPrimary!==false){ filletTapMarker(e); return; }   // REDONDEAR: toca la ✓ de la esquina
   if(e.pointerType==='pen'&&!penSeen){penSeen=true;toast('✍️ Pen detectado: el lápiz dibuja, los dedos navegan');}
   const em=effMode(e);
   {const now=performance.now();   // purga punteros ZOMBI (up/cancel perdidos por gestos del sistema):
@@ -4432,6 +4448,147 @@ document.getElementById('surfList').addEventListener('click',e=>{
     if(S.locked){toast(S.name+' bloqueada 🔒 · desbloquéala para borrar');return;}
     removeSurface(S);}
 });
+// ================= REDONDEAR (FILLET) de líneas =====================
+// Arco tangente de radio r entre dos tramos RECTOS que se encuentran en una
+// esquina. Funciona en líneas CONTINUAS (por sus soldaduras, ⛓). Vista previa
+// fantasma en vivo con el radio; se confirma esquina a esquina o todas a la vez.
+let filletR=8, filletCorners=[];
+const filletGhost=new THREE.Group(); filletGhost.renderOrder=24; scene.add(filletGhost);
+function _fv(a){return new THREE.Vector3(a[0],a[1],a[2]);}
+function filletArc(V,A,B,r){
+  const u1=A.clone().sub(V), u2=B.clone().sub(V);
+  const lA=u1.length(), lB=u2.length(); if(lA<1e-6||lB<1e-6)return null;
+  u1.multiplyScalar(1/lA); u2.multiplyScalar(1/lB);
+  const dot=Math.max(-1,Math.min(1,u1.dot(u2))), ang=Math.acos(dot);
+  if(ang<0.05||ang>Math.PI-0.05)return null;                 // colineal / degenerado
+  const half=ang/2, t=r/Math.tan(half);
+  if(t>lA-1e-4||t>lB-1e-4)return {tooBig:true};
+  const T1=V.clone().addScaledVector(u1,t), T2=V.clone().addScaledVector(u2,t);
+  const bis=u1.clone().add(u2); if(bis.lengthSq()<1e-9)return null; bis.normalize();
+  const cen=V.clone().addScaledVector(bis,r/Math.sin(half));
+  let nrm=u1.clone().cross(u2); if(nrm.lengthSq()<1e-9)return null; nrm.normalize();
+  const a1=T1.clone().sub(cen), sweep=Math.PI-ang;
+  const test=cen.clone().add(a1.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(nrm,sweep)));
+  if(test.distanceTo(T2)>0.02*r+0.1)nrm.negate();
+  const steps=Math.max(6,Math.ceil(sweep/0.1)), arc=[];
+  for(let s=0;s<=steps;s++){const q=new THREE.Quaternion().setFromAxisAngle(nrm,sweep*s/steps);
+    arc.push(cen.clone().add(a1.clone().applyQuaternion(q)));}
+  return {T1,T2,cen,arc,tooBig:false};
+}
+function computeFilletCorners(){
+  const out=[];
+  for(const st of strokes){
+    if(st.cont&&st.joints&&st.joints.length){
+      const P=st.points,n=P.length;
+      const anchors=[...new Set([0,...st.joints,n-1])].sort((a,b)=>a-b);
+      for(const j of st.joints){const ai=anchors.indexOf(j); if(ai<=0||ai>=anchors.length-1)continue;
+        out.push({st,j,anchors:anchors.slice(),ai,V:_fv(P[j]),A:_fv(P[anchors[ai-1]]),B:_fv(P[anchors[ai+1]])});}
+    }
+  }
+  return out;
+}
+function applyFilletCorner(c,r){
+  const g=filletArc(c.V,c.A,c.B,r); if(!g||g.tooBig)return false;
+  const st=c.st,P=st.points,prevA=c.anchors[c.ai-1],nextA=c.anchors[c.ai+1];
+  const arcArr=g.arc.map(v=>v.toArray());
+  const newP=P.slice(0,prevA+1).concat(arcArr).concat(P.slice(nextA));
+  const delta=arcArr.length-(nextA-prevA-1);
+  st.joints=(st.joints||[]).filter(j=>j!==c.j).map(j=>j<=prevA?j:j+delta).filter(j=>j>0&&j<newP.length-1);
+  st.points=newP; st._dirty=true; delete st.reg;
+  return true;
+}
+function drawFilletGhosts(){
+  while(filletGhost.children.length){const o=filletGhost.children.pop();o.geometry&&o.geometry.dispose();o.material&&o.material.dispose();}
+  filletMarkers=[];
+  for(const c of filletCorners){
+    const g=filletArc(c.V,c.A,c.B,filletR);
+    const ok=g&&!g.tooBig;
+    if(ok){const ln=new THREE.Line(new THREE.BufferGeometry().setFromPoints(g.arc),
+        new THREE.LineDashedMaterial({color:0x0a84ff,depthTest:false,transparent:true,dashSize:1.6,gapSize:1.2}));
+      ln.computeLineDistances(); ln.renderOrder=24; filletGhost.add(ln);}
+    // marcador ✓ (verde si viable, gris si el radio no cabe)
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:filletMarkTex(ok),depthTest:false,transparent:true}));
+    sp.position.copy(c.V); sp.renderOrder=26; sp.userData.corner=c; sp.userData.ok=ok;
+    filletGhost.add(sp); filletMarkers.push(sp);
+  }
+}
+let filletMarkers=[], _filletTexOk=null,_filletTexNo=null;
+function filletMarkTex(ok){
+  if(ok&&_filletTexOk)return _filletTexOk; if(!ok&&_filletTexNo)return _filletTexNo;
+  const cv=document.createElement('canvas');cv.width=cv.height=64;const g=cv.getContext('2d');
+  g.fillStyle=ok?'#0f9d68':'#9aa2b1'; g.beginPath();g.arc(32,32,15,0,7);g.fill();
+  g.strokeStyle='#fff';g.lineWidth=5;g.lineCap='round';
+  if(ok){g.beginPath();g.moveTo(24,33);g.lineTo(30,40);g.lineTo(42,25);g.stroke();}
+  else{g.beginPath();g.moveTo(24,24);g.lineTo(40,40);g.moveTo(40,24);g.lineTo(24,40);g.stroke();}
+  const t=new THREE.CanvasTexture(cv);t.minFilter=THREE.LinearFilter;
+  if(ok)_filletTexOk=t; else _filletTexNo=t; return t;
+}
+function updateFilletMarkScales(){const w=filletGhost.visible?1:0; if(!w)return;
+  for(const sp of filletMarkers){const s=22*wppAt(sp.position); sp.scale.set(s,s,1);}}
+function refreshFillet(){
+  filletCorners=computeFilletCorners();
+  const st=document.querySelector('#filletpop [data-fi-status]');
+  const viable=filletCorners.filter(c=>{const g=filletArc(c.V,c.A,c.B,filletR);return g&&!g.tooBig;}).length;
+  if(st)st.textContent=filletCorners.length?(viable+' de '+filletCorners.length+' esquina'+(filletCorners.length>1?'s':'')+' viable'+(viable>1?'s':'')+' · toca la ✓'):'No hay esquinas de líneas unidas (⛓)';
+  drawFilletGhosts();
+}
+function filletStart(){
+  window._filletAny=true; document.getElementById('mFillet').classList.add('on');
+  if(window._splitAny){window._splitAny=false;document.getElementById('mSplitTool').classList.remove('on');}
+  if(surfTool)surfToolCancel();
+  if(mode!=='sel')setMode('sel'); deselect();
+  filletGhost.visible=true;
+  document.getElementById('filletpop').style.display='flex';
+  refreshFillet();
+  toast('⌒ Redondear: ajusta el radio y toca la ✓ verde de cada esquina (o «Aplicar a todas»)');
+}
+function filletStop(){
+  window._filletAny=false; document.getElementById('mFillet').classList.remove('on');
+  filletGhost.visible=false; while(filletGhost.children.length){const o=filletGhost.children.pop();o.geometry&&o.geometry.dispose();o.material&&o.material.dispose();}
+  filletMarkers=[]; document.getElementById('filletpop').style.display='none';
+}
+function filletTapMarker(e){
+  const rct=renderer.domElement.getBoundingClientRect();
+  const px=e.clientX-rct.left, py=e.clientY-rct.top; let best=null,bd=28*28;
+  for(const sp of filletMarkers){ if(!sp.userData.ok)continue;
+    const v=sp.position.clone().project(cam); if(v.z>1)continue;
+    const sx=(v.x*0.5+0.5)*rct.width, sy=(-v.y*0.5+0.5)*rct.height;
+    const d2=(sx-px)**2+(sy-py)**2; if(d2<bd){bd=d2;best=sp;}}
+  if(!best){toast('⌒ Toca una ✓ verde (esquina viable)');return true;}
+  const c=best.userData.corner, before=c.st.points.slice(), beforeJ=(c.st.joints||[]).slice(), stRef=c.st;
+  if(applyFilletCorner(c,filletR)){
+    const after=c.st.points.slice(), afterJ=(c.st.joints||[]).slice();
+    pushUndo('redondear esquina',()=>{stRef.points=before.slice();stRef.joints=beforeJ.slice();stRef._dirty=true;refreshFillet();},
+      ()=>{stRef.points=after.slice();stRef.joints=afterJ.slice();stRef._dirty=true;refreshFillet();});
+    redraw(); refreshFillet(); toast('⌒ Esquina redondeada (r='+filletR+' mm)');
+  } else toast('⌒ El radio no cabe en esa esquina');
+  return true;
+}
+function filletApplyAll(){
+  let done=0, snapStrokes=strokes.map(s=>({s,p:s.points.slice(),j:(s.joints||[]).slice()}));
+  for(let guard=0;guard<200;guard++){
+    const cs=computeFilletCorners().filter(c=>{const g=filletArc(c.V,c.A,c.B,filletR);return g&&!g.tooBig;});
+    if(!cs.length)break; if(applyFilletCorner(cs[0],filletR))done++; else break;
+  }
+  if(done){
+    const after=strokes.map(s=>({s,p:s.points.slice(),j:(s.joints||[]).slice()}));
+    pushUndo('redondear '+done+' esquinas',
+      ()=>{snapStrokes.forEach(x=>{x.s.points=x.p.slice();x.s.joints=x.j.slice();x.s._dirty=true;});refreshFillet();},
+      ()=>{after.forEach(x=>{x.s.points=x.p.slice();x.s.joints=x.j.slice();x.s._dirty=true;});refreshFillet();});
+    redraw(); refreshFillet(); toast('⌒ '+done+' esquina'+(done>1?'s':'')+' redondeada'+(done>1?'s':'')+' (r='+filletR+' mm)');
+  } else toast('⌒ Ninguna esquina viable con r='+filletR+' mm');
+}
+function setFilletR(v){filletR=Math.max(0.2,Math.min(400,Math.round(v*10)/10));
+  const n=document.getElementById('filletNum'); if(n)n.value=filletR;
+  const s=document.getElementById('filletSlider'); if(s&&+s.max>=filletR)s.value=filletR;
+  refreshFillet();}
+document.getElementById('mFillet').onclick=()=>{ if(window._filletAny)filletStop(); else filletStart(); };
+document.getElementById('filletUp').onclick=()=>setFilletR(filletR+0.5);
+document.getElementById('filletDn').onclick=()=>setFilletR(filletR-0.5);
+document.getElementById('filletNum').addEventListener('input',e=>{const v=parseFloat(String(e.target.value).replace(',','.'));if(isFinite(v)){filletR=Math.max(0.2,Math.min(400,v));refreshFillet();}});
+document.getElementById('filletSlider').addEventListener('input',e=>setFilletR(+e.target.value));
+document.getElementById('filletAll').onclick=()=>filletApplyAll();
+document.getElementById('filletClose').onclick=()=>filletStop();
 // ---- HERRAMIENTA DE SUPERFICIES del dock (submenú con 3 modos) ----------------
 function surfToolStart(mode){
   surfTool={mode,contour:null,dir:null,inner:[],solids:[]};
@@ -4984,7 +5141,8 @@ computeIntersections,snapPt,midByArc,get lineW(){return lineW},
 get faceRef(){return faceRef},get frame(){return {on:frameOn,Rface}},get pickables(){return pickables},
 datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes},
 updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},
-get edgePx(){return edgePx},fatLine,get HAIRLINE(){return HAIRLINE}};
+get edgePx(){return edgePx},fatLine,get HAIRLINE(){return HAIRLINE},
+filletStart,filletStop,filletApplyAll,computeFilletCorners,applyFilletCorner,filletArc,setFilletR,get filletR(){return filletR},get filletMarkers(){return filletMarkers}};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());
@@ -5338,7 +5496,7 @@ applyMode();   // asegura la configuración del poché (stencil) tras crear las 
     const on=interOn&&pieces[ip.a]&&pieces[ip.a].visible&&pieces[ip.b]&&pieces[ip.b].visible;
     ip.l1.visible=on; ip.l2.visible=on;});
   if(gizmo&&gizmo.visible){const L=Math.max(10,sph.r*0.12);gizmo.scale.set(L,L,L);}
-  updateSilh(); updateSecMarkers(); updateNoteScales(); updateSnapGlyphs(); updateDatumLabelScale(); _fatRes.value.set(W,H);
+  updateSilh(); updateSecMarkers(); updateNoteScales(); updateSnapGlyphs(); updateDatumLabelScale(); _fatRes.value.set(W,H); updateFilletMarkScales();
   if(polyDraw)positionPolyChips();
   renderer.render(scene,cam);})();
 </script>

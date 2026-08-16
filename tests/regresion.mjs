@@ -655,6 +655,49 @@ const secciones = {
     ok('unión: deshacer la quita y rehacer la devuelve', r.undo && r.redo);
   },
 
+  async fillet() {   // REDONDEAR: arco tangente de radio r en esquinas de líneas unidas
+    const r = await page.evaluate(async () => {
+      const D = window._dbg, T3 = window.THREE, out = {};
+      const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 15)));
+      // línea continua en L con soldadura en la esquina (idx 20)
+      const pts = []; for (let i = 0; i <= 20; i++) pts.push([40 * i / 20, 0, 0]);
+      for (let i = 1; i <= 20; i++) pts.push([40, 40 * i / 20, 0]);
+      const st = { points: pts, color: '#111', w: 0.2, sobre: 't', cont: true, joints: [20] };
+      D.strokes.push(st); D.redraw();
+      // geometría: tangencia y radio exactos (esquina 90° → t = r)
+      const g = D.filletArc(new T3.Vector3(40, 0, 0), new T3.Vector3(0, 0, 0), new T3.Vector3(40, 40, 0), 10);
+      out.tang = !!g && Math.abs(g.T1.x - 30) < 0.02 && Math.abs(g.T2.y - 10) < 0.02;
+      out.radio = !!g && g.arc.every(v => Math.abs(v.distanceTo(g.cen) - 10) < 0.05);
+      // radio que no cabe → tooBig
+      const big = D.filletArc(new T3.Vector3(40, 0, 0), new T3.Vector3(0, 0, 0), new T3.Vector3(40, 40, 0), 200);
+      out.tooBig = !!big && big.tooBig === true;
+      // herramienta: armar, marcadores, aplicar todas, deshacer/rehacer
+      D.filletStart(); D.setFilletR(10); await frame();
+      out.arma = document.getElementById('filletpop').style.display === 'flex' &&
+        D.computeFilletCorners().length === 1 && D.filletMarkers.length >= 1;
+      const nAntes = st.points.length;
+      D.filletApplyAll(); await frame();
+      const P = st.points;
+      const angAt = i => { const a = new T3.Vector3(...P[i - 1]).sub(new T3.Vector3(...P[i]));
+        const b = new T3.Vector3(...P[i + 1]).sub(new T3.Vector3(...P[i]));
+        return Math.acos(Math.max(-1, Math.min(1, a.normalize().dot(b.normalize())))) * 180 / Math.PI; };
+      let minAng = 180; for (let i = 1; i + 1 < P.length; i++) minAng = Math.min(minAng, angAt(i));
+      out.suave = minAng > 150 && (st.joints || []).length === 0;
+      document.getElementById('undo').click(); await frame();
+      out.undo = st.points.length === nAntes && (st.joints || []).length === 1;
+      document.getElementById('redo').click(); await frame();
+      out.redo = (st.joints || []).length === 0;
+      D.filletStop();
+      out.cierra = document.getElementById('filletpop').style.display === 'none' && !window._filletAny;
+      return out;
+    });
+    ok('fillet: arco tangente exacto y a radio', r.tang && r.radio);
+    ok('fillet: radio que no cabe se marca inviable', r.tooBig);
+    ok('fillet: herramienta arma con marcadores por esquina', r.arma);
+    ok('fillet: «aplicar a todas» suaviza (tangente, sin esquina viva)', r.suave);
+    ok('fillet: deshacer y rehacer', r.undo && r.redo && r.cierra);
+  },
+
   async rendimiento() {   // FASE 1: redibujado incremental, sin fuga de GPU
     const r = await page.evaluate(async () => {
       const D = window._dbg, out = {};
