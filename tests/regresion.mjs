@@ -828,6 +828,68 @@ const secciones = {
     ok('botón «Vista alineada» del plano de dibujo', r.alineada);
   },
 
+  async plano_ayudas() {   // bloqueo del plano · OSNAP de sección · inferencia de ejes en la recta
+    const r = await page.evaluate(async () => {
+      const D = window._dbg, T3 = window.THREE, out = {};
+      const AX = [['x', new T3.Vector3(1,0,0)], ['y', new T3.Vector3(0,1,0)], ['z', new T3.Vector3(0,0,1)]];
+      // papel Z que corta las piezas
+      const bb = new T3.Box3(); for (const nm in D.pieces) if (D.pieces[nm].visible) bb.expandByObject(D.pieces[nm]);
+      const c = bb.getCenter(new T3.Vector3());
+      const s = D.newSectionObj('AY', c.clone(), new T3.Vector3(0,0,1), true);
+      s.secOn = true; D.updatePaperSecs();
+
+      // --- BLOQUEO: el botón candado (data-pk) alterna s.locked; bloqueado no hay gizmo ni giro
+      D.renderPaperList();
+      const btn = document.querySelector('[data-pk]');
+      out.hayBoton = !!btn;
+      btn.click();                        // bloquear
+      out.bloquea = s.locked === true;
+      D.select('section', s, s.name); D.updateGizmo();
+      out.sinGizmo = D.gizmoVisible === false;   // plano bloqueado: sin gizmo (no se mueve ni gira)
+      document.querySelector('[data-pk]').click();   // desbloquear
+      out.desbloquea = s.locked !== true;
+      s.locked = true;                    // dejarlo bloqueado para el resto
+
+      // --- OSNAP de las líneas de sección (paridad con el láser)
+      const segs = D.secLineSegs();
+      out.haySeg = segs.length > 4;
+      const a = segs[0][0], b = segs[0][1], mid = a.clone().lerp(b, 0.5);
+      const snapped = D.magSnap(mid.clone().add(new T3.Vector3(0.3, 0, 0)));
+      out.imanSec = !!snapped && snapped.distanceTo(mid) < 1.2;
+      // glifos OSNAP (extremos/medios/centros/cuadrantes) generados para las sec lines
+      const glyphs = D.buildSnapPts(null, false);
+      let near = 0; for (const g of glyphs) { const gp = new T3.Vector3(g.p[0], g.p[1], g.p[2]);
+        for (const sg of segs) { if (gp.distanceTo(sg[0]) < 0.5 || gp.distanceTo(sg[1]) < 0.5) { near++; break; } } }
+      out.glifosSec = near > 0;
+
+      // --- INFERENCIA DE EJES (recta tipo SketchUp): bloquea cerca, libera lejos
+      const A0 = new T3.Vector3(0,0,0);
+      const lz = D.axisInferDir(A0, new T3.Vector3(0.6, 0, 40), AX, 4.5);
+      out.ejeZ = !!lz && lz.k === 'z' && Math.abs(lz.p.x) < 1e-6 && Math.abs(lz.p.y) < 1e-6;
+      const lx = D.axisInferDir(A0, new T3.Vector3(40, 0.6, 0), AX, 4.5);
+      out.ejeX = !!lx && lx.k === 'x';
+      out.libera = D.axisInferDir(A0, new T3.Vector3(30, 0, 30), AX, 4.5) === null;   // 45° = sin bloqueo
+      // orto en el plano: ejes U/V del papel
+      const f = D.paperFrame(s);
+      const lu = D.axisInferDir(A0, A0.clone().addScaledVector(f.U, 40).addScaledVector(f.V, 0.5), [['u', f.U], ['v', f.V]], 4.5);
+      out.ortoPlano = !!lu && lu.k === 'u';
+
+      // --- PERSISTENCIA del bloqueo (export → import)
+      const data = D.buildExport();
+      const sd = (data.secciones || []).find(x => x.paper && x.locked);
+      out.exporta = !!sd;
+      D.applyImport(data);
+      const ps = D.papers;
+      out.importa = ps.length > 0 && ps.every(pp => pp.locked === true);
+      return out;
+    });
+    ok('plano de dibujo: candado bloquea (sin gizmo) y desbloquea', r.hayBoton && r.bloquea && r.sinGizmo && r.desbloquea);
+    ok('líneas de sección: imán + glifos OSNAP como el láser', r.haySeg && r.imanSec && r.glifosSec);
+    ok('recta: inferencia de ejes X/Z (bloquea) y liberación a 45°', r.ejeZ && r.ejeX && r.libera);
+    ok('recta: orto en el plano (ejes U/V del papel)', r.ortoPlano);
+    ok('bloqueo del plano se guarda y se recupera', r.exporta && r.importa);
+  },
+
   async rendimiento() {   // FASE 1: redibujado incremental, sin fuga de GPU
     const r = await page.evaluate(async () => {
       const D = window._dbg, out = {};
