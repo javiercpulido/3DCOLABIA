@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.44 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.45 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -368,27 +368,13 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
   <span style="font-size:10px;color:var(--mut)">fino = línea 1px (tipo SketchUp)</span></div>
  <div style="margin-top:6px"><b>Tam. imagen</b><br><input type="range" id="imsc" min="10" max="200" value="60"> mm</div>
  <label><input type="checkbox" id="meshChk"> Malla (aristas de triángulos)</label>
- <div id="floorRow" style="margin-top:8px">
+ <div id="frameRow" style="margin-top:8px">
   <div style="display:flex;align-items:center;gap:6px">
-   <button type="button" class="peye on" data-floor-eye title="Ver / ocultar el suelo (rejilla)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
-   <b style="flex:1">Suelo</b><span style="color:var(--mut);font-size:10px">cota 0 · esquina 0,0 · capa de fondo</span>
+   <button type="button" class="peye on" data-frame-eye title="Ver / ocultar la referencia del marco local (cara de montaje + eje del cuadradillo)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+   <b style="flex:1">Marco local</b><span style="color:var(--mut);font-size:10px">componente · mm</span>
   </div>
-  <div style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;color:var(--mut)">
-   <span style="width:42px">Altura</span>
-   <input type="number" id="floorZ" step="5" value="0" inputmode="numeric" title="Altura del suelo (mm respecto a su posición por defecto)" style="width:60px;font-size:13px;padding:4px 6px;border:1px solid #ddd;border-radius:8px;text-align:right">
-   <span>mm</span>
-   <span style="display:flex;flex-direction:column;gap:3px">
-    <button type="button" id="floorUp" class="lwstep" title="Subir el suelo (+5 mm)"><svg width="13" height="8" viewBox="0 0 14 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7 7 2l5 5"/></svg></button>
-    <button type="button" id="floorDn" class="lwstep" title="Bajar el suelo (−5 mm)"><svg width="13" height="8" viewBox="0 0 14 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2 7 7l5-5"/></svg></button>
-   </span>
-  </div>
-  <div style="display:flex;align-items:center;gap:5px;margin-top:5px;font-size:12px;color:var(--mut)">
-   <span style="width:42px">Mover</span>
-   <button type="button" class="lwstep floornudge" data-fn="x-1" title="Mover a la izquierda (−X)">◀</button>
-   <button type="button" class="lwstep floornudge" data-fn="x1" title="Mover a la derecha (+X)">▶</button>
-   <button type="button" class="lwstep floornudge" data-fn="y1" title="Mover adelante (+Y)">▲</button>
-   <button type="button" class="lwstep floornudge" data-fn="y-1" title="Mover atrás (−Y)">▼</button>
-   <button type="button" id="floorReset" style="margin-left:auto;font-size:11px;border:0;background:transparent;color:var(--acc);cursor:pointer;padding:2px 4px">Centrar</button>
+  <div style="font-size:10.5px;color:var(--mut);margin-top:3px;line-height:1.4">
+   Origen <b>0,0,0</b> = eje del cuadradillo ∩ cara de montaje · <b style="color:#1fa055">Y</b> = eje de giro. La colocación en la puerta (a su altura) es una transformación aparte y no mueve la geometría.
   </div>
  </div>
  <label><input type="checkbox" id="axes" checked> Ejes</label>
@@ -521,24 +507,37 @@ MESHES.forEach(m=>{
 });
 let C=new THREE.Vector3(); bbox.getCenter(C);
 let R=bbox.getSize(new THREE.Vector3()).length()*0.62;
-let grid=new THREE.GridHelper(300,30,0xdadfe5,0xe9edf1); grid.rotation.x=Math.PI/2;
-let gridDark=new THREE.GridHelper(300,30,0x33383f,0x23272c); gridDark.rotation.x=Math.PI/2;
-scene.add(grid); scene.add(gridDark);
-// SUELO (capa de fondo): la rejilla de referencia. Es un plano ESPECIAL — no está
-// en pickables, así que NO afecta al cálculo de geometría (intersecciones, imán),
-// y NO se incluye en las exportaciones (JSON/IFC BIM). Se puede ocultar con el ojo
-// y mover en altura y en planta, como una superficie más.
-const floorZ0=bbox.min.z-2;
-let floorZ=floorZ0, floorX=C.x, floorY=C.y, floorOn=true, _datumReady=false;
-function applyFloor(){
-  grid.position.set(floorX,floorY,floorZ); gridDark.position.copy(grid.position);
-  grid.visible=floorOn&&!darkView; gridDark.visible=floorOn&&darkView;
-  const e=document.querySelector('[data-floor-eye]'); if(e)e.classList.toggle('on',floorOn);
-  const h=document.getElementById('floorZ'); if(h&&document.activeElement!==h)h.value=(floorZ-floorZ0).toFixed(0);
-  if(_datumReady)applyDatum();   // el datum (cota 0 · esquina 0,0) sigue al suelo
+// MARCO LOCAL DEL COMPONENTE (no es el edificio): la manilla se edita en su
+// propio marco. Origen (0,0,0) = eje del cuadradillo ∩ cara de montaje de la
+// roseta; Y = eje de giro; unidades mm. La referencia VISIBLE es la CARA DE
+// MONTAJE en local-0 (un disco/anillo en el plano X-Z por el origen) y el eje
+// del cuadradillo — NO un suelo ni una rejilla flotante. Es solo visualización:
+// no está en pickables (no afecta a geometría) ni entra en la exportación. La
+// colocación en una puerta a una altura dada es una transformación aparte.
+let Rface=(function(){const m=pieces['1 roseta']; if(!m||!m.geometry)return R*0.35;
+  m.geometry.computeBoundingBox(); const b=m.geometry.boundingBox;
+  return Math.max(b.max.x-b.min.x,b.max.z-b.min.z)/2||R*0.35;})();
+const faceRef=new THREE.Group(); scene.add(faceRef);
+(function(){
+  const seg=72, rpts=[];
+  for(let i=0;i<=seg;i++){const a=2*Math.PI*i/seg; rpts.push(new THREE.Vector3(Rface*Math.cos(a),0,Rface*Math.sin(a)));}
+  const ring=new THREE.Line(new THREE.BufferGeometry().setFromPoints(rpts),
+    new THREE.LineBasicMaterial({color:0x9aa2b1,transparent:true,opacity:.9,depthWrite:false}));
+  const disc=new THREE.Mesh(new THREE.CircleGeometry(Rface,72),
+    new THREE.MeshBasicMaterial({color:0x9aa2b1,transparent:true,opacity:.06,side:THREE.DoubleSide,depthWrite:false}));
+  disc.rotation.x=-Math.PI/2;   // CircleGeometry (X-Y) → plano de la cara (X-Z)
+  const axL=Math.max(Rface*1.5,R*0.25);
+  const spindle=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,-axL,0),new THREE.Vector3(0,axL,0)]),
+    new THREE.LineDashedMaterial({color:0x1fa055,transparent:true,opacity:.75,dashSize:3,gapSize:2,depthWrite:false}));
+  spindle.computeLineDistances();
+  faceRef.add(disc); faceRef.add(ring); faceRef.add(spindle);
+})();
+let frameOn=true, _datumReady=false;
+function applyFrame(){
+  faceRef.visible=frameOn;
+  const e=document.querySelector('[data-frame-eye]'); if(e)e.classList.toggle('on',frameOn);
+  if(_datumReady)applyDatum();
 }
-// posición inicial en línea (applyFloor usa darkView, aún no declarado aquí)
-grid.position.set(floorX,floorY,floorZ); gridDark.position.copy(grid.position); gridDark.visible=false;
 
 // ================= INTERSECCION ENTRE VOLUMENES =================
 // Curva de interseccion malla-malla (tri-tri exacto, prefiltro por cajas).
@@ -680,7 +679,7 @@ function applyTheme(){
   const bd=document.getElementById('vDark'); if(bd)bd.classList.toggle('on',darkView&&!invView);
   const bi=document.getElementById('vInv'); if(bi)bi.classList.toggle('on',invView);
   const ir=document.getElementById('invARow'); if(ir)ir.style.display=invView?'block':'none';
-  applyFloor();
+  applyFrame();
   // el laser gana contraste: verde mas brillante y halo mas presente en oscuro
   lasers.forEach(L=>{L.matA.color.setHex(darkView?0x00e676:0x00c853);
     L.matB.opacity=darkView?0.38:0.25;});
@@ -754,17 +753,18 @@ function applySec(){
   updatePoche();
 }
 let axes=new THREE.AxesHelper(40); scene.add(axes);
-// ---- DATUM (cota 0 = plano del suelo) ----
-// La esquina del suelo es el PUNTO BASE 0,0 del proyecto: ahí nacen los ejes de
-// color y desde ahí se leen las coordenadas — X, Y y COTA (altura sobre el suelo).
-// No cambia las coordenadas internas del modelo; es sólo la referencia visible.
-function datumOrigin(){return new THREE.Vector3(floorX-150,floorY-150,floorZ);}
+// ---- ORIGEN DEL MARCO LOCAL (0,0,0) ----
+// El origen es el eje del cuadradillo ∩ la cara de montaje de la roseta: ahí
+// nacen los ejes de color y desde ahí se leen las coordenadas LOCALES (X, Z en la
+// cara · Y = profundidad a lo largo del cuadradillo, el eje de giro). No cambia
+// las coordenadas internas del modelo; es sólo la referencia visible.
+function datumOrigin(){return new THREE.Vector3(0,0,0);}
 let _axesOn=true;
 let datumLbl=(function(){
-  const f='700 34px -apple-system,system-ui,sans-serif';
+  const f='700 32px -apple-system,system-ui,sans-serif';
   const cv=document.createElement('canvas'); let g=cv.getContext('2d'); g.font=f;
-  const t='0,0', w=Math.ceil(g.measureText(t).width); cv.width=w+8; cv.height=42;
-  g=cv.getContext('2d'); g.font=f; g.textBaseline='middle'; g.fillStyle='#e5433c'; g.fillText(t,4,23);
+  const t='0', w=Math.ceil(g.measureText(t).width); cv.width=w+8; cv.height=40;
+  g=cv.getContext('2d'); g.font=f; g.textBaseline='middle'; g.fillStyle='#e5433c'; g.fillText(t,4,22);
   const tex=new THREE.CanvasTexture(cv); tex.minFilter=THREE.LinearFilter;
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));
   sp.userData.aspect=cv.width/cv.height; sp.renderOrder=13; scene.add(sp); return sp;
@@ -772,19 +772,19 @@ let datumLbl=(function(){
 function applyDatum(){
   const o=datumOrigin();
   axes.position.copy(o); axes.visible=_axesOn;
-  datumLbl.position.copy(o).add(new THREE.Vector3(-1.5,-1.5,0)); datumLbl.visible=_axesOn&&floorOn;
+  datumLbl.position.copy(o).add(new THREE.Vector3(-2,-2,0)); datumLbl.visible=_axesOn&&frameOn;
 }
 function updateDatumLabelScale(){const s=32*wppAt(datumLbl.position); datumLbl.scale.set(s*datumLbl.userData.aspect,s,1);}
-// lectura viva de coordenadas relativas al datum (X · Y · cota) al pasar el puntero
+// lectura viva de coordenadas LOCALES al pasar el puntero (relativas al origen del
+// componente; Y = profundidad desde la cara de montaje, el eje del cuadradillo)
 function updateCoordHud(e){
   if(e.target!==renderer.domElement)return;   // sólo sobre el lienzo
   ndc(e); let p=null;
   const hits=ray.intersectObjects(pickables.filter(x=>x.visible),false);
   if(hits.length)p=hits[0].point;
-  else{const pl=new THREE.Plane(new THREE.Vector3(0,0,1),-floorZ); p=ray.ray.intersectPlane(pl,new THREE.Vector3());}
+  else{const pl=new THREE.Plane(new THREE.Vector3(0,1,0),0); p=ray.ray.intersectPlane(pl,new THREE.Vector3());}   // plano de la cara de montaje (Y=0)
   if(!p)return;
-  const o=datumOrigin();
-  document.getElementById('hud').textContent='X '+(p.x-o.x).toFixed(1)+' · Y '+(p.y-o.y).toFixed(1)+' · cota '+(p.z-floorZ).toFixed(1)+' mm';
+  document.getElementById('hud').textContent='local · X '+p.x.toFixed(1)+' · Y '+p.y.toFixed(1)+' · Z '+p.z.toFixed(1)+' mm';
 }
 _datumReady=true; applyDatum();
 
@@ -4504,8 +4504,8 @@ function buildLaserMag(u){
     for(const e of map.values())if(e.n>=thr)cand.push({c:e.s/e.n,mesh:m});
     if(isFinite(mn)){cand.push({c:mn,mesh:m}); cand.push({c:mx,mesh:m});}   // aristas de extensión
   }
-  if(Math.abs(u.z)>0.9){const zg=floorZ;   // el suelo, plano perpendicular a Z
-    cand.push({c:new THREE.Vector3(0,0,zg).dot(u),mesh:null});}
+  if(Math.abs(u.y)>0.9)   // plano de la CARA DE MONTAJE (Y=0), perpendicular al cuadradillo
+    cand.push({c:0,mesh:null});
   return cand;
 }
 function addLaser(silent){
@@ -4656,22 +4656,11 @@ document.getElementById('lwDn').onclick=()=>setLineW(lineW-0.05);
   lwNum.addEventListener('change',()=>setLineW(lineW));})();  // normaliza (2 decimales) al salir
 axSnap.onchange=e=>{axisSnap=e.target.checked;};
 document.getElementById('meshChk').onchange=e=>{meshOverlay=e.target.checked;};
-// SUELO: ojo (ver/ocultar), altura (mm respecto a su posición por defecto) y
-// desplazamiento en planta. Es una capa de fondo: no afecta a geometría ni export.
+// MARCO LOCAL: ojo para ver/ocultar la referencia (cara de montaje + eje del
+// cuadradillo). Está fija en local-0; no se mueve como un suelo de edificio.
 (function(){
-  const eye=document.querySelector('[data-floor-eye]');
-  if(eye)eye.onclick=()=>{floorOn=!floorOn; applyFloor();};
-  const setFZ=v=>{floorZ=floorZ0+v; applyFloor();};
-  const fz=document.getElementById('floorZ');
-  if(fz)fz.addEventListener('input',e=>{const v=parseFloat(String(e.target.value).replace(',','.')); if(isFinite(v))setFZ(v);});
-  const fu=document.getElementById('floorUp'), fd=document.getElementById('floorDn');
-  if(fu)fu.onclick=()=>setFZ((floorZ-floorZ0)+5);
-  if(fd)fd.onclick=()=>setFZ((floorZ-floorZ0)-5);
-  document.querySelectorAll('.floornudge').forEach(b=>b.onclick=()=>{const d=b.dataset.fn,s=10;
-    if(d==='x1')floorX+=s; else if(d==='x-1')floorX-=s; else if(d==='y1')floorY+=s; else if(d==='y-1')floorY-=s;
-    applyFloor();});
-  const fr=document.getElementById('floorReset');
-  if(fr)fr.onclick=()=>{floorX=C.x; floorY=C.y; floorZ=floorZ0; applyFloor();};
+  const eye=document.querySelector('[data-frame-eye]');
+  if(eye)eye.onclick=()=>{frameOn=!frameOn; applyFrame();};
 })();
 document.getElementById('vDark').onclick=()=>{
   if(darkView&&!invView)setDark(false);       // noche → día
@@ -4730,7 +4719,7 @@ _polyVert(p){if(!polyDraw)return;polyDraw.prov=p.slice();polyDraw.dragging=true;
 get applyImport(){return applyImport},get autosave(){return autosave},
 get rendererInfo(){return renderer.info.memory},updateLivePreview,nearestVertexOnPolyScreen,get liveObj(){return _liveObj},get strokeCache(){return _strokeObjs},get noteCache(){return _noteObjs},
 computeIntersections,snapPt,midByArc,get lineW(){return lineW},
-get grid(){return grid},get gridDark(){return gridDark},get floor(){return {on:floorOn,z:floorZ,z0:floorZ0,x:floorX,y:floorY}},get pickables(){return pickables},
+get faceRef(){return faceRef},get frame(){return {on:frameOn,Rface}},get pickables(){return pickables},
 datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes}};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};

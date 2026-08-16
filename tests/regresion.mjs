@@ -508,57 +508,44 @@ const secciones = {
     ok('caché de cilindro se refresca al mover la pieza', r.cylFresh);
   },
 
-  async suelo() {   // el suelo (rejilla) como capa de fondo controlable
+  async marco_local() {   // la manilla es un COMPONENTE: marco local, no datum de edificio
     const r = await page.evaluate(() => {
       const D = window._dbg, out = {};
-      // ojo: ocultar / mostrar
-      const eye = document.querySelector('[data-floor-eye]');
-      out.eyeExiste = !!eye;
+      // origen del componente en (0,0,0) = eje del cuadradillo ∩ cara de montaje
+      const o = D.datumOrigin();
+      out.origen0 = Math.abs(o.x) < 1e-9 && Math.abs(o.y) < 1e-9 && Math.abs(o.z) < 1e-9;
+      // los ejes de color nacen en el origen local (no en una esquina del suelo)
+      out.ejesEnOrigen = D.axesObj.position.length() < 1e-9;
+      // referencia visible del marco (cara de montaje + eje) y su ojo
+      const eye = document.querySelector('[data-frame-eye]');
+      out.eyeExiste = !!eye && !!D.faceRef;
+      out.visible0 = D.faceRef.visible === true && D.frame.on === true;
       eye.click();
-      out.oculto = D.grid.visible === false && D.gridDark.visible === false && D.floor.on === false;
+      out.oculto = D.faceRef.visible === false && D.frame.on === false;
       eye.click();
-      out.visible = D.floor.on === true;
-      // altura: subir 3 pasos (+15 mm)
-      const z0 = D.floor.z;
-      document.getElementById('floorUp').click();
-      document.getElementById('floorUp').click();
-      document.getElementById('floorUp').click();
-      out.sube = Math.abs(D.floor.z - (z0 + 15)) < 1e-6 && Math.abs(D.grid.position.z - (z0 + 15)) < 1e-6;
-      // campo numérico de altura (relativa a la posición por defecto)
-      const fz = document.getElementById('floorZ');
-      fz.value = '40'; fz.dispatchEvent(new Event('input', { bubbles: true }));
-      out.campo = Math.abs(D.floor.z - (D.floor.z0 + 40)) < 1e-6;
-      // mover en planta
-      const x0 = D.floor.x;
-      document.querySelector('.floornudge[data-fn="x1"]').click();
-      out.mueve = Math.abs(D.floor.x - (x0 + 10)) < 1e-6 && Math.abs(D.grid.position.x - (x0 + 10)) < 1e-6;
-      // centrar restablece
-      document.getElementById('floorReset').click();
-      out.centra = Math.abs(D.floor.z - D.floor.z0) < 1e-6;
-      // NO afecta a geometría: la rejilla no está en pickables
-      out.fueraGeo = !D.pickables.includes(D.grid) && !D.pickables.includes(D.gridDark);
-      // NO entra en la exportación (ni piezas, ni superficies, ni trazos)
-      const ex = D.buildExport ? window.buildExport() : null;
-      const json = JSON.stringify(ex || {});
-      out.fueraExport = !/rejilla|gridhelper|"suelo"/i.test(json);
-      // DATUM: esquina 0,0 en el suelo, ejes ahí, y sigue al suelo (cota 0)
-      const o0 = D.datumOrigin();
-      out.datumCorner = Math.abs(o0.x - (D.floor.x - 150)) < 1e-6 && Math.abs(o0.y - (D.floor.y - 150)) < 1e-6 && Math.abs(o0.z - D.floor.z) < 1e-6;
-      out.axesEnDatum = Math.abs(D.axesObj.position.x - o0.x) < 1e-6 && Math.abs(D.axesObj.position.z - o0.z) < 1e-6;
-      document.getElementById('floorUp').click();   // subir cota 0 → el datum sube con el suelo
-      out.datumSigue = Math.abs(D.datumOrigin().z - (o0.z + 5)) < 1e-6 && Math.abs(D.axesObj.position.z - (o0.z + 5)) < 1e-6;
-      document.getElementById('floorReset').click();
-      // lectura relativa al datum (cota): el hud usa X/Y/cota
+      out.visible1 = D.faceRef.visible === true;
+      // radio de la cara ≈ radio de la roseta (26.5)
+      out.rface = Math.abs(D.frame.Rface - 26.5) < 2;
+      // NO hay suelo/rejilla de edificio ni controles de altura/mover
+      out.sinSuelo = !document.getElementById('floorRow') && !document.getElementById('floorZ') &&
+        document.querySelectorAll('.floornudge').length === 0;
+      // lectura LOCAL de coordenadas (X · Y · Z), sin «cota» de edificio
       D.updateCoordHud({ target: document.querySelector('canvas'), clientX: 600, clientY: 400 });
-      out.lectura = /cota/.test(document.getElementById('hud').textContent);
+      const hud = document.getElementById('hud').textContent;
+      out.lecturaLocal = /local/.test(hud) && /Y/.test(hud) && !/cota/.test(hud);
+      // sigue siendo solo visualización: no está en pickables → no afecta a geometría
+      out.fueraGeo = !D.pickables.includes(D.faceRef);
+      // y no entra en la exportación
+      const json = JSON.stringify(window.buildExport() || {});
+      out.fueraExport = !/faceref|cara de montaje|marco local|"suelo"|rejilla/i.test(json);
       return out;
     });
-    ok('suelo: ojo oculta y muestra la rejilla', r.eyeExiste && r.oculto && r.visible);
-    ok('suelo: altura por flechas y por casilla', r.sube && r.campo);
-    ok('suelo: desplazamiento en planta y «Centrar»', r.mueve && r.centra);
-    ok('suelo: capa de fondo (fuera de geometría y de la exportación)', r.fueraGeo && r.fueraExport);
-    ok('datum: esquina 0,0 en el suelo, ejes ahí, cota 0 sigue al suelo', r.datumCorner && r.axesEnDatum && r.datumSigue);
-    ok('datum: lectura de coordenadas relativa (X · Y · cota)', r.lectura);
+    ok('componente: origen local en (0,0,0), ejes ahí', r.origen0 && r.ejesEnOrigen);
+    ok('referencia de cara de montaje: ojo ver/ocultar', r.eyeExiste && r.visible0 && r.oculto && r.visible1);
+    ok('cara de montaje con radio de la roseta', r.rface);
+    ok('sin suelo/rejilla de edificio ni Altura/Mover', r.sinSuelo);
+    ok('lectura de coordenadas LOCAL (X · Y · Z, sin cota de edificio)', r.lecturaLocal);
+    ok('marco local: solo visualización (fuera de geometría y exportación)', r.fueraGeo && r.fueraExport);
   },
 
   async rendimiento() {   // FASE 1: redibujado incremental, sin fuga de GPU
