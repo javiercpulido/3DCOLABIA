@@ -236,7 +236,7 @@ const secciones = {
   async superficies() {
     const r = await page.evaluate(() => {
       const D = window._dbg, out = {};
-      out.menu = document.querySelectorAll('#surfmenu [data-sm]').length === 10;
+      out.menu = document.querySelectorAll('#surfmenu [data-sm]').length === 11;   // 10 superficies + Unir sólidos
       const ring = []; for (let i = 0; i < 32; i++) { const a = 2 * Math.PI * i / 32; ring.push([30 + 12 * Math.cos(a), 75 + 12 * Math.sin(a), 0]); }
       ring.push(ring[0].slice());
       const inner = []; for (let i = 0; i <= 16; i++) { const t = i / 16; inner.push([18 + 24 * t, 75, 6 * Math.sin(Math.PI * t)]); }
@@ -577,6 +577,55 @@ const secciones = {
     ok('popup: aparece y «Crear» deshabilitado sin contorno', r.apareceSinContorno);
     ok('popup: con contorno «Crear» se habilita; interior opcional', r.creable && r.interior);
     ok('popup: el toque en vacío ya no crea; lo hace el botón «Crear»', r.vacioNoCrea && r.botonCrea);
+  },
+
+  async booleana_union() {   // fusión de sólidos (CSG) no destructiva
+    const r = await page.evaluate(async () => {
+      const D = window._dbg, T3 = window.THREE, out = {};
+      const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 15)));
+      const vol = g => { const p = g.attributes.position, idx = g.index; let v = 0;
+        const tri = (a, b, c) => { const ax=p.getX(a),ay=p.getY(a),az=p.getZ(a),bx=p.getX(b),by=p.getY(b),bz=p.getZ(b),cx=p.getX(c),cy=p.getY(c),cz=p.getZ(c);
+          v += (ax*(by*cz-bz*cy) - ay*(bx*cz-bz*cx) + az*(bx*cy-by*cx)) / 6; };
+        if (idx) { for (let i=0;i<idx.count;i+=3) tri(idx.getX(i),idx.getX(i+1),idx.getX(i+2)); }
+        else { for (let i=0;i<p.count;i+=3) tri(i,i+1,i+2); } return Math.abs(v); };
+      // NÚCLEO CSG: dos cajas que SE SOLAPAN (solape 10×20×20 = 4000)
+      const mk = (sx, sy, sz, px) => { const m = new T3.Mesh(new T3.BoxGeometry(sx, sy, sz)); m.position.set(px, 0, 0); m.updateMatrixWorld(); return m; };
+      const A = mk(20, 20, 20, 0), B = mk(20, 20, 20, 10);
+      const g = D.booleanSolids([A, B], 'union');
+      out.tieneTris = !!g && g.attributes.position.count >= 9;
+      const vg = vol(g);
+      out.volCoherente = Math.abs(vg - 12000) < 500;        // 8000+8000−4000
+      out.descuentaSolape = vg < 8000 + 8000 - 1;           // el solape se descuenta de verdad
+      // flujo con la herramienta (tocando piezas)
+      const nP = Object.keys(D.pieces).length, nS = D.surfaces.length;
+      D.pieces['1 roseta'].visible = false; D.pieces['3 garganta (propuesta)'].visible = false;   // evitar oclusión
+      const rct = document.querySelector('canvas').getBoundingClientRect();
+      const scr = w => { const v = new T3.Vector3(...w).project(D.cam);
+        return { target: document.querySelector('canvas'), clientX: rct.left + (v.x*0.5+0.5)*rct.width, clientY: rct.top + (-v.y*0.5+0.5)*rct.height, button: 0 }; };
+      D.surfToolStart('union'); D.updateSurfPop(); await frame();
+      const pop = document.getElementById('surfpop');
+      out.fundirOff = pop.querySelector('[data-sp-create]').disabled === true;
+      D.surfToolTap(scr([3, 21, 10]));  D.updateSurfPop();   // sobre el cuello
+      D.surfToolTap(scr([95, 27, 10])); D.updateSurfPop();   // sobre la palanca
+      out.dos = D.surfTool && D.surfTool.solids.length === 2 && pop.querySelector('[data-sp-create]').disabled === false;
+      D.surfPopCreate();
+      await new Promise(r => setTimeout(r, 200));   // el CSG corre en un setTimeout
+      out.creada = D.surfaces.length === nS + 1 && Object.keys(D.pieces).length === nP && !D.surfTool;
+      const S = D.surfaces[D.surfaces.length - 1];
+      out.esUnion = S && S.kind === 'union' && Array.isArray(S.srcNames) && S.srcNames.length === 2;
+      // deshacer la quita, rehacer la devuelve
+      document.getElementById('undo').click(); await frame();
+      out.undo = D.surfaces.length === nS;
+      document.getElementById('redo').click(); await frame();
+      out.redo = D.surfaces.length === nS + 1;
+      D.pieces['1 roseta'].visible = true; D.pieces['3 garganta (propuesta)'].visible = true;
+      return out;
+    });
+    ok('CSG unión: sólido con triángulos y volumen coherente', r.tieneTris && r.volCoherente);
+    ok('CSG unión: descuenta el solape (fusión real, sin dobles paredes)', r.descuentaSolape);
+    ok('unión NO destructiva: las piezas originales se conservan', r.creada);
+    ok('herramienta: tocar piezas, «Fundir» y resultado kind=union', r.fundirOff && r.dos && r.esUnion);
+    ok('unión: deshacer la quita y rehacer la devuelve', r.undo && r.redo);
   },
 
   async rendimiento() {   // FASE 1: redibujado incremental, sin fuga de GPU

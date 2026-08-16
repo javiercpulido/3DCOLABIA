@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.46 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.47 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -354,6 +354,9 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <button class="secTgl" data-sm="ruled" title="Toca DOS curvas: superficie reglada que las une punto a punto (transiciones alabeadas entre carriles)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 7 Q12 3 21 9"/><path d="M3 17 Q12 21 21 15"/><path d="M5 7.6V17.4M9.5 5.6V19M14 5.6V19M18.5 7.6V16.2" opacity=".4" stroke-width="1.1"/></svg>Reglada (2 curvas)</button>
  <button class="secTgl" data-sm="loft" title="Toca varias curvas-SECCIÓN en orden y toca en vacío: piel que pasa por todas (loft)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="5" rx="6" ry="2"/><ellipse cx="12" cy="12" rx="8.5" ry="2.4" opacity=".7"/><ellipse cx="12" cy="19" rx="5" ry="1.8"/><path d="M3.5 12 6 5M20.5 12 18 5M7 19 3.5 12M17 19 20.5 12" opacity=".4" stroke-width="1.1"/></svg>Loft por secciones</button>
  <button class="secTgl" data-sm="sweep" title="Toca el PERFIL y después el CAMINO: el perfil se barre a lo largo del camino (Sígueme)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 18 Q10 16 14 10 Q16 7 21 6" stroke-dasharray="2.2 2"/><circle cx="4.5" cy="17.6" r="2.6"/><ellipse cx="20" cy="6.2" rx="1.6" ry="2.4" transform="rotate(28 20 6.2)" opacity=".6"/></svg>Sígueme (perfil × camino)</button>
+ <div style="height:1px;background:rgba(0,0,0,.09);margin:2px 2px"></div>
+ <b style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Booleanas</b>
+ <button class="secTgl" data-sm="union" title="Unir sólidos: toca 2 o más piezas y pulsa Fundir; se crea un sólido fundido SIN solape, conservando las piezas originales (no destructivo)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg>Unir sólidos</button>
 </div>
 <div id="lasermenu" class="pill" style="position:fixed;top:76px;left:12px;z-index:11;display:none;flex-direction:column;padding:7px;gap:5px;width:150px;max-width:60vw;font-size:12.5px;color:var(--ink)">
  <div class="menucaret"></div>
@@ -4026,6 +4029,111 @@ function surfInk(colHex){
   return c.getHex();
 }
 // helper común: registra una geometría como superficie con material estándar
+// ================= CSG (BSP) embebido — booleanas de sólidos =================
+// Basado en csg.js de Evan Wallace (MIT), adaptado a THREE.Vector3. Funde sólidos
+// eliminando las paredes internas. NO se descarga nada (sin CDN). Se usa de forma
+// NO DESTRUCTIVA: produce un cuerpo nuevo y conserva las piezas originales.
+const CSG=(function(){
+  function CSG(){this.polygons=[];}
+  CSG.fromPolygons=function(p){const c=new CSG();c.polygons=p;return c;};
+  CSG.prototype.clone=function(){const c=new CSG();c.polygons=this.polygons.map(p=>p.clone());return c;};
+  CSG.prototype.union=function(csg){
+    const a=new Node(this.clone().polygons), b=new Node(csg.clone().polygons);
+    a.clipTo(b); b.clipTo(a); b.invert(); b.clipTo(a); b.invert();
+    a.build(b.allPolygons()); return CSG.fromPolygons(a.allPolygons());};
+  CSG.prototype.subtract=function(csg){
+    const a=new Node(this.clone().polygons), b=new Node(csg.clone().polygons);
+    a.invert(); a.clipTo(b); b.clipTo(a); b.invert(); b.clipTo(a); b.invert();
+    a.build(b.allPolygons()); a.invert(); return CSG.fromPolygons(a.allPolygons());};
+  CSG.prototype.intersect=function(csg){
+    const a=new Node(this.clone().polygons), b=new Node(csg.clone().polygons);
+    a.invert(); b.clipTo(a); b.invert(); a.clipTo(b); b.clipTo(a);
+    a.build(b.allPolygons()); a.invert(); return CSG.fromPolygons(a.allPolygons());};
+  function Vertex(pos,normal){this.pos=pos.clone();this.normal=normal.clone();}
+  Vertex.prototype.clone=function(){return new Vertex(this.pos,this.normal);};
+  Vertex.prototype.flip=function(){this.normal.negate();};
+  Vertex.prototype.interpolate=function(o,t){return new Vertex(this.pos.clone().lerp(o.pos,t),this.normal.clone().lerp(o.normal,t));};
+  function Plane(normal,w){this.normal=normal;this.w=w;}
+  Plane.EPSILON=1e-5;
+  Plane.fromPoints=function(a,b,c){const n=b.clone().sub(a).cross(c.clone().sub(a)).normalize();return new Plane(n,n.dot(a));};
+  Plane.prototype.clone=function(){return new Plane(this.normal.clone(),this.w);};
+  Plane.prototype.flip=function(){this.normal.negate();this.w=-this.w;};
+  Plane.prototype.splitPolygon=function(polygon,coplanarFront,coplanarBack,front,back){
+    const COPLANAR=0,FRONT=1,BACK=2,SPANNING=3; let polygonType=0; const types=[];
+    for(let i=0;i<polygon.vertices.length;i++){
+      const t=this.normal.dot(polygon.vertices[i].pos)-this.w;
+      const type=(t<-Plane.EPSILON)?BACK:(t>Plane.EPSILON)?FRONT:COPLANAR; polygonType|=type; types.push(type);}
+    switch(polygonType){
+      case COPLANAR:(this.normal.dot(polygon.plane.normal)>0?coplanarFront:coplanarBack).push(polygon);break;
+      case FRONT:front.push(polygon);break;
+      case BACK:back.push(polygon);break;
+      case SPANNING:{const f=[],b=[];
+        for(let i=0;i<polygon.vertices.length;i++){const j=(i+1)%polygon.vertices.length;
+          const ti=types[i],tj=types[j],vi=polygon.vertices[i],vj=polygon.vertices[j];
+          if(ti!==BACK)f.push(vi);
+          if(ti!==FRONT)b.push(ti!==BACK?vi.clone():vi);
+          if((ti|tj)===SPANNING){const t=(this.w-this.normal.dot(vi.pos))/this.normal.dot(vj.pos.clone().sub(vi.pos));
+            const v=vi.interpolate(vj,t); f.push(v); b.push(v.clone());}}
+        if(f.length>=3)front.push(new Polygon(f,polygon.shared));
+        if(b.length>=3)back.push(new Polygon(b,polygon.shared));break;}}};
+  function Polygon(vertices,shared){this.vertices=vertices;this.shared=shared;this.plane=Plane.fromPoints(vertices[0].pos,vertices[1].pos,vertices[2].pos);}
+  Polygon.prototype.clone=function(){return new Polygon(this.vertices.map(v=>v.clone()),this.shared);};
+  Polygon.prototype.flip=function(){this.vertices.reverse().forEach(v=>v.flip());this.plane.flip();};
+  function Node(polygons){this.plane=null;this.front=null;this.back=null;this.polygons=[];if(polygons)this.build(polygons);}
+  Node.prototype.clone=function(){const n=new Node();n.plane=this.plane&&this.plane.clone();n.front=this.front&&this.front.clone();n.back=this.back&&this.back.clone();n.polygons=this.polygons.map(p=>p.clone());return n;};
+  Node.prototype.invert=function(){for(let i=0;i<this.polygons.length;i++)this.polygons[i].flip();this.plane.flip();if(this.front)this.front.invert();if(this.back)this.back.invert();const t=this.front;this.front=this.back;this.back=t;};
+  Node.prototype.clipPolygons=function(polygons){if(!this.plane)return polygons.slice();
+    let front=[],back=[]; for(let i=0;i<polygons.length;i++)this.plane.splitPolygon(polygons[i],front,back,front,back);
+    if(this.front)front=this.front.clipPolygons(front);
+    if(this.back)back=this.back.clipPolygons(back); else back=[]; return front.concat(back);};
+  Node.prototype.clipTo=function(bsp){this.polygons=bsp.clipPolygons(this.polygons);if(this.front)this.front.clipTo(bsp);if(this.back)this.back.clipTo(bsp);};
+  Node.prototype.allPolygons=function(){let p=this.polygons.slice();if(this.front)p=p.concat(this.front.allPolygons());if(this.back)p=p.concat(this.back.allPolygons());return p;};
+  Node.prototype.build=function(polygons){if(!polygons.length)return;
+    if(!this.plane)this.plane=polygons[0].plane.clone(); const front=[],back=[];
+    for(let i=0;i<polygons.length;i++)this.plane.splitPolygon(polygons[i],this.polygons,this.polygons,front,back);
+    if(front.length){if(!this.front)this.front=new Node();this.front.build(front);}
+    if(back.length){if(!this.back)this.back=new Node();this.back.build(back);}};
+  return {CSG,Vertex,Polygon};
+})();
+function meshToCSG(mesh){
+  mesh.updateMatrixWorld(); const g=mesh.geometry, pos=g.attributes.position, idx=g.index, M=mesh.matrixWorld;
+  const nT=idx?idx.count:pos.count, gi=idx?(k=>idx.getX(k)):(k=>k);
+  // ORIENTACIÓN COHERENTE: las piezas del modelo no comparten winding (unas dan
+  // volumen con signo positivo y otras negativo). El CSG exige normales hacia
+  // FUERA, así que si el volumen con signo es negativo se voltea toda la malla.
+  let sv=0; {const A=new THREE.Vector3(),B=new THREE.Vector3(),C=new THREE.Vector3();
+    for(let i=0;i<nT;i+=3){A.fromBufferAttribute(pos,gi(i)).applyMatrix4(M);
+      B.fromBufferAttribute(pos,gi(i+1)).applyMatrix4(M); C.fromBufferAttribute(pos,gi(i+2)).applyMatrix4(M);
+      sv+=A.dot(new THREE.Vector3().crossVectors(B,C))/6;}}
+  const flip=sv<0, polys=[];
+  const tri=(a,b,c)=>{ if(flip){const t=b;b=c;c=t;}
+    const pa=new THREE.Vector3().fromBufferAttribute(pos,a).applyMatrix4(M);
+    const pb=new THREE.Vector3().fromBufferAttribute(pos,b).applyMatrix4(M);
+    const pc=new THREE.Vector3().fromBufferAttribute(pos,c).applyMatrix4(M);
+    const n=pb.clone().sub(pa).cross(pc.clone().sub(pa));
+    if(n.lengthSq()<1e-12)return; n.normalize();   // descarta triángulos degenerados
+    polys.push(new CSG.Polygon([new CSG.Vertex(pa,n),new CSG.Vertex(pb,n),new CSG.Vertex(pc,n)]));};
+  for(let i=0;i<nT;i+=3)tri(gi(i),gi(i+1),gi(i+2));
+  return CSG.CSG.fromPolygons(polys);
+}
+function csgToGeometry(csg){
+  const P=[],N=[];
+  for(const poly of csg.polygons)for(let i=2;i<poly.vertices.length;i++){
+    const v0=poly.vertices[0],v1=poly.vertices[i-1],v2=poly.vertices[i];
+    P.push(v0.pos.x,v0.pos.y,v0.pos.z, v1.pos.x,v1.pos.y,v1.pos.z, v2.pos.x,v2.pos.y,v2.pos.z);
+    N.push(v0.normal.x,v0.normal.y,v0.normal.z, v1.normal.x,v1.normal.y,v1.normal.z, v2.normal.x,v2.normal.y,v2.normal.z);}
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));
+  g.setAttribute('normal',new THREE.Float32BufferAttribute(N,3));
+  return g;
+}
+function booleanSolids(meshes,op){   // op: 'union' | 'subtract' | 'intersect'
+  if(!meshes.length)return null;
+  let acc=meshToCSG(meshes[0]);
+  for(let i=1;i<meshes.length;i++){const b=meshToCSG(meshes[i]);
+    acc=(op==='subtract')?acc.subtract(b):(op==='intersect')?acc.intersect(b):acc.union(b);}
+  const g=csgToGeometry(acc); g.computeVertexNormals(); return g;
+}
 function registerSurface(geo,colHex,name,extra){
   colHex=surfInk(colHex);
   geo.computeVertexNormals();
@@ -4259,11 +4367,12 @@ document.getElementById('surfList').addEventListener('click',e=>{
 });
 // ---- HERRAMIENTA DE SUPERFICIES del dock (submenú con 3 modos) ----------------
 function surfToolStart(mode){
-  surfTool={mode,contour:null,dir:null,inner:[]};
+  surfTool={mode,contour:null,dir:null,inner:[],solids:[]};
   document.getElementById('mSurf').classList.add('on');
   if(window._splitAny){window._splitAny=false;document.getElementById('mSplitTool').classList.remove('on');}
   setMode('sel');
-  toast(mode==='face'?'▱ Toca un contorno CERRADO':
+  toast(mode==='union'?'∪ Toca 2 o más piezas y pulsa ✓ Fundir':
+        mode==='face'?'▱ Toca un contorno CERRADO':
         mode==='ribs'?'◠ Toca el contorno cerrado; luego sus líneas interiores':
                       '▦ Toca la curva DIRECTRIZ');
   updateSurfPop();
@@ -4276,12 +4385,15 @@ function surfToolCancel(msg){
 // BARRA FLOTANTE «Crear superficie»: sustituye al «toca en vacío» de los modos
 // que dependían de ello (cara con línea interior · loft) y da un botón Crear /
 // Cancelar claro, con un resumen en vivo de lo seleccionado.
-const SURF_NAMES={face:'Cara de contorno',ribs:'Cara con línea interior',dxg:'Directriz × generatriz',rev:'Revolución',coons:'Malla de 4 bordes',ext:'Extrusión',tube:'Tubo',ruled:'Reglada',loft:'Loft',sweep:'Sígueme'};
+const SURF_NAMES={face:'Cara de contorno',ribs:'Cara con línea interior',dxg:'Directriz × generatriz',rev:'Revolución',coons:'Malla de 4 bordes',ext:'Extrusión',tube:'Tubo',ruled:'Reglada',loft:'Loft',sweep:'Sígueme',union:'Unir sólidos'};
 function updateSurfPop(){
   const el=document.getElementById('surfpop'); if(!el)return;
   const T=surfTool; if(!T){el.style.display='none';return;}
-  let status='', canBuild=false, buildable=(T.mode==='ribs'||T.mode==='loft');
-  if(T.mode==='ribs'){
+  let status='', canBuild=false, buildable=(T.mode==='ribs'||T.mode==='loft'||T.mode==='union');
+  if(T.mode==='union'){
+    status=T.solids.length+' pieza'+(T.solids.length===1?'':'s')+(T.solids.length<2?' · toca ≥2':' ✓ · conserva las originales');
+    canBuild=T.solids.length>=2;
+  } else if(T.mode==='ribs'){
     if(!T.contour)status='Toca el contorno cerrado';
     else{status='Contorno ✓'+(T.inner.length?' · '+T.inner.length+' interior'+(T.inner.length>1?'es':''):' · líneas interiores (opcional)'); canBuild=true;}
   } else if(T.mode==='loft'){
@@ -4297,6 +4409,7 @@ function updateSurfPop(){
   el.querySelector('[data-sp-name]').textContent=SURF_NAMES[T.mode]||'Superficie';
   el.querySelector('[data-sp-status]').textContent=status;
   const cbtn=el.querySelector('[data-sp-create]');
+  cbtn.textContent=(T.mode==='union')?'✓ Fundir':'✓ Crear superficie';
   cbtn.style.display=buildable?'':'none';
   cbtn.disabled=!canBuild; cbtn.style.opacity=canBuild?'1':'.45'; cbtn.style.cursor=canBuild?'pointer':'default';
   el.style.display='flex';
@@ -4307,6 +4420,21 @@ function surfPopCreate(){
     surfToolFinish(buildContourSurfaceFromPts(T.contour.points,new THREE.Color(T.contour.color||color).getHex(),null,T.inner.map(x=>x.points)));
   } else if(T.mode==='loft'){ if(T.inner.length<2){toast('≋ Hacen falta ≥2 secciones');return;}
     surfToolFinish(buildLoftFromPts(T.inner.map(x=>x.points),new THREE.Color(T.inner[0].color||color).getHex()));
+  } else if(T.mode==='union'){
+    if(T.solids.length<2){toast('∪ Toca al menos 2 piezas');return;}
+    const meshes=T.solids.slice();
+    toast('∪ Fundiendo '+meshes.length+' piezas…');
+    // el CSG puede tardar un instante: se hace tras pintar el toast
+    const names=meshes.map(m=>m.name);
+    setTimeout(()=>{
+      let g=null; try{ g=booleanSolids(meshes,'union'); }catch(err){ g=null; }
+      if(!g||!g.attributes.position.count){surfToolCancel('∪ No se pudo fundir (revisa que las piezas se toquen)');return;}
+      const S=registerSurface(g,0xaeb4bf,'Unión ('+names.map(n=>n.replace(/^\d+\s*/,'')).join(' + ')+')',{kind:'union',srcNames:names});
+      // NO destructivo: las piezas originales se conservan (el diff por GlobalId no se toca)
+      pushUndo('unir sólidos',()=>removeSurface(S,true),()=>{scene.add(S.mesh);surfaces.push(S);renderSurfList();});
+      surfToolCancel(); redraw();
+      toast('∪ Sólido fundido creado ✓ · piezas originales conservadas (en el panel de superficies)');
+    },30);
   }
 }
 function strokeClosed(st){
@@ -4322,7 +4450,18 @@ function surfToolFinish(S){
   toast('Superficie '+S.name+' creada ✓ · está en el panel, junto a las piezas');
 }
 function surfToolTap(e){
-  const st=pickStrokeAt(e), T=surfTool;
+  const T=surfTool;
+  if(T.mode==='union'){   // BOOLEANA: se tocan PIEZAS (sólidos), no trazos
+    ndc(e); const hits=ray.intersectObjects(pickables.filter(x=>x.visible),false);
+    if(!hits.length){toast('∪ Toca una pieza sólida'); return;}
+    const m=hits[0].object;
+    if(m.userData.locked){toast(m.name+' bloqueada 🔒'); return;}
+    const i=T.solids.indexOf(m);
+    if(i<0){T.solids.push(m); toast('∪ '+m.name+' añadida ('+T.solids.length+')');}
+    else{T.solids.splice(i,1); toast('∪ '+m.name+' quitada ('+T.solids.length+')');}
+    return;
+  }
+  const st=pickStrokeAt(e);
   if(T.mode==='face'){
     if(!st){surfToolCancel('Superficie cancelada');return;}
     if(!strokeClosed(st)){toast('▱ Ese contorno no está cerrado · une los extremos (⛓)');return;}
@@ -4748,6 +4887,7 @@ function buildExport(){
       if(S.kind==='ruled')return Object.assign(base,{kind:'ruled',a:S.a,b:S.b});
       if(S.kind==='loft')return Object.assign(base,{kind:'loft',secs:S.secs});
       if(S.kind==='sweep')return Object.assign(base,{kind:'sweep',prof:S.prof,path:S.path});
+      if(S.kind==='union')return Object.assign(base,{kind:'union',src:S.srcNames});   // re-fusión desde las piezas al reabrir
       return Object.assign(base,{d:S.dirPts,g:S.genPts});}),
     textos:texts,
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
@@ -4766,7 +4906,7 @@ get rendererInfo(){return renderer.info.memory},updateLivePreview,nearestVertexO
 computeIntersections,snapPt,midByArc,get lineW(){return lineW},
 get faceRef(){return faceRef},get frame(){return {on:frameOn,Rface}},get pickables(){return pickables},
 datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes},
-updateSurfPop,surfPopCreate};
+updateSurfPop,surfPopCreate,booleanSolids,meshToCSG};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());
@@ -4828,6 +4968,10 @@ function applyImport(d){
           :(sd.kind==='ruled')?buildRuledFromPts(sd.a,sd.b,cl,sd.name)
           :(sd.kind==='loft')?buildLoftFromPts(sd.secs,cl,sd.name)
           :(sd.kind==='sweep')?buildSweepFromPts(sd.prof,sd.path,cl,sd.name)
+          :(sd.kind==='union')?(function(){   // re-fusiona desde las piezas conservadas
+              const ms=(sd.src||[]).map(n=>pieces[n]).filter(Boolean);
+              if(ms.length<2)return null; let g=null; try{g=booleanSolids(ms,'union');}catch(_){g=null;}
+              return g?registerSurface(g,cl,sd.name,{kind:'union',srcNames:sd.src}):null;})()
           :buildSurfaceFromPts(sd.d,sd.g,cl,sd.name);
         if(!S)return;
         if(sd.vis===false)S.mesh.visible=false;
