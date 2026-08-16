@@ -206,6 +206,14 @@ const secciones = {
       // otra herramienta cierra el menú de láseres
       document.getElementById('mSel').click(); await frame();
       out.menuCerrado = document.getElementById('lasermenu').style.display === 'none';
+      // PLANO BASE del láser: proyección de fondo desactivable
+      const gl = document.getElementById('groundLaser');
+      gl.checked = true; gl.dispatchEvent(new Event('change', { bubbles: true })); await frame();
+      const nOn = L.geo.attributes.position.count;
+      gl.checked = false; gl.dispatchEvent(new Event('change', { bubbles: true })); await frame();
+      const nOff = L.geo.attributes.position.count;
+      out.planoBase = D.groundLaserOn === false && nOff < nOn && nOff > 0;   // quita la proyección de fondo, mantiene la de piezas
+      gl.checked = true; gl.dispatchEvent(new Event('change', { bubbles: true }));
       D.deselect();
       return out;
     });
@@ -213,6 +221,7 @@ const secciones = {
     ok('láser proporcional al modelo (R/200) y gris+verde+contorno', r.escala && r.gris);
     ok('candado bloquea (reset y gizmo) y desbloquea', r.lock && r.lockReset && r.gizmoOculto && r.unlock);
     ok('otra herramienta cierra el menú de láseres', r.menuCerrado);
+    ok('plano base del láser desactivable (proyección de fondo)', r.planoBase);
   },
 
   async poche() {
@@ -418,6 +427,12 @@ const secciones = {
       lwn.value = '0.15'; lwn.dispatchEvent(new Event('input', { bubbles: true }));
       document.getElementById('lwDn').click();
       out.clamp = Math.abs(D.lineW - 0.15) < 1e-9;
+      // paleta de colores ampliada
+      const sws = document.querySelectorAll('#colors .sw');
+      out.paleta = sws.length >= 14;
+      const negro = [...sws].find(s => s.dataset.c === '#1c1c1e');
+      negro.click();
+      out.eligeColor = D.color === '#1c1c1e' && negro.classList.contains('on');
       // chips de la poli con etiquetas
       out.chips = document.querySelectorAll('#polychips .pchip').length === 8 &&
         document.querySelectorAll('#polychips .pclab').length === 8;
@@ -425,6 +440,7 @@ const secciones = {
     });
     ok('grosor: casilla numérica precisa, sin deslizador, con flechas ▲/▼', r.spinner && r.noSlider && r.arrows);
     ok('grosor: teclear y flechas de paso fino (0,05 mm) con tope', r.typed && r.stepDn && r.stepUp && r.clamp);
+    ok('paleta de colores ampliada (≥14) y selección', r.paleta && r.eligeColor);
     ok('chips de la Poli con sus 8 mini-etiquetas', r.chips);
   },
   async autoguardado() {

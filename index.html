@@ -44,9 +44,9 @@
  #dock2.hide{display:none}
  #dock2 .chip{width:44px;padding:0;font-size:12px;font-weight:600;color:var(--ink)}
  #colors{position:fixed;left:calc(132px + env(safe-area-inset-left));top:50%;transform:translateY(-50%);
-   z-index:11;display:none;flex-direction:column;gap:10px;padding:14px 10px}
- #colors.show{display:flex}
- .sw{width:28px;height:28px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;flex:none}
+   z-index:11;display:none;grid-template-columns:repeat(2,auto);gap:9px;padding:13px 12px}
+ #colors.show{display:grid}
+ .sw{width:26px;height:26px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.10) inset}
  .sw.on{border-color:var(--ink)}
  #colBtn i{width:18px;height:18px;border-radius:50%;display:block}
  /* panel derecho adosado al lateral (estilo SketchUp/Blender) */
@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.47 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.48 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -233,11 +233,22 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
 </style>
 
 <div id="colors" class="pill">
- <span class="sw on" style="background:#d500f9" data-c="#d500f9"></span>
- <span class="sw" style="background:#ff6d00" data-c="#ff6d00"></span>
- <span class="sw" style="background:#2962ff" data-c="#2962ff"></span>
- <span class="sw" style="background:#00c853" data-c="#00c853"></span>
- <span class="sw" style="background:#d50000" data-c="#d50000"></span>
+ <span class="sw" style="background:#1c1c1e" data-c="#1c1c1e" title="Negro"></span>
+ <span class="sw" style="background:#8a8f98" data-c="#8a8f98" title="Gris"></span>
+ <span class="sw" style="background:#d50000" data-c="#d50000" title="Rojo"></span>
+ <span class="sw" style="background:#ff6d00" data-c="#ff6d00" title="Naranja"></span>
+ <span class="sw" style="background:#ffb300" data-c="#ffb300" title="Ámbar"></span>
+ <span class="sw" style="background:#ffd600" data-c="#ffd600" title="Amarillo"></span>
+ <span class="sw" style="background:#00c853" data-c="#00c853" title="Verde"></span>
+ <span class="sw" style="background:#009688" data-c="#009688" title="Verde azulado"></span>
+ <span class="sw" style="background:#00b8d4" data-c="#00b8d4" title="Cian"></span>
+ <span class="sw" style="background:#2962ff" data-c="#2962ff" title="Azul"></span>
+ <span class="sw" style="background:#3d5afe" data-c="#3d5afe" title="Índigo"></span>
+ <span class="sw" style="background:#7c4dff" data-c="#7c4dff" title="Violeta"></span>
+ <span class="sw on" style="background:#d500f9" data-c="#d500f9" title="Magenta"></span>
+ <span class="sw" style="background:#ff4081" data-c="#ff4081" title="Rosa"></span>
+ <span class="sw" style="background:#8d6e63" data-c="#8d6e63" title="Marrón"></span>
+ <span class="sw" style="background:#f5f5f7" data-c="#f5f5f7" title="Blanco (para fondo oscuro)"></span>
 </div>
 
 <div id="dock">
@@ -393,6 +404,7 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <div style="margin-top:8px;color:var(--mut);font-size:11px">Secciones → arriba, junto a las vistas (icono de sección ⌀).</div>
  <label><input type="checkbox" id="axSnap" checked> Ajuste de líneas a ejes</label>
  <label><input type="checkbox" id="interChk" checked> Intersección de volúmenes</label>
+ <label><input type="checkbox" id="groundLaser" checked> Plano base del láser (proyección de fondo)</label>
  <div id="surfSec" style="margin-top:10px;display:none"><b>Superficies</b>
   <div id="surfList" style="margin-top:4px"></div></div>
  <div style="margin-top:10px"><b>Papelera</b>
@@ -2452,6 +2464,7 @@ document.getElementById('selMag').onclick=()=>{
   toast(activar?('imán fijo 🧲: pegado a '+(list[0].sobre==='aire'?'…apunta la cámara a una pieza':list[0].sobre))
                :'imán fijo quitado — el trazo vuelve a ser libre');};
 interChk.onchange=e=>{interOn=e.target.checked;};
+document.getElementById('groundLaser').onchange=e=>{groundLaserOn=e.target.checked; updateLasers();};
 // indicador de CONTACTO: sondeo corto en 6 direcciones desde extremos y centro
 let contactSpr=null;
 const probeRc=new THREE.Raycaster(); probeRc.far=1.6;
@@ -3133,6 +3146,10 @@ function updatePoche(){
 // ================= LÁSER DE OBRA =================
 // Cubo tipo nivel láser con gizmo; sus planos H/V (múltiples, separables) cortan la
 // geometría —curva, plana o alabeada— y dibujan las líneas verdes reales del corte.
+// PLANO BASE del láser: un plano de fondo (solo visual) sobre el que el láser
+// también proyecta su línea. Desactivable — a veces interesa verla proyectada
+// en el fondo y a veces no. No es geometría (no afecta a cálculos ni export).
+let groundLaserOn=true;
 const GROUND_TRIS=(()=>{const zg=bbox.min.z-2,s=150;
   const a=[C.x-s,C.y-s,zg],b2=[C.x+s,C.y-s,zg],c2=[C.x+s,C.y+s,zg],d2=[C.x-s,C.y+s,zg];
   return [new Float64Array([...a,...b2,...c2]),new Float64Array([...a,...c2,...d2])];})();
@@ -3173,7 +3190,7 @@ function updateLasers(){
     if(L.off){L.geo.setAttribute('position',new THREE.Float32BufferAttribute([],3));continue;}
     const pos=[];
     for(const pl of laserPlanesOf(L)){
-      cutTris(GROUND_TRIS,pl.n,pl.pt,pos,null);
+      if(groundLaserOn)cutTris(GROUND_TRIS,pl.n,pl.pt,pos,null);   // proyección en el plano base (desactivable)
       for(const nm in pieces){const m=pieces[nm]; if(!m.visible||!m.userData.ltris)continue;
         m.updateMatrixWorld(); inv.copy(m.matrixWorld).invert();
         lp.copy(pl.pt).applyMatrix4(inv);
@@ -4906,7 +4923,7 @@ get rendererInfo(){return renderer.info.memory},updateLivePreview,nearestVertexO
 computeIntersections,snapPt,midByArc,get lineW(){return lineW},
 get faceRef(){return faceRef},get frame(){return {on:frameOn,Rface}},get pickables(){return pickables},
 datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes},
-updateSurfPop,surfPopCreate,booleanSolids,meshToCSG};
+updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn}};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());
