@@ -749,11 +749,14 @@ const secciones = {
       // papel que corta la palanca (plano perpendicular a X en x=45)
       const s = D.newSectionObj('P1', new T3.Vector3(45, 20, 0), new T3.Vector3(1, 0, 0), true);
       out.creado = !!s && s.paper === true;
-      // activar líneas de sección → azules, visibles, con geometría
-      s.secOn = true; D.updatePaperSecs();
+      out.defaultOn = s.secOn === true;   // activadas por defecto
+      D.updatePaperSecs();
       const at = s.secLines && s.secLines.geometry.attributes.position;
+      // color = color del papel OSCURECIDO (mismo tono, más oscuro)
+      const cp = {}; new T3.Color(s.color || 0xe0b83a).getHSL(cp);
+      const cl = {}; s.secLines.material.color.getHSL(cl);
       out.lineas = !!at && at.count >= 2 && s.secLines.visible === true &&
-        s.secLines.material.color.getHex() === 0x2f6fff;
+        cl.l <= 0.43 && Math.abs(cl.h - cp.h) < 0.03;
       // son GUÍAS imantables como el láser
       const a = new T3.Vector3().fromBufferAttribute(at, 0), b = new T3.Vector3().fromBufferAttribute(at, 1);
       const mid = a.clone().lerp(b, 0.5);
@@ -770,7 +773,7 @@ const secciones = {
       out.alineada = D.cam.position.distanceTo(p0) > 1e-6 || true;
       return out;
     });
-    ok('plano de dibujo: líneas de sección AZULES donde corta las piezas', r.creado && r.lineas && r.ambos);
+    ok('plano de dibujo: líneas de sección (color del papel oscurecido, ON por defecto)', r.creado && r.lineas && r.ambos && r.defaultOn);
     ok('líneas de sección son guías imantables (como el láser)', r.iman);
     ok('líneas de sección desactivables', r.off);
     ok('botón «Vista alineada» del plano de dibujo', r.alineada);
