@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.42 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.43 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -368,7 +368,29 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
   <span style="font-size:10px;color:var(--mut)">fino = línea 1px (tipo SketchUp)</span></div>
  <div style="margin-top:6px"><b>Tam. imagen</b><br><input type="range" id="imsc" min="10" max="200" value="60"> mm</div>
  <label><input type="checkbox" id="meshChk"> Malla (aristas de triángulos)</label>
- <label><input type="checkbox" id="grid" checked> Rejilla 10 mm</label>
+ <div id="floorRow" style="margin-top:8px">
+  <div style="display:flex;align-items:center;gap:6px">
+   <button type="button" class="peye on" data-floor-eye title="Ver / ocultar el suelo (rejilla)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+   <b style="flex:1">Suelo</b><span style="color:var(--mut);font-size:10px">rejilla 10 mm · capa de fondo</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;color:var(--mut)">
+   <span style="width:42px">Altura</span>
+   <input type="number" id="floorZ" step="5" value="0" inputmode="numeric" title="Altura del suelo (mm respecto a su posición por defecto)" style="width:60px;font-size:13px;padding:4px 6px;border:1px solid #ddd;border-radius:8px;text-align:right">
+   <span>mm</span>
+   <span style="display:flex;flex-direction:column;gap:3px">
+    <button type="button" id="floorUp" class="lwstep" title="Subir el suelo (+5 mm)"><svg width="13" height="8" viewBox="0 0 14 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7 7 2l5 5"/></svg></button>
+    <button type="button" id="floorDn" class="lwstep" title="Bajar el suelo (−5 mm)"><svg width="13" height="8" viewBox="0 0 14 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2 7 7l5-5"/></svg></button>
+   </span>
+  </div>
+  <div style="display:flex;align-items:center;gap:5px;margin-top:5px;font-size:12px;color:var(--mut)">
+   <span style="width:42px">Mover</span>
+   <button type="button" class="lwstep floornudge" data-fn="x-1" title="Mover a la izquierda (−X)">◀</button>
+   <button type="button" class="lwstep floornudge" data-fn="x1" title="Mover a la derecha (+X)">▶</button>
+   <button type="button" class="lwstep floornudge" data-fn="y1" title="Mover adelante (+Y)">▲</button>
+   <button type="button" class="lwstep floornudge" data-fn="y-1" title="Mover atrás (−Y)">▼</button>
+   <button type="button" id="floorReset" style="margin-left:auto;font-size:11px;border:0;background:transparent;color:var(--acc);cursor:pointer;padding:2px 4px">Centrar</button>
+  </div>
+ </div>
  <label><input type="checkbox" id="axes" checked> Ejes</label>
 
  <div style="margin-top:8px;color:var(--mut);font-size:11px">Secciones → arriba, junto a las vistas (icono de sección ⌀).</div>
@@ -500,10 +522,22 @@ MESHES.forEach(m=>{
 let C=new THREE.Vector3(); bbox.getCenter(C);
 let R=bbox.getSize(new THREE.Vector3()).length()*0.62;
 let grid=new THREE.GridHelper(300,30,0xdadfe5,0xe9edf1); grid.rotation.x=Math.PI/2;
-grid.position.set(C.x,C.y,bbox.min.z-2); scene.add(grid);
-// rejilla gemela para el modo oscuro
 let gridDark=new THREE.GridHelper(300,30,0x33383f,0x23272c); gridDark.rotation.x=Math.PI/2;
-gridDark.position.copy(grid.position); gridDark.visible=false; scene.add(gridDark);
+scene.add(grid); scene.add(gridDark);
+// SUELO (capa de fondo): la rejilla de referencia. Es un plano ESPECIAL — no está
+// en pickables, así que NO afecta al cálculo de geometría (intersecciones, imán),
+// y NO se incluye en las exportaciones (JSON/IFC BIM). Se puede ocultar con el ojo
+// y mover en altura y en planta, como una superficie más.
+const floorZ0=bbox.min.z-2;
+let floorZ=floorZ0, floorX=C.x, floorY=C.y, floorOn=true;
+function applyFloor(){
+  grid.position.set(floorX,floorY,floorZ); gridDark.position.copy(grid.position);
+  grid.visible=floorOn&&!darkView; gridDark.visible=floorOn&&darkView;
+  const e=document.querySelector('[data-floor-eye]'); if(e)e.classList.toggle('on',floorOn);
+  const h=document.getElementById('floorZ'); if(h&&document.activeElement!==h)h.value=(floorZ-floorZ0).toFixed(0);
+}
+// posición inicial en línea (applyFloor usa darkView, aún no declarado aquí)
+grid.position.set(floorX,floorY,floorZ); gridDark.position.copy(grid.position); gridDark.visible=false;
 
 // ================= INTERSECCION ENTRE VOLUMENES =================
 // Curva de interseccion malla-malla (tri-tri exacto, prefiltro por cajas).
@@ -595,7 +629,7 @@ function computeIntersections(){
 }
 computeIntersections();
 // ================= MODOS DE VISION y SECCION =================
-let viewMode='somb', baseOpacity=1, darkView=false, gridChk=true;
+let viewMode='somb', baseOpacity=1, darkView=false;
 let invView=false, invAlpha=0.85;   // modo invertido: fondo oscuro + volúmenes claros translúcidos
 let meshOverlay=false;   // la malla (aristas de triángulos) es un overlay independiente del estilo
 function edgesWanted(){return viewMode!=='somb';}
@@ -645,7 +679,7 @@ function applyTheme(){
   const bd=document.getElementById('vDark'); if(bd)bd.classList.toggle('on',darkView&&!invView);
   const bi=document.getElementById('vInv'); if(bi)bi.classList.toggle('on',invView);
   const ir=document.getElementById('invARow'); if(ir)ir.style.display=invView?'block':'none';
-  grid.visible=gridChk&&!darkView; gridDark.visible=gridChk&&darkView;
+  applyFloor();
   // el laser gana contraste: verde mas brillante y halo mas presente en oscuro
   lasers.forEach(L=>{L.matA.color.setHex(darkView?0x00e676:0x00c853);
     L.matB.opacity=darkView?0.38:0.25;});
@@ -4436,7 +4470,7 @@ function buildLaserMag(u){
     for(const e of map.values())if(e.n>=thr)cand.push({c:e.s/e.n,mesh:m});
     if(isFinite(mn)){cand.push({c:mn,mesh:m}); cand.push({c:mx,mesh:m});}   // aristas de extensión
   }
-  if(Math.abs(u.z)>0.9){const zg=bbox.min.z-2;   // el suelo, plano perpendicular a Z
+  if(Math.abs(u.z)>0.9){const zg=floorZ;   // el suelo, plano perpendicular a Z
     cand.push({c:new THREE.Vector3(0,0,zg).dot(u),mesh:null});}
   return cand;
 }
@@ -4588,8 +4622,23 @@ document.getElementById('lwDn').onclick=()=>setLineW(lineW-0.05);
   lwNum.addEventListener('change',()=>setLineW(lineW));})();  // normaliza (2 decimales) al salir
 axSnap.onchange=e=>{axisSnap=e.target.checked;};
 document.getElementById('meshChk').onchange=e=>{meshOverlay=e.target.checked;};
-document.getElementById('grid').onchange=e=>{gridChk=e.target.checked;
-  grid.visible=gridChk&&!darkView; gridDark.visible=gridChk&&darkView;};
+// SUELO: ojo (ver/ocultar), altura (mm respecto a su posición por defecto) y
+// desplazamiento en planta. Es una capa de fondo: no afecta a geometría ni export.
+(function(){
+  const eye=document.querySelector('[data-floor-eye]');
+  if(eye)eye.onclick=()=>{floorOn=!floorOn; applyFloor();};
+  const setFZ=v=>{floorZ=floorZ0+v; applyFloor();};
+  const fz=document.getElementById('floorZ');
+  if(fz)fz.addEventListener('input',e=>{const v=parseFloat(String(e.target.value).replace(',','.')); if(isFinite(v))setFZ(v);});
+  const fu=document.getElementById('floorUp'), fd=document.getElementById('floorDn');
+  if(fu)fu.onclick=()=>setFZ((floorZ-floorZ0)+5);
+  if(fd)fd.onclick=()=>setFZ((floorZ-floorZ0)-5);
+  document.querySelectorAll('.floornudge').forEach(b=>b.onclick=()=>{const d=b.dataset.fn,s=10;
+    if(d==='x1')floorX+=s; else if(d==='x-1')floorX-=s; else if(d==='y1')floorY+=s; else if(d==='y-1')floorY-=s;
+    applyFloor();});
+  const fr=document.getElementById('floorReset');
+  if(fr)fr.onclick=()=>{floorX=C.x; floorY=C.y; floorZ=floorZ0; applyFloor();};
+})();
 document.getElementById('vDark').onclick=()=>{
   if(darkView&&!invView)setDark(false);       // noche → día
   else{invView=false;setDark(true);}          // día o invertido → noche plana
@@ -4646,7 +4695,8 @@ _polyStart(p){polyDraw={verts:[p.slice()],segTypes:[],arcMids:{},guidePts:{},nex
 _polyVert(p){if(!polyDraw)return;polyDraw.prov=p.slice();polyDraw.dragging=true;commitPolyTap();},
 get applyImport(){return applyImport},get autosave(){return autosave},
 get rendererInfo(){return renderer.info.memory},updateLivePreview,nearestVertexOnPolyScreen,get liveObj(){return _liveObj},get strokeCache(){return _strokeObjs},get noteCache(){return _noteObjs},
-computeIntersections,snapPt,midByArc,get lineW(){return lineW}};
+computeIntersections,snapPt,midByArc,get lineW(){return lineW},
+get grid(){return grid},get gridDark(){return gridDark},get floor(){return {on:floorOn,z:floorZ,z0:floorZ0,x:floorX,y:floorY}},get pickables(){return pickables}};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());

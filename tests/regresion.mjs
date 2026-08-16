@@ -508,6 +508,47 @@ const secciones = {
     ok('caché de cilindro se refresca al mover la pieza', r.cylFresh);
   },
 
+  async suelo() {   // el suelo (rejilla) como capa de fondo controlable
+    const r = await page.evaluate(() => {
+      const D = window._dbg, out = {};
+      // ojo: ocultar / mostrar
+      const eye = document.querySelector('[data-floor-eye]');
+      out.eyeExiste = !!eye;
+      eye.click();
+      out.oculto = D.grid.visible === false && D.gridDark.visible === false && D.floor.on === false;
+      eye.click();
+      out.visible = D.floor.on === true;
+      // altura: subir 3 pasos (+15 mm)
+      const z0 = D.floor.z;
+      document.getElementById('floorUp').click();
+      document.getElementById('floorUp').click();
+      document.getElementById('floorUp').click();
+      out.sube = Math.abs(D.floor.z - (z0 + 15)) < 1e-6 && Math.abs(D.grid.position.z - (z0 + 15)) < 1e-6;
+      // campo numérico de altura (relativa a la posición por defecto)
+      const fz = document.getElementById('floorZ');
+      fz.value = '40'; fz.dispatchEvent(new Event('input', { bubbles: true }));
+      out.campo = Math.abs(D.floor.z - (D.floor.z0 + 40)) < 1e-6;
+      // mover en planta
+      const x0 = D.floor.x;
+      document.querySelector('.floornudge[data-fn="x1"]').click();
+      out.mueve = Math.abs(D.floor.x - (x0 + 10)) < 1e-6 && Math.abs(D.grid.position.x - (x0 + 10)) < 1e-6;
+      // centrar restablece
+      document.getElementById('floorReset').click();
+      out.centra = Math.abs(D.floor.z - D.floor.z0) < 1e-6;
+      // NO afecta a geometría: la rejilla no está en pickables
+      out.fueraGeo = !D.pickables.includes(D.grid) && !D.pickables.includes(D.gridDark);
+      // NO entra en la exportación (ni piezas, ni superficies, ni trazos)
+      const ex = D.buildExport ? window.buildExport() : null;
+      const json = JSON.stringify(ex || {});
+      out.fueraExport = !/rejilla|gridhelper|"suelo"/i.test(json);
+      return out;
+    });
+    ok('suelo: ojo oculta y muestra la rejilla', r.eyeExiste && r.oculto && r.visible);
+    ok('suelo: altura por flechas y por casilla', r.sube && r.campo);
+    ok('suelo: desplazamiento en planta y «Centrar»', r.mueve && r.centra);
+    ok('suelo: capa de fondo (fuera de geometría y de la exportación)', r.fueraGeo && r.fueraExport);
+  },
+
   async rendimiento() {   // FASE 1: redibujado incremental, sin fuga de GPU
     const r = await page.evaluate(async () => {
       const D = window._dbg, out = {};
