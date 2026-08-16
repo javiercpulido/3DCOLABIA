@@ -141,6 +141,9 @@
  #dock.horiz .grip{height:26px;width:16px;min-width:16px}   /* horizontal: asa a la izquierda */
  .peye{border:0;background:transparent;color:var(--mut);width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:none;opacity:.5}
  .peye.on{color:var(--ink);opacity:1}
+ .lwstep{border:1px solid #ddd;background:#fff;color:var(--mut);width:28px;height:15px;padding:0;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+ .lwstep:hover{color:var(--ink);border-color:var(--acc)}
+ .lwstep:active{background:#f1f3f6}
  .peye[data-pk].on,.peye[data-sk].on{color:#ff8f1f}
  .snaphint{position:fixed;z-index:8;pointer-events:none;border:2px dashed var(--acc);
    border-radius:14px;opacity:.5;display:none}
@@ -150,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.41 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.42 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -354,9 +357,13 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <div style="margin-top:8px"><b>Opacidad</b><br><input type="range" id="op" min="15" max="100" value="100"></div>
  <div id="invARow" style="margin-top:6px;display:none"><b>Transparencia volúmenes (invertido)</b><br><input type="range" id="invA" min="10" max="100" value="85"></div>
  <div style="margin-top:6px"><b>Grosor trazo</b><br>
-  <span style="display:flex;align-items:center;gap:6px">
-   <input type="range" id="lw" min="0.15" max="3" step="0.05" value="0.2" style="flex:1;min-width:0">
-   <input type="number" id="lwNum" min="0.15" max="3" step="0.05" value="0.2" title="Grosor en mm (≤0.26 = línea fina de 1px)" style="width:62px;font-size:12.5px;padding:4px 2px 4px 6px;border:1px solid #ddd;border-radius:8px">
+  <span style="display:flex;align-items:center;gap:6px;margin-top:2px">
+   <input type="number" id="lwNum" min="0.15" max="3" step="0.05" value="0.2" inputmode="decimal" title="Grosor en mm (≤0.26 = línea fina de 1px)" style="width:74px;font-size:13px;padding:5px 6px;border:1px solid #ddd;border-radius:8px;text-align:right">
+   <span style="color:var(--mut);font-size:11px">mm</span>
+   <span style="display:flex;flex-direction:column;gap:3px">
+    <button type="button" id="lwUp" class="lwstep" title="Más grueso (+0,05 mm)"><svg width="13" height="8" viewBox="0 0 14 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7 7 2l5 5"/></svg></button>
+    <button type="button" id="lwDn" class="lwstep" title="Más fino (−0,05 mm)"><svg width="13" height="8" viewBox="0 0 14 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2 7 7l5-5"/></svg></button>
+   </span>
   </span>
   <span style="font-size:10px;color:var(--mut)">fino = línea 1px (tipo SketchUp)</span></div>
  <div style="margin-top:6px"><b>Tam. imagen</b><br><input type="range" id="imsc" min="10" max="200" value="60"> mm</div>
@@ -4570,12 +4577,15 @@ function showOpsFor(kind){
   $('secOps').style.display=(kind==='section')?'flex':'none';
 }
 op.oninput=e=>{baseOpacity=+e.target.value/100;applyMode();};
-lw.oninput=e=>{lineW=+e.target.value;
-  const n=document.getElementById('lwNum'); if(n)n.value=lineW.toFixed(2);};
-document.getElementById('lwNum').addEventListener('input',e=>{
-  const v=parseFloat(String(e.target.value).replace(',','.'));
-  if(!isFinite(v))return;
-  lineW=Math.max(0.15,Math.min(3,v)); lw.value=lineW;});
+// GROSOR: control numérico preciso con par de flechas ▲/▼ (paso fino 0,05 mm).
+function setLineW(v){lineW=Math.max(0.15,Math.min(3,Math.round(v*100)/100));
+  const n=document.getElementById('lwNum'); if(n)n.value=lineW.toFixed(2);}
+document.getElementById('lwUp').onclick=()=>setLineW(lineW+0.05);
+document.getElementById('lwDn').onclick=()=>setLineW(lineW-0.05);
+(function(){const lwNum=document.getElementById('lwNum');
+  lwNum.addEventListener('input',e=>{const v=parseFloat(String(e.target.value).replace(',','.'));
+    if(isFinite(v))lineW=Math.max(0.15,Math.min(3,v));});   // sin reescribir el campo mientras se teclea
+  lwNum.addEventListener('change',()=>setLineW(lineW));})();  // normaliza (2 decimales) al salir
 axSnap.onchange=e=>{axisSnap=e.target.checked;};
 document.getElementById('meshChk').onchange=e=>{meshOverlay=e.target.checked;};
 document.getElementById('grid').onchange=e=>{gridChk=e.target.checked;
@@ -4636,7 +4646,7 @@ _polyStart(p){polyDraw={verts:[p.slice()],segTypes:[],arcMids:{},guidePts:{},nex
 _polyVert(p){if(!polyDraw)return;polyDraw.prov=p.slice();polyDraw.dragging=true;commitPolyTap();},
 get applyImport(){return applyImport},get autosave(){return autosave},
 get rendererInfo(){return renderer.info.memory},updateLivePreview,nearestVertexOnPolyScreen,get liveObj(){return _liveObj},get strokeCache(){return _strokeObjs},get noteCache(){return _noteObjs},
-computeIntersections,snapPt,midByArc};
+computeIntersections,snapPt,midByArc,get lineW(){return lineW}};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());

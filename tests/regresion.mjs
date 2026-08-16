@@ -402,18 +402,29 @@ const secciones = {
 
   async entradas() {
     const r = await page.evaluate(() => {
-      const out = {}, lwn = document.getElementById('lwNum'), lw = document.getElementById('lw');
+      const D = window._dbg, out = {}, lwn = document.getElementById('lwNum');
       out.spinner = !!lwn && lwn.type === 'number';
-      lwn.value = '1.5'; lwn.dispatchEvent(new Event('input', { bubbles: true }));
-      out.numASlider = Math.abs(parseFloat(lw.value) - 1.5) < 1e-9;
-      lw.value = '0.4'; lw.dispatchEvent(new Event('input', { bubbles: true }));
-      out.sliderANum = Math.abs(parseFloat(lwn.value) - 0.4) < 1e-9;
+      out.noSlider = !document.getElementById('lw');          // el deslizador ya NO existe
+      out.arrows = !!document.getElementById('lwUp') && !!document.getElementById('lwDn');
+      // teclear un grosor → lineW se actualiza
+      lwn.value = '0.8'; lwn.dispatchEvent(new Event('input', { bubbles: true }));
+      out.typed = Math.abs(D.lineW - 0.8) < 1e-9;
+      // flechas: paso fino de 0,05 mm (campo y lineW sincronizados)
+      document.getElementById('lwDn').click();                // 0.75
+      out.stepDn = Math.abs(D.lineW - 0.75) < 1e-9 && Math.abs(parseFloat(lwn.value) - 0.75) < 1e-9;
+      document.getElementById('lwUp').click();                // 0.80
+      out.stepUp = Math.abs(D.lineW - 0.80) < 1e-9;
+      // tope inferior 0,15
+      lwn.value = '0.15'; lwn.dispatchEvent(new Event('input', { bubbles: true }));
+      document.getElementById('lwDn').click();
+      out.clamp = Math.abs(D.lineW - 0.15) < 1e-9;
       // chips de la poli con etiquetas
       out.chips = document.querySelectorAll('#polychips .pchip').length === 8 &&
         document.querySelectorAll('#polychips .pclab').length === 8;
       return out;
     });
-    ok('grosor: casilla numérica ⇄ deslizante sincronizados', r.spinner && r.numASlider && r.sliderANum);
+    ok('grosor: casilla numérica precisa, sin deslizador, con flechas ▲/▼', r.spinner && r.noSlider && r.arrows);
+    ok('grosor: teclear y flechas de paso fino (0,05 mm) con tope', r.typed && r.stepDn && r.stepUp && r.clamp);
     ok('chips de la Poli con sus 8 mini-etiquetas', r.chips);
   },
   async autoguardado() {
