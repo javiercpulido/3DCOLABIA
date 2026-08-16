@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.51 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.52 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -806,6 +806,7 @@ function applySec(){
   interPairs.forEach(ip=>{ip.l1.material.clippingPlanes=planes;ip.l2.material.clippingPlanes=planes;});
   lasers.forEach(L=>{L.matA.clippingPlanes=planes;L.matB.clippingPlanes=planes;});
   updatePoche();
+  if(typeof updatePaperSecs==='function')updatePaperSecs();   // las líneas de sección del papel siguen su plano
 }
 let axes=new THREE.AxesHelper(40); scene.add(axes);
 // ---- ORIGEN DEL MARCO LOCAL (0,0,0) ----
@@ -3056,6 +3057,8 @@ function renderPaperList(){
       '<input data-pc="'+i+'" type="color" value="'+chex+'" title="color del papel" style="width:22px;height:22px;border:0;background:none;padding:0;cursor:pointer">'+
       '<button data-pe="'+i+'" class="secbtn" title="mostrar/ocultar">'+(s.paperHidden?IC_EYEOFF:IC_EYE)+'</button>'+
       '<button data-po="'+i+'" class="secbtn'+(secRotate===s?' on':'')+'" title="girar el papel">'+IC_ORBIT+'</button>'+
+      '<button data-pv="'+i+'" class="secbtn" title="Vista alineada: mirar el plano de frente (toca de nuevo para volver)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 4v16" opacity=".55"/><path d="M4 12h11"/><path d="M11 8l4 4-4 4"/></svg></button>'+
+      '<button data-pn="'+i+'" class="secbtn'+(s.secOn?' on':'')+'" title="Líneas de SECCIÓN azules (ambos lados) donde el plano corta las piezas · son guías imantables"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="6" width="14" height="12" rx="1.5" opacity=".45"/><path d="M2 12h20" stroke-width="2.3"/></svg></button>'+
       '<button data-pr="'+i+'" class="secbtn" title="restablecer">'+IC_RESET+'</button>'+
       '<button data-px="'+i+'" class="secbtn del" title="eliminar">'+IC_TRASH+'</button>';
     const ctl=document.createElement('div');
@@ -3081,12 +3084,15 @@ document.getElementById('paperList').addEventListener('input',e=>{
   else if(t.pz!==undefined){const s=sections[+t.pz]; s.size=+e.target.value; syncSecWidget(s);}
 });
 document.getElementById('paperList').addEventListener('click',e=>{
-  const t=e.target.closest('[data-pa],[data-ps],[data-pe],[data-po],[data-pr],[data-px]'); if(!t)return;
+  const t=e.target.closest('[data-pa],[data-ps],[data-pe],[data-po],[data-pv],[data-pn],[data-pr],[data-px]'); if(!t)return;
   const ds=t.dataset;
   if(ds.pa!==undefined)setActivePaper(sections[+ds.pa]);
   else if(ds.ps!==undefined){setMode('sel');select('section',sections[+ds.ps],sections[+ds.ps].name);}
   else if(ds.pe!==undefined){const s=sections[+ds.pe]; s.paperHidden=!s.paperHidden; styleSecWidget(s); redraw(); renderPaperList();}
   else if(ds.po!==undefined)toggleSecRotate(sections[+ds.po]);
+  else if(ds.pv!==undefined)alignToSection(sections[+ds.pv]);
+  else if(ds.pn!==undefined){const s=sections[+ds.pn]; s.secOn=!s.secOn; updatePaperSecs();
+    toast(s.secOn?(s.name+': líneas de sección azules ✓ (guías imantables)'):(s.name+': líneas de sección ocultas')); renderPaperList();}
   else if(ds.pr!==undefined)resetSection(sections[+ds.pr]);
   else if(ds.px!==undefined){const s=sections[+ds.px]; if(activePaper===s)activePaper=null; if(selected&&selected.ref===s)deselect(); removePaper(s);}
 });
@@ -3094,6 +3100,7 @@ function removePaper(s){
   strokes.forEach(st=>{if(st.paperRef===s){st.paperRef=null;st.uv=null;}});   // desvincula sus trazos (no los borra)
   if(secRotate===s)secRotate=null;
   if(s.widget)scene.remove(s.widget);
+  if(s.secLines){scene.remove(s.secLines); s.secLines.geometry.dispose(); s.secLines.material.dispose();}
   sections=sections.filter(x=>x!==s);
   renderPaperList(); redraw();
 }
@@ -3338,20 +3345,45 @@ function updateLasers(){
     }
     L.geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
   }
+  updatePaperSecs();
+}
+// SECCIÓN del PAPEL (plano de dibujo): líneas AZULES donde el plano corta las
+// piezas (ambos lados), como el láser pero azules. Son guías (imantables) y se
+// pueden activar/desactivar por papel.
+function cutPiecesWithPlane(n,pt){
+  const pos=[], inv=new THREE.Matrix4(), lp=new THREE.Vector3(), ln=new THREE.Vector3();
+  for(const nm in pieces){const m=pieces[nm]; if(!m.visible||!m.userData.ltris)continue;
+    m.updateMatrixWorld(); inv.copy(m.matrixWorld).invert();
+    lp.copy(pt).applyMatrix4(inv); ln.copy(n).transformDirection(inv).normalize();
+    cutTris(m.userData.ltris,ln,lp,pos,m.matrixWorld);}
+  return pos;
+}
+function updatePaperSecs(){
+  for(const s of papers()){
+    if(!s.secLines){
+      s.secLines=new THREE.LineSegments(new THREE.BufferGeometry(),
+        new THREE.LineBasicMaterial({color:0x2f6fff,transparent:true,opacity:.95,depthTest:false}));
+      s.secLines.frustumCulled=false; s.secLines.renderOrder=8; scene.add(s.secLines);
+    }
+    if(s.secOn&&!s.paperHidden&&s.normal&&s.pt){
+      s.secLines.geometry.setAttribute('position',new THREE.Float32BufferAttribute(cutPiecesWithPlane(s.normal,s.pt),3));
+      s.secLines.visible=true;
+    } else s.secLines.visible=false;
+  }
 }
 function laserSnap(p){
-  // IMÁN a las líneas láser: el punto dibujado se pega a la intersección verde más cercana
-  if(!lasers.length)return null;
+  // IMÁN a las líneas de guía: intersecciones del láser (verdes) Y las de sección
+  // del papel (azules). El punto dibujado se pega a la más cercana.
   const tol=Math.max(0.8,sph.r*0.012); let bd=tol*tol,best=null;
   const a=new THREE.Vector3(),b=new THREE.Vector3(),ab=new THREE.Vector3();
-  for(const L of lasers){if(L.off)continue;
-    const at=L.geo.attributes.position; if(!at)continue;
+  const scan=at=>{ if(!at)return;
     for(let i=0;i+1<at.count;i+=2){
-      a.fromBufferAttribute(at,i); b.fromBufferAttribute(at,i+1);
-      ab.subVectors(b,a);
+      a.fromBufferAttribute(at,i); b.fromBufferAttribute(at,i+1); ab.subVectors(b,a);
       const t=Math.max(0,Math.min(1,p.clone().sub(a).dot(ab)/Math.max(ab.lengthSq(),1e-9)));
       const q=a.clone().addScaledVector(ab,t), d2=q.distanceToSquared(p);
-      if(d2<bd){bd=d2;best=q;}}}
+      if(d2<bd){bd=d2;best=q;}}};
+  for(const L of lasers){if(L.off)continue; scan(L.geo.attributes.position);}
+  for(const s of papers()){if(s.secOn&&s.secLines&&s.secLines.visible)scan(s.secLines.geometry.attributes.position);}
   return best;
 }
 // ---- IMÁN-GUÍA al dibujar: aristas del modelo + bordes de papeles + líneas láser ----
@@ -5193,7 +5225,7 @@ function buildExport(){
       pt0:s.pt0.toArray(),n0:s.n0.toArray(),
       paper:s.paper||undefined,color:s.paper?s.color:undefined,
       paperAlpha:s.paper?s.paperAlpha:undefined,lineAlpha:s.paper?s.lineAlpha:undefined,paperHidden:s.paper?!!s.paperHidden:undefined,
-      roll:s.paper?s.roll:undefined,size:s.paper?s.size:undefined})),
+      roll:s.paper?s.roll:undefined,size:s.paper?s.size:undefined,secOn:s.paper?(s.secOn||undefined):undefined})),
     lasers:lasers.map(L=>({name:L.name,pos:L.mesh.position.toArray(),quat:L.mesh.quaternion.toArray(),
       h:L.on.h,v:L.on.v,v2:L.on.v2,n:L.n,sp:L.sp,off:L.off||undefined,locked:L.locked||undefined,black:L.black||undefined})),
     superficies:surfaces.map(S=>{
@@ -5228,7 +5260,8 @@ datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return 
 updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},
 get edgePx(){return edgePx},fatLine,get HAIRLINE(){return HAIRLINE},
 filletStart,filletStop,filletApplyAll,computeFilletCorners,applyFilletCorner,filletArc,setFilletR,get filletR(){return filletR},get filletMarkers(){return filletMarkers},
-uniteStrokes,decomposeStroke,get selSet(){return selSet},set selSet(v){selSet=v},setLaserBlack};
+uniteStrokes,decomposeStroke,get selSet(){return selSet},set selSet(v){selSet=v},setLaserBlack,
+updatePaperSecs,cutPiecesWithPlane,alignToSection,laserSnap};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());
@@ -5262,7 +5295,7 @@ function applyImport(d){
         if(sd.pt0)s.pt0=new THREE.Vector3(...sd.pt0); if(sd.n0)s.n0=new THREE.Vector3(...sd.n0);
         if(sd.paper){if(sd.color!=null)s.color=sd.color; if(sd.paperAlpha!=null)s.paperAlpha=sd.paperAlpha;
           if(sd.lineAlpha!=null)s.lineAlpha=sd.lineAlpha; s.paperHidden=!!sd.paperHidden;
-          if(sd.roll!=null)s.roll=sd.roll; if(sd.size!=null)s.size=sd.size; syncSecWidget(s); styleSecWidget(s);}
+          if(sd.roll!=null)s.roll=sd.roll; if(sd.size!=null)s.size=sd.size; if(sd.secOn)s.secOn=true; syncSecWidget(s); styleSecWidget(s);}
         else s.active=!!sd.active;});
       // revincular trazos a sus papeles (por índice de papel)
       const pl=papers();

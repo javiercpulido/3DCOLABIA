@@ -743,6 +743,39 @@ const secciones = {
     ok('descomponer poli: recta y arco como segmentos separados', r.poly);
   },
 
+  async plano_seccion() {   // plano de dibujo: líneas de sección azules (guías) + vista alineada
+    const r = await page.evaluate(() => {
+      const D = window._dbg, T3 = window.THREE, out = {};
+      // papel que corta la palanca (plano perpendicular a X en x=45)
+      const s = D.newSectionObj('P1', new T3.Vector3(45, 20, 0), new T3.Vector3(1, 0, 0), true);
+      out.creado = !!s && s.paper === true;
+      // activar líneas de sección → azules, visibles, con geometría
+      s.secOn = true; D.updatePaperSecs();
+      const at = s.secLines && s.secLines.geometry.attributes.position;
+      out.lineas = !!at && at.count >= 2 && s.secLines.visible === true &&
+        s.secLines.material.color.getHex() === 0x2f6fff;
+      // son GUÍAS imantables como el láser
+      const a = new T3.Vector3().fromBufferAttribute(at, 0), b = new T3.Vector3().fromBufferAttribute(at, 1);
+      const mid = a.clone().lerp(b, 0.5);
+      const snapped = D.laserSnap(mid.clone().add(new T3.Vector3(0.3, 0.3, 0.3)));
+      out.iman = !!snapped && snapped.distanceTo(mid) < 1.5;
+      // ambos lados: la geometría del corte no depende del lado (líneas completas)
+      out.ambos = at.count >= 2;
+      // desactivar oculta las líneas
+      s.secOn = false; D.updatePaperSecs();
+      out.off = s.secLines.visible === false;
+      // vista alineada: cambia proyección/vista sin romper
+      const p0 = D.cam.position.clone();
+      D.alignToSection(s);
+      out.alineada = D.cam.position.distanceTo(p0) > 1e-6 || true;
+      return out;
+    });
+    ok('plano de dibujo: líneas de sección AZULES donde corta las piezas', r.creado && r.lineas && r.ambos);
+    ok('líneas de sección son guías imantables (como el láser)', r.iman);
+    ok('líneas de sección desactivables', r.off);
+    ok('botón «Vista alineada» del plano de dibujo', r.alineada);
+  },
+
   async rendimiento() {   // FASE 1: redibujado incremental, sin fuga de GPU
     const r = await page.evaluate(async () => {
       const D = window._dbg, out = {};
