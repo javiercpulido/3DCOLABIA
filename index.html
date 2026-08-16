@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.45 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.46 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -204,6 +204,14 @@
 <div id="joinpop" style="position:fixed;z-index:15;display:none;gap:4px;align-items:center;background:var(--bg,#fff);border:1px solid rgba(0,0,0,.12);border-radius:10px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,.18)">
  <button id="jpJoin" class="pchip pcok" style="width:auto;padding:0 10px">Unir</button>
  <button id="jpCancel" class="pchip" style="width:auto;padding:0 10px">Cancelar</button>
+</div>
+<div id="surfpop" style="position:fixed;left:50%;transform:translateX(-50%);bottom:78px;z-index:16;display:none;align-items:center;gap:10px;background:var(--bg,#fff);border:1px solid rgba(0,0,0,.12);border-radius:12px;padding:7px 9px 7px 12px;box-shadow:0 8px 28px rgba(0,0,0,.20);font-size:13px;color:var(--ink)">
+ <span style="display:flex;flex-direction:column;line-height:1.25;min-width:120px">
+  <b data-sp-name style="font-size:12px">Superficie</b>
+  <span data-sp-status style="color:var(--mut);font-size:11px">—</span>
+ </span>
+ <button type="button" data-sp-create style="border:0;background:var(--acc);color:#fff;border-radius:9px;padding:8px 13px;font-weight:600;cursor:pointer">✓ Crear superficie</button>
+ <button type="button" data-sp-cancel style="border:0;background:rgba(0,0,0,.06);color:var(--ink);border-radius:9px;padding:8px 10px;cursor:pointer">Cancelar</button>
 </div>
 <style>
 .pchip{position:relative;height:28px;min-width:28px;border:1px solid rgba(0,0,0,.1);border-radius:9px;background:rgba(255,255,255,.94);color:#1c1c1e;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12);padding:0}
@@ -1662,7 +1670,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
   } else if(em==='sel'&&e.button===0){
     ndc(e);
     if(splitArm){ if(trySplitAt(e)){splitArm=false;document.getElementById('selSplit').classList.remove('on');} return; }
-    if(surfTool){ surfToolTap(e); return; }
+    if(surfTool){ surfToolTap(e); updateSurfPop(); return; }
     let hh2=ray.intersectObjects(handles.map(h=>h.mesh));   // los tiradores GANAN al gizmo (son objetivos precisos)
     if(hh2.length){handDrag=handles.find(h=>h.mesh===hh2[0].object);handDrag.dist=hh2[0].distance;
       handDrag.p0=handDrag.mesh.position.clone(); handDrag.axInf=null;
@@ -4258,10 +4266,48 @@ function surfToolStart(mode){
   toast(mode==='face'?'▱ Toca un contorno CERRADO':
         mode==='ribs'?'◠ Toca el contorno cerrado; luego sus líneas interiores':
                       '▦ Toca la curva DIRECTRIZ');
+  updateSurfPop();
 }
 function surfToolCancel(msg){
   surfTool=null; document.getElementById('mSurf').classList.remove('on');
+  const el=document.getElementById('surfpop'); if(el)el.style.display='none';
   if(msg)toast(msg);
+}
+// BARRA FLOTANTE «Crear superficie»: sustituye al «toca en vacío» de los modos
+// que dependían de ello (cara con línea interior · loft) y da un botón Crear /
+// Cancelar claro, con un resumen en vivo de lo seleccionado.
+const SURF_NAMES={face:'Cara de contorno',ribs:'Cara con línea interior',dxg:'Directriz × generatriz',rev:'Revolución',coons:'Malla de 4 bordes',ext:'Extrusión',tube:'Tubo',ruled:'Reglada',loft:'Loft',sweep:'Sígueme'};
+function updateSurfPop(){
+  const el=document.getElementById('surfpop'); if(!el)return;
+  const T=surfTool; if(!T){el.style.display='none';return;}
+  let status='', canBuild=false, buildable=(T.mode==='ribs'||T.mode==='loft');
+  if(T.mode==='ribs'){
+    if(!T.contour)status='Toca el contorno cerrado';
+    else{status='Contorno ✓'+(T.inner.length?' · '+T.inner.length+' interior'+(T.inner.length>1?'es':''):' · líneas interiores (opcional)'); canBuild=true;}
+  } else if(T.mode==='loft'){
+    status=T.inner.length+' sección'+(T.inner.length===1?'':'es')+(T.inner.length<2?' · toca ≥2':' ✓'); canBuild=T.inner.length>=2;
+  } else if(T.mode==='face')status='Toca un contorno cerrado';
+  else if(T.mode==='dxg')status=T.dir?'Directriz ✓ · toca la generatriz':'Toca la directriz';
+  else if(T.mode==='rev')status=T.dir?'Perfil ✓ · toca el eje':'Toca el perfil';
+  else if(T.mode==='ruled')status=T.dir?'1ª curva ✓ · toca la 2ª':'Toca la 1ª curva';
+  else if(T.mode==='sweep')status=T.dir?'Perfil ✓ · toca el camino':'Toca el perfil';
+  else if(T.mode==='coons')status='Borde '+(T.inner.length)+' de 4';
+  else if(T.mode==='ext')status='Toca un contorno cerrado (pedirá altura)';
+  else if(T.mode==='tube')status='Toca la curva-camino (pedirá radio)';
+  el.querySelector('[data-sp-name]').textContent=SURF_NAMES[T.mode]||'Superficie';
+  el.querySelector('[data-sp-status]').textContent=status;
+  const cbtn=el.querySelector('[data-sp-create]');
+  cbtn.style.display=buildable?'':'none';
+  cbtn.disabled=!canBuild; cbtn.style.opacity=canBuild?'1':'.45'; cbtn.style.cursor=canBuild?'pointer':'default';
+  el.style.display='flex';
+}
+function surfPopCreate(){
+  const T=surfTool; if(!T)return;
+  if(T.mode==='ribs'){ if(!T.contour){toast('◠ Toca primero el contorno');return;}
+    surfToolFinish(buildContourSurfaceFromPts(T.contour.points,new THREE.Color(T.contour.color||color).getHex(),null,T.inner.map(x=>x.points)));
+  } else if(T.mode==='loft'){ if(T.inner.length<2){toast('≋ Hacen falta ≥2 secciones');return;}
+    surfToolFinish(buildLoftFromPts(T.inner.map(x=>x.points),new THREE.Color(T.inner[0].color||color).getHex()));
+  }
 }
 function strokeClosed(st){
   const pts=st.points; if(!pts||pts.length<3)return false;
@@ -4287,10 +4333,9 @@ function surfToolTap(e){
       if(!strokeClosed(st)){toast('◠ Ese contorno no está cerrado · une los extremos (⛓)');return;}
       T.contour=st; toast('◠ Contorno fijado · toca sus líneas INTERIORES · toca en vacío para crear');
     } else if(st&&st!==T.contour){
-      T.inner.push(st); toast('◠ Línea interior '+T.inner.length+' añadida · toca en vacío para crear');
+      T.inner.push(st); toast('◠ Línea interior '+T.inner.length+' añadida · pulsa ✓ Crear superficie');
     } else if(!st){
-      surfToolFinish(buildContourSurfaceFromPts(T.contour.points,
-        new THREE.Color(T.contour.color||color).getHex(),null,T.inner.map(x=>x.points)));
+      toast('◠ Pulsa ✓ Crear superficie (o añade más líneas interiores)');
     }
   } else if(T.mode==='dxg'){
     if(!st){surfToolCancel('Superficie cancelada');return;}
@@ -4317,11 +4362,9 @@ function surfToolTap(e){
   } else if(T.mode==='loft'){
     if(st&&!T.inner.includes(st)){
       T.inner.push(st);
-      toast('≋ Sección '+T.inner.length+(T.inner.length<2?' · toca la siguiente':' · más secciones o toca en vacío para crear'));
+      toast('≋ Sección '+T.inner.length+(T.inner.length<2?' · toca la siguiente':' · más secciones o pulsa ✓ Crear'));
     } else if(!st){
-      if(T.inner.length<2){surfToolCancel('≋ Hacen falta al menos 2 secciones');return;}
-      surfToolFinish(buildLoftFromPts(T.inner.map(x=>x.points),
-        new THREE.Color(T.inner[0].color||color).getHex()));
+      toast(T.inner.length<2?'≋ Toca al menos 2 secciones':'≋ Pulsa ✓ Crear superficie (o añade más secciones)');
     }
   } else if(T.mode==='sweep'){
     if(!st){surfToolCancel('Superficie cancelada');return;}
@@ -4366,6 +4409,8 @@ document.getElementById('surfmenu').addEventListener('click',e=>{
   document.getElementById('surfmenu').style.display='none';
   surfToolStart(b.dataset.sm);
 });
+document.querySelector('#surfpop [data-sp-create]').onclick=()=>surfPopCreate();
+document.querySelector('#surfpop [data-sp-cancel]').onclick=()=>surfToolCancel('Superficie cancelada');
 // ---- PARTIR (split) sin separar + UNIR al solapar pinzamientos -----------------
 // Herramienta del dock: se arma y cada toque parte la línea tocada (multi-uso).
 document.getElementById('mSplitTool').onclick=function(){
@@ -4720,7 +4765,8 @@ get applyImport(){return applyImport},get autosave(){return autosave},
 get rendererInfo(){return renderer.info.memory},updateLivePreview,nearestVertexOnPolyScreen,get liveObj(){return _liveObj},get strokeCache(){return _strokeObjs},get noteCache(){return _noteObjs},
 computeIntersections,snapPt,midByArc,get lineW(){return lineW},
 get faceRef(){return faceRef},get frame(){return {on:frameOn,Rface}},get pickables(){return pickables},
-datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes}};
+datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes},
+updateSurfPop,surfPopCreate};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());

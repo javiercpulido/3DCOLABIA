@@ -548,6 +548,37 @@ const secciones = {
     ok('marco local: solo visualización (fuera de geometría y exportación)', r.fueraGeo && r.fueraExport);
   },
 
+  async popup_superficie() {   // barra flotante «Crear superficie» (sustituye al toque en vacío)
+    const r = await page.evaluate(async () => {
+      const D = window._dbg, T3 = window.THREE;
+      const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 15)));
+      const rct = document.querySelector('canvas').getBoundingClientRect();
+      const scr = w => { const v = new T3.Vector3(...w).project(D.cam);
+        return { target: document.querySelector('canvas'), clientX: rct.left + (v.x * 0.5 + 0.5) * rct.width, clientY: rct.top + (-v.y * 0.5 + 0.5) * rct.height, button: 0 }; };
+      const ring = []; for (let i = 0; i <= 24; i++) { const a = 2 * Math.PI * i / 24; ring.push([30 + 12 * Math.cos(a), 20 + 12 * Math.sin(a), 0]); } ring.push(ring[0].slice());
+      const inner = []; for (let i = 0; i <= 8; i++) { const t = i / 8; inner.push([18 + 24 * t, 20, 5 * Math.sin(Math.PI * t)]); }
+      const cont = { points: ring, color: '#111', w: 0.2, sobre: 't' };
+      const gen = { points: inner, color: '#0a84ff', w: 0.2, sobre: 't' };
+      D.strokes.push(cont); D.strokes.push(gen); D.redraw(); await frame();
+      const pop = document.getElementById('surfpop'), out = {};
+      D.surfToolStart('ribs'); await frame();
+      out.apareceSinContorno = pop.style.display === 'flex' && pop.querySelector('[data-sp-create]').disabled === true;
+      D.surfToolTap(scr(ring[3])); D.updateSurfPop(); await frame();
+      out.creable = D.surfTool && D.surfTool.contour === cont && pop.querySelector('[data-sp-create]').disabled === false;
+      D.surfToolTap(scr(inner[4])); D.updateSurfPop(); await frame();
+      out.interior = D.surfTool && D.surfTool.inner.length === 1;
+      const nAntes = D.surfaces.length;
+      D.surfToolTap({ target: document.querySelector('canvas'), clientX: rct.left + 20, clientY: rct.top + rct.height - 30, button: 0 }); D.updateSurfPop(); await frame();
+      out.vacioNoCrea = D.surfaces.length === nAntes && !!D.surfTool;
+      D.surfPopCreate(); await frame();
+      out.botonCrea = D.surfaces.length === nAntes + 1 && !D.surfTool && pop.style.display === 'none';
+      return out;
+    });
+    ok('popup: aparece y «Crear» deshabilitado sin contorno', r.apareceSinContorno);
+    ok('popup: con contorno «Crear» se habilita; interior opcional', r.creable && r.interior);
+    ok('popup: el toque en vacío ya no crea; lo hace el botón «Crear»', r.vacioNoCrea && r.botonCrea);
+  },
+
   async rendimiento() {   // FASE 1: redibujado incremental, sin fuga de GPU
     const r = await page.evaluate(async () => {
       const D = window._dbg, out = {};
