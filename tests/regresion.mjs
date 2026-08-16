@@ -704,6 +704,55 @@ const secciones = {
     ok('fillet: deshacer y rehacer', r.undo && r.redo && r.cierra);
   },
 
+  async fillet3d() {   // REDONDEAR ARISTAS 3D: media caña / bisel tangente a las dos caras (no destructivo)
+    const r = await page.evaluate(async () => {
+      const D = window._dbg, T3 = window.THREE, out = {};
+      const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 15)));
+      // hay aristas de característica en las piezas cargadas
+      const all = D.pieceFeatEdgesAll();
+      out.hayAristas = all.length > 50;
+      // elige una arista razonablemente larga y construye la media caña
+      let edge = null;
+      for (const { f } of all) { if (f.a.distanceTo(f.b) > 20) { edge = f; break; } }
+      out.edgeOk = !!edge;
+      const r0 = 3;
+      const res = D.buildEdgeFilletGeo(edge, r0, 'round');
+      out.geoOk = !!res && !res.tooBig && !!res.geo && res.geo.attributes.position.count > 6;
+      // tangencia: el perfil (sección) empieza y acaba a distancia r del eje de la arista
+      let perpMax = 0;
+      if (out.geoOk) {
+        const pos = res.geo.attributes.position, A = edge.a, e = edge.b.clone().sub(A).normalize();
+        // primer y último punto del perfil = primeros/últimos vértices sobre la generatriz A
+        const p0 = new T3.Vector3().fromBufferAttribute(pos, 0);
+        const pN = new T3.Vector3().fromBufferAttribute(pos, pos.count - 2);
+        for (const p of [p0, pN]) {
+          const w = p.clone().sub(A); const along = w.dot(e); const perp = w.addScaledVector(e, -along).length();
+          perpMax = Math.max(perpMax, Math.abs(perp - r0));
+        }
+      }
+      out.tangente = perpMax < 0.15;
+      // bisel = perfil de 2 puntos (menos vértices que el arco redondeado de la media caña)
+      const bev = D.buildEdgeFilletGeo(edge, r0, 'bevel');
+      out.bisel = !!bev && !bev.tooBig && bev.geo.attributes.position.count < res.geo.attributes.position.count;
+      // interacción: seleccionar la arista y confirmar → superficie no destructiva kind fillet3d
+      const nSurf = D.surfaces.length;
+      D.fillet3d = { mesh: all[0].mesh, edge }; D.setFilletR(r0); D.showFilletEdgeGhost(); await frame();
+      out.confirma = D.confirmFilletEdge();
+      const S = D.surfaces[D.surfaces.length - 1];
+      out.creada = D.surfaces.length === nSurf + 1 && S.kind === 'fillet3d' && !!S.mesh;
+      out.limpio = D.fillet3d === null;   // clearFilletEdge tras confirmar
+      // deshacer quita la superficie
+      document.getElementById('undo').click(); await frame();
+      out.undo = D.surfaces.length === nSurf;
+      return out;
+    });
+    ok('fillet3d: hay aristas de característica en las piezas', r.hayAristas && r.edgeOk);
+    ok('fillet3d: media caña tangente a las dos caras (a radio)', r.geoOk && r.tangente);
+    ok('fillet3d: modo bisel (chaflán) genera perfil recto', r.bisel);
+    ok('fillet3d: confirmar crea superficie no destructiva (kind fillet3d)', r.confirma && r.creada && r.limpio);
+    ok('fillet3d: deshacer retira la superficie', r.undo);
+  },
+
   async unir_descomponer() {   // unir formas en una · descomponer en segmentos
     const r = await page.evaluate(async () => {
       const D = window._dbg, out = {};

@@ -28,10 +28,23 @@ editar el elemento viendo algo del contexto.
 
 Hecho el **fillet de líneas** (v6.50): arco tangente de radio r en las esquinas de
 líneas unidas (⛓), con radio en vivo (casilla + flechas + deslizador), fantasma
-azul, ✓ por esquina y «Aplicar a todas». Falta el segundo modo que pidió el
-usuario: **tocar una ARISTA de una pieza/sólido y generar el redondeo 3D**
-(superficie de cuarto de caña tangente a las dos caras), apoyándose en el motor
-de superficies + booleanas. Mismo control de radio y misma interfaz.
+azul, ✓ por esquina y «Aplicar a todas».
+
+**Fase A — redondeo de ARISTAS 3D (media caña / bisel), no destructivo (v6.54):**
+hecho. Con la herramienta ⌒ activa se **toca una arista viva** de una pieza (se
+detectan por pares de triángulos con normales que forman ángulo, `computeFeatEdges`);
+aparece un **fantasma** azul (redondeo) o naranja (bisel) tangente a las dos caras;
+el radio se ajusta **arrastrando el Pencil** arriba/abajo o con la casilla + ▲▼ /
+deslizador; el botón **«Confirmar arista»** lo materializa como **superficie no
+destructiva** (`kind:'fillet3d'`, guardada en el proyecto). Botón **Redondeo/Bisel**
+para cambiar de perfil. La arista original de la pieza no se toca (media caña
+apoyada encima), así el diff de GlobalId del BIM sigue intacto.
+
+Pendiente (**Fase B**, verdadero redondeo de malla): recortar/coser la media caña
+al sólido (booleana) para un borde redondeado real; **esferas de empalme** en las
+esquinas donde concurren varias aristas; control de **segmentos** del arco; selección
+de un **conjunto de caras** para redondear todas sus aristas de golpe; e **invertir**
+(quitar material como bisel cóncavo). Encaja con el motor de superficies + booleanas.
 
 ## Grosor de las líneas láser (control aparte en el menú del láser)
 

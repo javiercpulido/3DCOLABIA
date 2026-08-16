@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.53 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.54 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -231,6 +231,7 @@
   </span>
   <input type="range" id="filletSlider" min="0.2" max="60" step="0.2" value="8" style="width:120px">
  </span>
+ <button type="button" id="filletMode" title="Redondeo (media caña) o bisel (chaflán) — sólo aristas 3D" style="border:1px solid rgba(0,0,0,.12);background:rgba(0,0,0,.04);color:var(--ink);border-radius:9px;padding:8px 11px;cursor:pointer;font-weight:600">◟ Redondeo</button>
  <button type="button" id="filletAll" style="border:0;background:var(--acc);color:#fff;border-radius:9px;padding:8px 12px;font-weight:600;cursor:pointer">Aplicar a todas</button>
  <button type="button" id="filletClose" style="border:0;background:rgba(0,0,0,.06);color:var(--ink);border-radius:9px;padding:8px 10px;cursor:pointer">Cerrar</button>
 </div>
@@ -601,7 +602,7 @@ let interPairs=[], interOn=true;
 function computeIntersections(){
   // una pieza pudo moverse/girar: su guía cilíndrica cacheada (en coords de mundo)
   // queda obsoleta → se recalcula la próxima vez que un OSNAP la necesite
-  for(const nm in pieces)pieces[nm].userData._cyl=undefined;
+  for(const nm in pieces){pieces[nm].userData._cyl=undefined; pieces[nm].userData._featEdges=undefined;}
   interPairs.forEach(ip=>{scene.remove(ip.l1);scene.remove(ip.l2);
     ip.l1.geometry.dispose();ip.l1.material.dispose();ip.l2.material.dispose();});
   interPairs=[];
@@ -1679,7 +1680,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
       if(trySplitAt(e))toast('✂ Línea partida · toca otra o vuelve a pulsar ✂ para salir');}
     else toast('✂ Toca una línea para partirla');
     return;}
-  if(window._filletAny&&e.button===0&&e.isPrimary!==false){ filletTapMarker(e); return; }   // REDONDEAR: toca la ✓ de la esquina
+  if(window._filletAny&&e.button===0&&e.isPrimary!==false){ filletPointerDown(e); return; }   // REDONDEAR: ✓ esquina 2D o arista 3D
   if(e.pointerType==='pen'&&!penSeen){penSeen=true;toast('✍️ Pen detectado: el lápiz dibuja, los dedos navegan');}
   const em=effMode(e);
   {const now=performance.now();   // purga punteros ZOMBI (up/cancel perdidos por gestos del sistema):
@@ -1891,6 +1892,8 @@ addEventListener('pointermove',e=>{
   if(pointers.has(e.pointerId)){const pv=pointers.get(e.pointerId);
     pointers.set(e.pointerId,{x:e.clientX,y:e.clientY,t:pv.t,ts:performance.now()});}
   if(_caps.has(e.pointerId))_caps.set(e.pointerId,performance.now());
+  if(window._filletAny&&filletDrag&&fillet3d){   // REDONDEAR 3D: arrastrar arriba/abajo ajusta el radio en vivo
+    setFilletR(filletDrag.r0+(filletDrag.y0-e.clientY)*Math.max(0.05,sph.r*0.0009)); return;}
   if(pinch&&pointers.size===2){
     let ps=[...pointers.values()];
     let d=Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y);
@@ -2232,6 +2235,7 @@ function endPointer(e){
   _caps.delete(e.pointerId);
   try{renderer.domElement.releasePointerCapture(e.pointerId);}catch(_){}
   if(secPlacing){finishSecPlacement();return;}     // soltar = activa la sección
+  if(filletDrag){filletDrag=null;}                 // fin del arrastre de radio 3D (la arista sigue seleccionada)
   if(secMoveDrag)secMoveDrag=null;
   if(polyDraw&&polyDraw.dragging){commitPolyTap(); hideDrawTag(); dragging=false; return;}   // soltar = fija el vértice; la poli continúa
   if(pointers.size<2){pinch=null;
@@ -4655,7 +4659,7 @@ function filletStart(){
 function filletStop(){
   window._filletAny=false; document.getElementById('mFillet').classList.remove('on');
   filletGhost.visible=false; while(filletGhost.children.length){const o=filletGhost.children.pop();o.geometry&&o.geometry.dispose();o.material&&o.material.dispose();}
-  filletMarkers=[]; document.getElementById('filletpop').style.display='none';
+  filletMarkers=[]; clearFilletEdge(); document.getElementById('filletpop').style.display='none';
 }
 function filletTapMarker(e){
   const rct=renderer.domElement.getBoundingClientRect();
@@ -4675,6 +4679,7 @@ function filletTapMarker(e){
   return true;
 }
 function filletApplyAll(){
+  if(fillet3d){confirmFilletEdge();return;}         // con una arista 3D seleccionada, el botón la confirma
   let done=0, snapStrokes=strokes.map(s=>({s,p:s.points.slice(),j:(s.joints||[]).slice()}));
   for(let guard=0;guard<200;guard++){
     const cs=computeFilletCorners().filter(c=>{const g=filletArc(c.V,c.A,c.B,filletR);return g&&!g.tooBig;});
@@ -4691,14 +4696,118 @@ function filletApplyAll(){
 function setFilletR(v){filletR=Math.max(0.2,Math.min(400,Math.round(v*10)/10));
   const n=document.getElementById('filletNum'); if(n)n.value=filletR;
   const s=document.getElementById('filletSlider'); if(s&&+s.max>=filletR)s.value=filletR;
-  refreshFillet();}
+  if(fillet3d)showFilletEdgeGhost(); else refreshFillet();}
 document.getElementById('mFillet').onclick=()=>{ if(window._filletAny)filletStop(); else filletStart(); };
 document.getElementById('filletUp').onclick=()=>setFilletR(filletR+0.5);
 document.getElementById('filletDn').onclick=()=>setFilletR(filletR-0.5);
 document.getElementById('filletNum').addEventListener('input',e=>{const v=parseFloat(String(e.target.value).replace(',','.'));if(isFinite(v)){filletR=Math.max(0.2,Math.min(400,v));refreshFillet();}});
 document.getElementById('filletSlider').addEventListener('input',e=>setFilletR(+e.target.value));
 document.getElementById('filletAll').onclick=()=>filletApplyAll();
+document.getElementById('filletMode').onclick=()=>{filletMode=(filletMode==='round')?'bevel':'round';
+  document.getElementById('filletMode').textContent=(filletMode==='bevel')?'◺ Bisel':'◟ Redondeo';
+  if(fillet3d)showFilletEdgeGhost();};
 document.getElementById('filletClose').onclick=()=>filletStop();
+// ===== REDONDEO 3D DE ARISTAS (media caña, no destructivo) tipo FredoCorner =====
+// Aristas «de característica» de una malla: pares de triángulos que comparten un
+// borde y cuyas normales difieren (ángulo vivo). Se cachean por pieza.
+function computeFeatEdges(mesh){
+  if(mesh.userData._featEdges)return mesh.userData._featEdges;
+  mesh.updateMatrixWorld(); const g=mesh.geometry, pos=g.attributes.position, idx=g.index, M=mesh.matrixWorld;
+  const nT=idx?idx.count:pos.count, gi=idx?(k=>idx.getX(k)):(k=>k);
+  const key=(v)=>Math.round(v.x*50)+'_'+Math.round(v.y*50)+'_'+Math.round(v.z*50);
+  const P=i=>new THREE.Vector3().fromBufferAttribute(pos,gi(i)).applyMatrix4(M);
+  const emap=new Map();
+  for(let t=0;t<nT;t+=3){const a=P(t),b=P(t+1),c=P(t+2);
+    const n=new THREE.Vector3().subVectors(b,a).cross(new THREE.Vector3().subVectors(c,a));
+    if(n.lengthSq()<1e-12)continue; n.normalize(); const vs=[a,b,c];
+    for(let k=0;k<3;k++){const p=vs[k],q=vs[(k+1)%3]; const kp=key(p),kq=key(q); const ek=kp<kq?kp+'|'+kq:kq+'|'+kp;
+      let e=emap.get(ek); if(!e){e={p:p.clone(),q:q.clone(),ns:[]}; emap.set(ek,e);} if(e.ns.length<2)e.ns.push(n);}}
+  const feat=[];
+  for(const e of emap.values()){ if(e.ns.length!==2)continue;
+    if(Math.max(-1,Math.min(1,e.ns[0].dot(e.ns[1])))>0.966)continue;   // < ~15° = cara lisa
+    feat.push({a:e.p,b:e.q,n1:e.ns[0].clone(),n2:e.ns[1].clone()});}
+  mesh.userData._featEdges=feat; return feat;
+}
+function pieceFeatEdgesAll(){const out=[]; for(const nm in pieces){const m=pieces[nm]; if(!m.visible)continue;
+  for(const f of computeFeatEdges(m))out.push({mesh:m,f});} return out;}
+// media caña / bisel tangente a las DOS caras a lo largo de la arista (perfil
+// calculado con la misma matemática que el fillet de líneas, en la sección)
+function buildEdgeFilletGeo(edge,r,mode){
+  const A=edge.a, B=edge.b, e=B.clone().sub(A); const L=e.length(); if(L<1e-6)return null; e.multiplyScalar(1/L);
+  let d1=new THREE.Vector3().crossVectors(edge.n1,e), d2=new THREE.Vector3().crossVectors(edge.n2,e);
+  if(d1.lengthSq()<1e-9||d2.lengthSq()<1e-9)return null; d1.normalize(); d2.normalize();
+  if(d1.dot(edge.n2)>0)d1.negate();   // cada dirección apunta al interior de SU cara
+  if(d2.dot(edge.n1)>0)d2.negate();
+  const BIG=Math.max(50,r*20), V=new THREE.Vector3(0,0,0);
+  const g=filletArc(V,d1.clone().multiplyScalar(BIG),d2.clone().multiplyScalar(BIG),r);
+  if(!g)return null; if(g.tooBig)return {tooBig:true};
+  const prof=(mode==='bevel')?[g.T1,g.T2]:g.arc, m=prof.length;
+  const Pp=[],idx=[];
+  for(let i=0;i<m;i++){const pa=A.clone().add(prof[i]), pb=B.clone().add(prof[i]); Pp.push(pa.x,pa.y,pa.z, pb.x,pb.y,pb.z);}
+  for(let i=0;i+1<m;i++){const o=i*2; idx.push(o,o+1,o+2, o+1,o+3,o+2);}
+  const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(Pp,3));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  return {geo,tooBig:false};
+}
+// --- interacción del redondeo 3D: seleccionar arista, arrastrar el radio, fantasma, confirmar ---
+let fillet3d=null, filletDrag=null, filletMode='round';
+const filletEdgeGhost=new THREE.Mesh(new THREE.BufferGeometry(),
+  new THREE.MeshBasicMaterial({color:0x0a84ff,transparent:true,opacity:.55,side:THREE.DoubleSide,depthTest:false,depthWrite:false}));
+filletEdgeGhost.renderOrder=25; filletEdgeGhost.visible=false; filletEdgeGhost.frustumCulled=false; scene.add(filletEdgeGhost);
+const filletEdgeHi=new THREE.LineSegments(new THREE.BufferGeometry(),
+  new THREE.LineBasicMaterial({color:0xff3b30,depthTest:false,transparent:true,opacity:.95})); filletEdgeHi.renderOrder=26; filletEdgeHi.frustumCulled=false; scene.add(filletEdgeHi);
+function pickPieceEdgeAt(e){
+  const rct=renderer.domElement.getBoundingClientRect(), px=e.clientX-rct.left, py=e.clientY-rct.top;
+  const scr=v=>{const q=v.clone().project(cam); return [(q.x*0.5+0.5)*rct.width,(-q.y*0.5+0.5)*rct.height,q.z];};
+  let best=null,bd=24*24;
+  for(const {mesh,f} of pieceFeatEdgesAll()){
+    const a=scr(f.a),b=scr(f.b); if(a[2]>1||b[2]>1)continue;
+    const l2=(b[0]-a[0])**2+(b[1]-a[1])**2; let t=l2?((px-a[0])*(b[0]-a[0])+(py-a[1])*(b[1]-a[1]))/l2:0; t=Math.max(0,Math.min(1,t));
+    const dx=px-(a[0]+t*(b[0]-a[0])),dy=py-(a[1]+t*(b[1]-a[1])); const d2=dx*dx+dy*dy;
+    if(d2<bd){bd=d2;best={mesh,edge:f};}}
+  return best;
+}
+function showFilletEdgeGhost(){
+  if(!fillet3d){filletEdgeGhost.visible=false;filletEdgeHi.geometry.setAttribute('position',new THREE.Float32BufferAttribute([],3));return;}
+  const ed=fillet3d.edge, res=buildEdgeFilletGeo(ed,filletR,filletMode);
+  if(res&&!res.tooBig&&res.geo){filletEdgeGhost.geometry.dispose(); filletEdgeGhost.geometry=res.geo; filletEdgeGhost.visible=true;
+    filletEdgeGhost.material.color.setHex(filletMode==='bevel'?0xff9500:0x0a84ff);}
+  else filletEdgeGhost.visible=false;
+  filletEdgeHi.geometry.setAttribute('position',new THREE.Float32BufferAttribute([ed.a.x,ed.a.y,ed.a.z, ed.b.x,ed.b.y,ed.b.z],3));
+  const st=document.querySelector('#filletpop [data-fi-status]');
+  if(st)st.textContent='Arista · arrastra o teclea el radio · '+(filletMode==='bevel'?'bisel':'redondeo');
+  const bt=document.getElementById('filletAll'); if(bt)bt.textContent='Confirmar arista';
+}
+function clearFilletEdge(){fillet3d=null; filletDrag=null; filletEdgeGhost.visible=false;
+  filletEdgeHi.geometry.setAttribute('position',new THREE.Float32BufferAttribute([],3));
+  const bt=document.getElementById('filletAll'); if(bt)bt.textContent='Aplicar a todas';}
+function confirmFilletEdge(){
+  if(!fillet3d)return false;
+  const ed=fillet3d.edge, res=buildEdgeFilletGeo(ed,filletR,filletMode);
+  if(!res||res.tooBig||!res.geo){toast('El radio no cabe en esa arista');return false;}
+  res.geo.computeVertexNormals();
+  const S=registerSurface(res.geo, filletMode==='bevel'?0xb9bec7:0xaeb4bf,
+    (filletMode==='bevel'?'Bisel r':'Redondeo r')+filletR,
+    {kind:'fillet3d',fedge:[ed.a.toArray(),ed.b.toArray(),ed.n1.toArray(),ed.n2.toArray()],fr:filletR,fmode:filletMode});
+  pushUndo('redondear arista',()=>removeSurface(S,true),()=>{scene.add(S.mesh);surfaces.push(S);renderSurfList();});
+  clearFilletEdge(); redraw(); toast('Arista redondeada ✓ · superficie no destructiva (en el panel)');
+  return true;
+}
+function nearestFilletMarker(e){
+  const rct=renderer.domElement.getBoundingClientRect(), px=e.clientX-rct.left, py=e.clientY-rct.top;
+  for(const sp of filletMarkers){ if(!sp.userData.ok)continue;
+    const v=sp.position.clone().project(cam); if(v.z>1)continue;
+    const sx=(v.x*0.5+0.5)*rct.width, sy=(-v.y*0.5+0.5)*rct.height;
+    if((sx-px)**2+(sy-py)**2<28*28)return sp;}
+  return null;
+}
+function filletPointerDown(e){
+  if(nearestFilletMarker(e)){ filletTapMarker(e); return; }        // esquina 2D
+  const pk=pickPieceEdgeAt(e);                                     // arista 3D
+  if(pk){ fillet3d=pk; showFilletEdgeGhost(); filletDrag={y0:e.clientY,r0:filletR}; return; }
+  if(filletCorners.length)toast('⌒ Toca una ✓ de esquina o una arista de una pieza');
+  else toast('⌒ Toca una ARISTA de una pieza (o une líneas con ⛓ para redondear esquinas 2D)');
+}
 // ---- HERRAMIENTA DE SUPERFICIES del dock (submenú con 3 modos) ----------------
 function surfToolStart(mode){
   surfTool={mode,contour:null,dir:null,inner:[],solids:[]};
@@ -5244,6 +5353,7 @@ function buildExport(){
       if(S.kind==='loft')return Object.assign(base,{kind:'loft',secs:S.secs});
       if(S.kind==='sweep')return Object.assign(base,{kind:'sweep',prof:S.prof,path:S.path});
       if(S.kind==='union')return Object.assign(base,{kind:'union',src:S.srcNames});   // re-fusión desde las piezas al reabrir
+      if(S.kind==='fillet3d')return Object.assign(base,{kind:'fillet3d',fedge:S.fedge,fr:S.fr,fmode:S.fmode});   // media caña / bisel de arista
       return Object.assign(base,{d:S.dirPts,g:S.genPts});}),
     textos:texts,
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
@@ -5266,7 +5376,9 @@ updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},ge
 get edgePx(){return edgePx},fatLine,get HAIRLINE(){return HAIRLINE},
 filletStart,filletStop,filletApplyAll,computeFilletCorners,applyFilletCorner,filletArc,setFilletR,get filletR(){return filletR},get filletMarkers(){return filletMarkers},
 uniteStrokes,decomposeStroke,get selSet(){return selSet},set selSet(v){selSet=v},setLaserBlack,
-updatePaperSecs,cutPiecesWithPlane,alignToSection,laserSnap};
+updatePaperSecs,cutPiecesWithPlane,alignToSection,laserSnap,
+computeFeatEdges,pieceFeatEdgesAll,buildEdgeFilletGeo,showFilletEdgeGhost,confirmFilletEdge,clearFilletEdge,
+get fillet3d(){return fillet3d},set fillet3d(v){fillet3d=v},get filletMode(){return filletMode},set filletMode(v){filletMode=v}};
 exp.onclick=()=>{let b=new Blob([JSON.stringify(buildExport())],{type:'application/json'});
   let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kazan_anotaciones.json';a.click();};
 copy.onclick=async()=>{let t=JSON.stringify(buildExport());
@@ -5333,6 +5445,11 @@ function applyImport(d){
               const ms=(sd.src||[]).map(n=>pieces[n]).filter(Boolean);
               if(ms.length<2)return null; let g=null; try{g=booleanSolids(ms,'union');}catch(_){g=null;}
               return g?registerSurface(g,cl,sd.name,{kind:'union',srcNames:sd.src}):null;})()
+          :(sd.kind==='fillet3d')?(function(){   // reconstruye la media caña/bisel desde arista+radio
+              const fe=sd.fedge; if(!fe)return null;
+              const ed={a:new THREE.Vector3(...fe[0]),b:new THREE.Vector3(...fe[1]),n1:new THREE.Vector3(...fe[2]),n2:new THREE.Vector3(...fe[3])};
+              const res=buildEdgeFilletGeo(ed,sd.fr||8,sd.fmode||'round');
+              return (res&&!res.tooBig&&res.geo)?registerSurface(res.geo,cl,sd.name,{kind:'fillet3d',fedge:fe,fr:sd.fr,fmode:sd.fmode}):null;})()
           :buildSurfaceFromPts(sd.d,sd.g,cl,sd.name);
         if(!S)return;
         if(sd.vis===false)S.mesh.visible=false;
