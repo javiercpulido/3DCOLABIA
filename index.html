@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.55 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.56 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -391,6 +391,8 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <div style="height:1px;background:rgba(0,0,0,.09);margin:2px 2px"></div>
  <b style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Booleanas</b>
  <button class="secTgl" data-sm="union" title="Unir sólidos: toca 2 o más piezas y pulsa Fundir; se crea un sólido fundido SIN solape, conservando las piezas originales (no destructivo)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg>Unir sólidos</button>
+ <button class="secTgl" data-sm="subtract" title="Restar sólidos: la 1ª pieza que toques es el CUERPO base; las siguientes se restan (se le quitan). No destructivo: conserva las piezas originales"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="6"/><path d="M15.2 6.3a6 6 0 0 1 0 11.4" stroke-dasharray="2 2" opacity=".7"/></svg>Restar sólidos</button>
+ <button class="secTgl" data-sm="intersect" title="Intersecar sólidos: toca 2 o más piezas; queda solo el volumen COMÚN a todas. No destructivo: conserva las piezas originales"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="6" opacity=".55"/><circle cx="15" cy="12" r="6" opacity=".55"/><path d="M12 7.4a6 6 0 0 0 0 9.2 6 6 0 0 0 0-9.2Z" fill="currentColor" fill-opacity=".18"/></svg>Intersecar sólidos</button>
 </div>
 <div id="lasermenu" class="pill" style="position:fixed;top:76px;left:12px;z-index:11;display:none;flex-direction:column;padding:7px;gap:5px;width:150px;max-width:60vw;font-size:12.5px;color:var(--ink)">
  <div class="menucaret"></div>
@@ -4877,6 +4879,8 @@ function surfToolStart(mode){
   if(window._splitAny){window._splitAny=false;document.getElementById('mSplitTool').classList.remove('on');}
   setMode('sel');
   toast(mode==='union'?'∪ Toca 2 o más piezas y pulsa ✓ Fundir':
+        mode==='subtract'?'⊟ Toca primero el CUERPO base; luego las piezas a restar':
+        mode==='intersect'?'⊓ Toca 2 o más piezas (queda el volumen común)':
         mode==='face'?'▱ Toca un contorno CERRADO':
         mode==='ribs'?'◠ Toca el contorno cerrado; luego sus líneas interiores':
                       '▦ Toca la curva DIRECTRIZ');
@@ -4890,14 +4894,23 @@ function surfToolCancel(msg){
 // BARRA FLOTANTE «Crear superficie»: sustituye al «toca en vacío» de los modos
 // que dependían de ello (cara con línea interior · loft) y da un botón Crear /
 // Cancelar claro, con un resumen en vivo de lo seleccionado.
-const SURF_NAMES={face:'Cara de contorno',ribs:'Cara con línea interior',dxg:'Directriz × generatriz',rev:'Revolución',coons:'Malla de 4 bordes',ext:'Extrusión',tube:'Tubo',ruled:'Reglada',loft:'Loft',sweep:'Sígueme',union:'Unir sólidos'};
+const SURF_NAMES={face:'Cara de contorno',ribs:'Cara con línea interior',dxg:'Directriz × generatriz',rev:'Revolución',coons:'Malla de 4 bordes',ext:'Extrusión',tube:'Tubo',ruled:'Reglada',loft:'Loft',sweep:'Sígueme',union:'Unir sólidos',subtract:'Restar sólidos',intersect:'Intersecar sólidos'};
+const BOOL_OPS={union:'union',subtract:'subtract',intersect:'intersect'};
+const isBoolMode=m=>m==='union'||m==='subtract'||m==='intersect';
 function updateSurfPop(){
   const el=document.getElementById('surfpop'); if(!el)return;
   const T=surfTool; if(!T){el.style.display='none';return;}
-  let status='', canBuild=false, buildable=(T.mode==='ribs'||T.mode==='loft'||T.mode==='union');
-  if(T.mode==='union'){
-    status=T.solids.length+' pieza'+(T.solids.length===1?'':'s')+(T.solids.length<2?' · toca ≥2':' ✓ · conserva las originales');
-    canBuild=T.solids.length>=2;
+  let status='', canBuild=false, buildable=(T.mode==='ribs'||T.mode==='loft'||isBoolMode(T.mode));
+  if(isBoolMode(T.mode)){
+    const n=T.solids.length;
+    if(T.mode==='subtract'){
+      status=!n?'Toca el CUERPO base':n===1?('Base: '+T.solids[0].name.replace(/^\d+\s*/,'')+' · toca las piezas a restar')
+        :('Base '+T.solids[0].name.replace(/^\d+\s*/,'')+' − '+(n-1)+' pieza'+(n>2?'s':'')+' ✓ · conserva las originales');
+      canBuild=n>=2;
+    } else {
+      status=n+' pieza'+(n===1?'':'s')+(n<2?' · toca ≥2':' ✓ · conserva las originales');
+      canBuild=n>=2;
+    }
   } else if(T.mode==='ribs'){
     if(!T.contour)status='Toca el contorno cerrado';
     else{status='Contorno ✓'+(T.inner.length?' · '+T.inner.length+' interior'+(T.inner.length>1?'es':''):' · líneas interiores (opcional)'); canBuild=true;}
@@ -4914,7 +4927,7 @@ function updateSurfPop(){
   el.querySelector('[data-sp-name]').textContent=SURF_NAMES[T.mode]||'Superficie';
   el.querySelector('[data-sp-status]').textContent=status;
   const cbtn=el.querySelector('[data-sp-create]');
-  cbtn.textContent=(T.mode==='union')?'✓ Fundir':'✓ Crear superficie';
+  cbtn.textContent=(T.mode==='union')?'✓ Fundir':(T.mode==='subtract')?'✓ Restar':(T.mode==='intersect')?'✓ Intersecar':'✓ Crear superficie';
   cbtn.style.display=buildable?'':'none';
   cbtn.disabled=!canBuild; cbtn.style.opacity=canBuild?'1':'.45'; cbtn.style.cursor=canBuild?'pointer':'default';
   el.style.display='flex';
@@ -4925,20 +4938,24 @@ function surfPopCreate(){
     surfToolFinish(buildContourSurfaceFromPts(T.contour.points,new THREE.Color(T.contour.color||color).getHex(),null,T.inner.map(x=>x.points)));
   } else if(T.mode==='loft'){ if(T.inner.length<2){toast('≋ Hacen falta ≥2 secciones');return;}
     surfToolFinish(buildLoftFromPts(T.inner.map(x=>x.points),new THREE.Color(T.inner[0].color||color).getHex()));
-  } else if(T.mode==='union'){
-    if(T.solids.length<2){toast('∪ Toca al menos 2 piezas');return;}
-    const meshes=T.solids.slice();
-    toast('∪ Fundiendo '+meshes.length+' piezas…');
+  } else if(isBoolMode(T.mode)){
+    if(T.solids.length<2){toast('Toca al menos 2 piezas');return;}
+    const meshes=T.solids.slice(), op=BOOL_OPS[T.mode], names=meshes.map(m=>m.name);
+    const cfg={union:{gl:'∪',verb:'Fundiendo',col:0xaeb4bf,join:' + ',pre:'Unión',okv:'Sólido fundido',undo:'unir sólidos'},
+      subtract:{gl:'⊟',verb:'Restando',col:0xc7a98e,join:' − ',pre:'Resta',okv:'Sólido restado',undo:'restar sólidos'},
+      intersect:{gl:'⊓',verb:'Intersecando',col:0x9ab0c4,join:' ∩ ',pre:'Intersección',okv:'Volumen común',undo:'intersecar sólidos'}}[T.mode];
+    toast(cfg.gl+' '+cfg.verb+' '+meshes.length+' piezas…');
     // el CSG puede tardar un instante: se hace tras pintar el toast
-    const names=meshes.map(m=>m.name);
     setTimeout(()=>{
-      let g=null; try{ g=booleanSolids(meshes,'union'); }catch(err){ g=null; }
-      if(!g||!g.attributes.position.count){surfToolCancel('∪ No se pudo fundir (revisa que las piezas se toquen)');return;}
-      const S=registerSurface(g,0xaeb4bf,'Unión ('+names.map(n=>n.replace(/^\d+\s*/,'')).join(' + ')+')',{kind:'union',srcNames:names});
+      let g=null; try{ g=booleanSolids(meshes,op); }catch(err){ g=null; }
+      if(!g||!g.attributes.position.count){
+        surfToolCancel(cfg.gl+' '+(op==='intersect'?'No hay volumen común (¿se solapan las piezas?)':'No se pudo (revisa que las piezas se toquen)'));return;}
+      const nm=cfg.pre+' ('+names.map(n=>n.replace(/^\d+\s*/,'')).join(cfg.join)+')';
+      const S=registerSurface(g,cfg.col,nm,{kind:T.mode,srcNames:names});
       // NO destructivo: las piezas originales se conservan (el diff por GlobalId no se toca)
-      pushUndo('unir sólidos',()=>removeSurface(S,true),()=>{scene.add(S.mesh);surfaces.push(S);renderSurfList();});
+      pushUndo(cfg.undo,()=>removeSurface(S,true),()=>{scene.add(S.mesh);surfaces.push(S);renderSurfList();});
       surfToolCancel(); redraw();
-      toast('∪ Sólido fundido creado ✓ · piezas originales conservadas (en el panel de superficies)');
+      toast(cfg.gl+' '+cfg.okv+' ✓ · piezas originales conservadas (en el panel de superficies)');
     },30);
   }
 }
@@ -4956,14 +4973,18 @@ function surfToolFinish(S){
 }
 function surfToolTap(e){
   const T=surfTool;
-  if(T.mode==='union'){   // BOOLEANA: se tocan PIEZAS (sólidos), no trazos
+  if(isBoolMode(T.mode)){   // BOOLEANA: se tocan PIEZAS (sólidos), no trazos
+    const gl=T.mode==='union'?'∪':T.mode==='subtract'?'⊟':'⊓';
     ndc(e); const hits=ray.intersectObjects(pickables.filter(x=>x.visible),false);
-    if(!hits.length){toast('∪ Toca una pieza sólida'); return;}
+    if(!hits.length){toast(gl+' Toca una pieza sólida'); return;}
     const m=hits[0].object;
     if(m.userData.locked){toast(m.name+' bloqueada 🔒'); return;}
     const i=T.solids.indexOf(m);
-    if(i<0){T.solids.push(m); toast('∪ '+m.name+' añadida ('+T.solids.length+')');}
-    else{T.solids.splice(i,1); toast('∪ '+m.name+' quitada ('+T.solids.length+')');}
+    if(i<0){T.solids.push(m);
+      const role=(T.mode==='subtract')?(T.solids.length===1?' (base)':' (a restar)'):'';
+      toast(gl+' '+m.name+role+' añadida ('+T.solids.length+')');}
+    else{T.solids.splice(i,1); toast(gl+' '+m.name+' quitada ('+T.solids.length+')');}
+    updateSurfPop();
     return;
   }
   const st=pickStrokeAt(e);
@@ -5415,7 +5436,7 @@ function buildExport(){
       if(S.kind==='ruled')return Object.assign(base,{kind:'ruled',a:S.a,b:S.b});
       if(S.kind==='loft')return Object.assign(base,{kind:'loft',secs:S.secs});
       if(S.kind==='sweep')return Object.assign(base,{kind:'sweep',prof:S.prof,path:S.path});
-      if(S.kind==='union')return Object.assign(base,{kind:'union',src:S.srcNames});   // re-fusión desde las piezas al reabrir
+      if(S.kind==='union'||S.kind==='subtract'||S.kind==='intersect')return Object.assign(base,{kind:S.kind,src:S.srcNames});   // re-booleana desde las piezas al reabrir
       if(S.kind==='fillet3d')return Object.assign(base,{kind:'fillet3d',fedge:S.fedge,fr:S.fr,fmode:S.fmode});   // media caña / bisel de arista
       return Object.assign(base,{d:S.dirPts,g:S.genPts});}),
     textos:texts,
@@ -5506,10 +5527,10 @@ function applyImport(d){
           :(sd.kind==='ruled')?buildRuledFromPts(sd.a,sd.b,cl,sd.name)
           :(sd.kind==='loft')?buildLoftFromPts(sd.secs,cl,sd.name)
           :(sd.kind==='sweep')?buildSweepFromPts(sd.prof,sd.path,cl,sd.name)
-          :(sd.kind==='union')?(function(){   // re-fusiona desde las piezas conservadas
+          :(sd.kind==='union'||sd.kind==='subtract'||sd.kind==='intersect')?(function(){   // re-booleana desde las piezas conservadas (mantiene el orden para restar)
               const ms=(sd.src||[]).map(n=>pieces[n]).filter(Boolean);
-              if(ms.length<2)return null; let g=null; try{g=booleanSolids(ms,'union');}catch(_){g=null;}
-              return g?registerSurface(g,cl,sd.name,{kind:'union',srcNames:sd.src}):null;})()
+              if(ms.length<2)return null; let g=null; try{g=booleanSolids(ms,sd.kind);}catch(_){g=null;}
+              return g?registerSurface(g,cl,sd.name,{kind:sd.kind,srcNames:sd.src}):null;})()
           :(sd.kind==='fillet3d')?(function(){   // reconstruye la media caña/bisel desde arista+radio
               const fe=sd.fedge; if(!fe)return null;
               const ed={a:new THREE.Vector3(...fe[0]),b:new THREE.Vector3(...fe[1]),n1:new THREE.Vector3(...fe[2]),n2:new THREE.Vector3(...fe[3])};

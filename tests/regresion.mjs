@@ -251,7 +251,7 @@ const secciones = {
   async superficies() {
     const r = await page.evaluate(() => {
       const D = window._dbg, out = {};
-      out.menu = document.querySelectorAll('#surfmenu [data-sm]').length === 11;   // 10 superficies + Unir sólidos
+      out.menu = document.querySelectorAll('#surfmenu [data-sm]').length === 13;   // 10 superficies + 3 booleanas (unir/restar/intersecar)
       const ring = []; for (let i = 0; i < 32; i++) { const a = 2 * Math.PI * i / 32; ring.push([30 + 12 * Math.cos(a), 75 + 12 * Math.sin(a), 0]); }
       ring.push(ring[0].slice());
       const inner = []; for (let i = 0; i <= 16; i++) { const t = i / 16; inner.push([18 + 24 * t, 75, 6 * Math.sin(Math.PI * t)]); }
@@ -292,7 +292,7 @@ const secciones = {
       out.lockBorra = D.surfaces.length === nAntes; S0.locked = false;
       return out;
     });
-    ok('submenú de superficies con 10 modos', r.menu);
+    ok('submenú de superficies con 10 modos + 3 booleanas', r.menu);
     ok('los 9 constructores crean superficie y exportan su tipo', r.n === 9 && r.kinds);
     ok('cara con línea interior respeta la cresta', r.crest);
     ok('membrana armónica clavada a la curva interior (0 mm)', r.clavada);
@@ -659,6 +659,61 @@ const secciones = {
     ok('unión NO destructiva: las piezas originales se conservan', r.creada);
     ok('herramienta: tocar piezas, «Fundir» y resultado kind=union', r.fundirOff && r.dos && r.esUnion);
     ok('unión: deshacer la quita y rehacer la devuelve', r.undo && r.redo);
+  },
+
+  async booleana_resta_interseccion() {   // Restar e Intersecar (CSG) no destructivas
+    const r = await page.evaluate(async () => {
+      const D = window._dbg, T3 = window.THREE, out = {};
+      const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 15)));
+      const vol = g => { const p = g.attributes.position, idx = g.index; let v = 0;
+        const tri = (a, b, c) => { const ax=p.getX(a),ay=p.getY(a),az=p.getZ(a),bx=p.getX(b),by=p.getY(b),bz=p.getZ(b),cx=p.getX(c),cy=p.getY(c),cz=p.getZ(c);
+          v += (ax*(by*cz-bz*cy) - ay*(bx*cz-bz*cx) + az*(bx*cy-by*cx)) / 6; };
+        if (idx) { for (let i=0;i<idx.count;i+=3) tri(idx.getX(i),idx.getX(i+1),idx.getX(i+2)); }
+        else { for (let i=0;i<p.count;i+=3) tri(i,i+1,i+2); } return Math.abs(v); };
+      // dos cajas 20³ con solape 10×20×20 = 4000 (A en [-10,10], B en [0,20] según X)
+      const mk = (px) => { const m = new T3.Mesh(new T3.BoxGeometry(20, 20, 20)); m.position.set(px, 0, 0); m.updateMatrixWorld(); return m; };
+      const A = mk(0), B = mk(10);
+      // RESTA A−B = 8000 − 4000 = 4000 (el orden importa: A es la base)
+      const gs = D.booleanSolids([A, B], 'subtract');
+      out.restaVol = !!gs && Math.abs(vol(gs) - 4000) < 400;
+      // INTERSECCIÓN = volumen común = 4000
+      const gi = D.booleanSolids([A, B], 'intersect');
+      out.interVol = !!gi && Math.abs(vol(gi) - 4000) < 400;
+      // el orden de la resta cambia el resultado (B−A también 4000 pero geometría distinta): comprobamos que no lanza
+      out.ordena = !!D.booleanSolids([B, A], 'subtract');
+
+      // flujo con la herramienta: RESTAR (base = 1ª tocada)
+      const nS = D.surfaces.length, nP = Object.keys(D.pieces).length;
+      D.pieces['1 roseta'].visible = false; D.pieces['3 garganta (propuesta)'].visible = false;
+      const rct = document.querySelector('canvas').getBoundingClientRect();
+      const scr = w => { const v = new T3.Vector3(...w).project(D.cam);
+        return { target: document.querySelector('canvas'), clientX: rct.left + (v.x*0.5+0.5)*rct.width, clientY: rct.top + (-v.y*0.5+0.5)*rct.height, button: 0 }; };
+      D.surfToolStart('subtract'); D.updateSurfPop(); await frame();
+      const pop = document.getElementById('surfpop');
+      out.btnRestar = pop.querySelector('[data-sp-create]').textContent.includes('Restar');
+      D.surfToolTap(scr([3, 21, 10]));  D.updateSurfPop();   // cuello = base
+      D.surfToolTap(scr([95, 27, 10])); D.updateSurfPop();   // palanca = a restar
+      out.dos = D.surfTool && D.surfTool.solids.length === 2;
+      const baseName = D.surfTool.solids[0].name;
+      D.surfPopCreate();
+      await new Promise(r => setTimeout(r, 250));
+      const S = D.surfaces[D.surfaces.length - 1];
+      out.creada = D.surfaces.length === nS + 1 && Object.keys(D.pieces).length === nP && !D.surfTool;
+      out.esResta = S && S.kind === 'subtract' && Array.isArray(S.srcNames) && S.srcNames[0] === baseName;
+      // persistencia (export → import) reconstruye la resta desde las piezas, con orden
+      const data = D.buildExport();
+      const sd = (data.superficies || []).find(x => x.kind === 'subtract');
+      out.exporta = !!sd && sd.src[0] === baseName;
+      D.applyImport(data);
+      const S2 = D.surfaces.find(x => x.kind === 'subtract');
+      out.importa = !!S2 && S2.srcNames[0] === baseName;
+      D.pieces['1 roseta'].visible = true; D.pieces['3 garganta (propuesta)'].visible = true;
+      return out;
+    });
+    ok('CSG resta A−B: volumen coherente (base − herramienta)', r.restaVol && r.ordena);
+    ok('CSG intersección: solo el volumen común', r.interVol);
+    ok('herramienta Restar: base = 1ª pieza, botón «Restar», no destructiva', r.btnRestar && r.dos && r.creada && r.esResta);
+    ok('resta se guarda y se recupera conservando el orden (base)', r.exporta && r.importa);
   },
 
   async fillet() {   // REDONDEAR: arco tangente de radio r en esquinas de líneas unidas
