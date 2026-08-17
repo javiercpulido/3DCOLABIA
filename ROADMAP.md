@@ -78,5 +78,17 @@ aceptar sin recorte para sus propias líneas.
 
 ## Convergencia de lápices (del Plan Maestro)
 
-- Converger a un lápiz inteligente único + «Formas exactas», sin quitar nada hasta
-  que el unificado cubra el 100 %.
+**Fase A (v6.57) — hecha**: separación **Trazo** (mano alzada: pegado · libre ·
+calco láser · nota) vs **Forma** (exacta: recta · Poli 3D), cada botón muta al
+icono de su última opción; y **Continuo** como conmutador global en el dock
+(funde el candado «seguir dibujando» + «unir en continuidad» en uno, estilo
+SketchUp). Sin cambios de comportamiento en las herramientas.
+
+**Fase B — pendiente**: formas exactas de TOQUE en el menú Forma — **arco**
+(3 puntos / centro), **circunferencia** (centro + radio) y **elipse** —
+reutilizando la matemática de `regularize` y la maquinaria de la Recta
+(longitud/radio en vivo, inferencia de ejes, OSNAP, casilla + ▲▼). El gesto
+«mantén ≈1 s» se conserva en paralelo.
+
+**Fase C — pendiente**: converger a un lápiz inteligente único + «Formas
+exactas», sin quitar nada hasta que el unificado cubra el 100 %.

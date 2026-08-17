@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.56 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.57 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -288,12 +288,14 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <div id="dock1" class="row pill">
   <button id="mSel" title="Seleccionar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg></button>
   <button id="mMulti" title="Multi-selección: toca trazos para sumar/restar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="11" height="11" rx="2"/><rect x="10" y="10" width="11" height="11" rx="2"/></svg></button>
-  <button id="mDraw" title="Trazo (2º toque: candado)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg><span id="lockDot" style="position:absolute;top:2px;right:4px;font-size:9px;line-height:1;display:none">🔒</span></button>
+  <button id="mDraw" title="Trazo a mano alzada (2º toque: elegir modo)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
+  <button id="mShape" title="Forma exacta: recta, poli 3D… (2º toque: elegir forma)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2.2" fill="currentColor"/><circle cx="20" cy="4" r="2.2" fill="currentColor"/></svg></button>
   <button id="mErase" title="Borrar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg></button>
   <button id="mSplitTool" title="Partir: toca cualquier línea por el punto donde partirla (las partes quedan unidas por ese punto)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h7M14 12h7"/><path d="M12 6.5v11" stroke-dasharray="2.4 2.8"/></svg></button>
   <button id="mFillet" title="Redondear (fillet): arco tangente en las esquinas de líneas unidas, con radio en vivo · confirma por esquina o todas"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19V13a8 8 0 0 1 8-8h6"/><path d="M5 19H3M5 19v2" opacity=".5"/><path d="M19 5h2M19 5V3" opacity=".5"/></svg></button>
   <button id="mSurf" title="Superficies: crear caras a partir de contornos y curvas"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16.5 8 5.5 20 7.5 16 18.5Z"/><path d="M7 14l4-5 3 2 3-3" opacity=".45" stroke-width="1.4"/></svg></button>
   <button id="mag" class="on" title="Imán"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15-4-4 6.75-6.77a7.79 7.79 0 0 1 11 11L13 22l-4-4 6.39-6.36a2.14 2.14 0 0 0-3-3L6 15"/><path d="m5 8 4 4"/><path d="m12 15 4 4"/></svg></button>
+  <button id="mCont" title="Continuo: sigue dibujando sin volver a orbitar y los trazos/formas que se toquen quedan UNIDOS en una sola forma (tipo SketchUp)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6"/><path d="M9.5 7H7a5 5 0 0 0 0 10h2.5"/><path d="M14.5 7H17a5 5 0 0 1 0 10h-2.5"/></svg></button>
   <button id="mLaser" title="Láser de obra: inserta un nivel láser con rayos verdes"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="2" y1="12" x2="22" y2="12" stroke="#00c853"/><line x1="12" y1="2" x2="12" y2="22" stroke="#00c853"/><rect x="8.3" y="8.3" width="7.4" height="7.4" rx="1.6" fill="#fff" stroke="currentColor" stroke-width="1.8"/></svg></button>
   <div class="sep"></div>
   <button id="colBtn" title="Color"><i style="background:#d500f9"></i></button>
@@ -369,12 +371,14 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <b style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Modo de lápiz</b>
  <button class="secTgl on" data-dm="geo" title="Dibuja pegado a la geometría y a las guías láser"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/><circle cx="18.5" cy="18.5" r="2.4"/></svg>Pegado a geometría</button>
  <button class="secTgl" data-dm="free" title="Dibujo libre a mano alzada"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Libre</button>
- <button class="secTgl" data-dm="line" title="Línea recta con longitud en vivo (tipo SketchUp)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2" fill="currentColor"/><circle cx="20" cy="4" r="2" fill="currentColor"/></svg>Recta</button>
- <button class="secTgl" data-dm="note" title="Nota con flecha: toca un punto de la superficie y escribe una explicación (tipo SketchUp)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 21.5l1.2-3.9L13 8.3l2.7 2.7L6.4 20.3 2.5 21.5z"/><path d="M14.2 7.1l1.6-1.6a1.5 1.5 0 0 1 2.1 0l.5.5a1.5 1.5 0 0 1 0 2.1l-1.6 1.6"/><text x="14.5" y="21" font-size="10" stroke="none" fill="currentColor" font-weight="800">A</text></svg>Nota con flecha</button>
  <button class="secTgl" data-dm="laser" title="Calco láser: apoya sobre una línea láser, una ARISTA o una guía de cilindro y arrastra; el trazo la calca imantado, incluso una vuelta completa"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17a9 9 0 0 1 18 0"/><circle cx="3" cy="17" r="1.6" fill="currentColor" stroke="none"/><circle cx="21" cy="17" r="1.6" fill="currentColor" stroke="none"/></svg>Calco láser</button>
- <button class="secTgl" data-dm="poly" title="Poli 3D: toques encadenados recta⟷arco entre superficies, con puntos de control, cierre y edición por vértices"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 4 8 12 4 12 12 a5 5 0 0 0 8 4"/><circle cx="4" cy="19" r="1.8" fill="currentColor" stroke="none"/><circle cx="4" cy="8" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="4" r="1.8" fill="currentColor" stroke="none"/><circle cx="20" cy="16" r="1.8" fill="currentColor" stroke="none"/></svg>Poli 3D</button>
- <button class="secTgl" id="dmLock" title="Seguir dibujando sin volver a orbitar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Continuo (candado)</button>
- <button class="secTgl" id="dmJoin" title="Todo trazo que termine tocando el extremo de otro queda UNIDO a él en una sola forma continua (para superficies y sólidos)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6"/><path d="M9.5 7H7a5 5 0 0 0 0 10h2.5"/><path d="M14.5 7H17a5 5 0 0 1 0 10h-2.5"/></svg>Unir en continuidad</button>
+ <button class="secTgl" data-dm="note" title="Nota con flecha: toca un punto de la superficie y escribe una explicación (tipo SketchUp)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 21.5l1.2-3.9L13 8.3l2.7 2.7L6.4 20.3 2.5 21.5z"/><path d="M14.2 7.1l1.6-1.6a1.5 1.5 0 0 1 2.1 0l.5.5a1.5 1.5 0 0 1 0 2.1l-1.6 1.6"/><text x="14.5" y="21" font-size="10" stroke="none" fill="currentColor" font-weight="800">A</text></svg>Nota con flecha</button>
+</div>
+<div id="shapemenu" class="pill" style="position:fixed;top:76px;left:12px;z-index:11;display:none;flex-direction:column;padding:7px;gap:5px;width:186px;max-width:64vw;font-size:12.5px;color:var(--ink)">
+ <b style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Forma exacta</b>
+ <button class="secTgl on" data-fm="line" title="Línea recta con longitud en vivo, inferencia de ejes X/Y/Z y OSNAP (tipo SketchUp)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2" fill="currentColor"/><circle cx="20" cy="4" r="2" fill="currentColor"/></svg>Recta</button>
+ <button class="secTgl" data-fm="poly" title="Poli 3D: toques encadenados recta⟷arco⟷spline entre superficies, con puntos de control, cierre y edición por vértices (polilínea · poliarco · spline)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 4 8 12 4 12 12 a5 5 0 0 0 8 4"/><circle cx="4" cy="19" r="1.8" fill="currentColor" stroke="none"/><circle cx="4" cy="8" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="4" r="1.8" fill="currentColor" stroke="none"/><circle cx="20" cy="16" r="1.8" fill="currentColor" stroke="none"/></svg>Poli 3D (polilínea·arcos·spline)</button>
+ <span style="color:var(--mut);font-size:10.5px;line-height:1.35">Arco · circunferencia · elipse: dibuja a mano alzada y <b>mantén ≈1 s</b> al final — se convierte en la forma exacta. Como herramientas de toque, en camino.</span>
 </div>
 <div id="surfmenu" class="pill" style="position:fixed;top:76px;left:12px;z-index:11;display:none;flex-direction:column;padding:7px;gap:5px;width:210px;max-width:64vw;font-size:12.5px;color:var(--ink)">
  <b style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Crear superficie</b>
@@ -895,7 +899,10 @@ vPlaInv.onclick=()=>setView(-Math.PI/2,Math.PI-0.01);  // planta invertida (infe
 // ---- estado UI ----
 let mode='orbit', color='#d500f9', mag=true, lineW=0.2, penSeen=false, drawLock=false, selDrag=null, textDrag=null;
 let polyDraw=null, _joinCtx=null, laserDrag=null;   // POLI 3D en curso · popup Unir/Cancelar · arrastre directo del láser
-let drawMode='geo';   // 'geo'=pegado a geometría/láser (por defecto) · 'free'=libre · 'line'=recta · 'note'=nota con flecha
+let drawMode='geo';   // modo ACTIVO: 'geo'/'free'/'laser'/'note' (Trazo) · 'line'/'poly' (Forma)
+let trazoMode='geo';  // último modo elegido del botón TRAZO (mano alzada)
+let shapeMode='line'; // última FORMA exacta elegida (el botón Forma muta a su icono)
+const isShapeMode=m=>m==='line'||m==='poly';
 const PEN_ICONS={
   geo:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/><circle cx="18.5" cy="18.5" r="2.6"/></svg>',
   free:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
@@ -903,14 +910,21 @@ const PEN_ICONS={
   note:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 21.5l1.2-3.9L13 8.3l2.7 2.7L6.4 20.3 2.5 21.5z"/><path d="M14.2 7.1l1.6-1.6a1.5 1.5 0 0 1 2.1 0l.5.5a1.5 1.5 0 0 1 0 2.1l-1.6 1.6"/><text x="14.5" y="21" font-size="10" stroke="none" fill="currentColor" font-weight="800">A</text></svg>',
   laser:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17a9 9 0 0 1 18 0"/><circle cx="3" cy="17" r="1.7" fill="currentColor" stroke="none"/><circle cx="21" cy="17" r="1.7" fill="currentColor" stroke="none"/><path d="M12 3v3M12 8l0 0" stroke="#00c774"/></svg>',
   poly:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 4 8 12 4 12 12 a5 5 0 0 0 8 4"/><circle cx="4" cy="19" r="2" fill="currentColor" stroke="none"/><circle cx="4" cy="8" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="4" r="2" fill="currentColor" stroke="none"/><circle cx="20" cy="16" r="2" fill="currentColor" stroke="none"/></svg>'};
-function setPenIcon(){const b=document.getElementById('mDraw'); if(!b)return;
-  b.innerHTML=PEN_ICONS[drawMode]+'<span id="lockDot" style="position:absolute;top:2px;right:4px;font-size:9px;line-height:1;display:'+(drawLock?'block':'none')+'">🔒</span>';}
+function setPenIcon(){
+  // cada botón muta al icono de SU última opción: Trazo (mano alzada) · Forma (exacta)
+  const b=document.getElementById('mDraw'); if(b)b.innerHTML=PEN_ICONS[trazoMode];
+  const f=document.getElementById('mShape'); if(f)f.innerHTML=PEN_ICONS[shapeMode];}
+function updateDrawBtns(){
+  // en modo dibujo se ilumina el botón dueño del modo activo (Trazo o Forma)
+  const sh=isShapeMode(drawMode);
+  document.getElementById('mDraw').classList.toggle('on',mode==='draw'&&!sh);
+  const f=document.getElementById('mShape'); if(f)f.classList.toggle('on',mode==='draw'&&sh);}
 function applyDrawMode(){
   const mb=document.getElementById('mag');
   // cada modo con su significado: pegado = imán ON · libre = imán OFF (mano alzada real)
   if(drawMode==='geo'){mag=true;if(mb)mb.classList.add('on');}
   else if(drawMode==='free'){mag=false;if(mb)mb.classList.remove('on');}
-  setPenIcon();}
+  setPenIcon(); updateDrawBtns();}
 const btns={orbit:'mOrbit',sel:'mSel',draw:'mDraw',erase:'mErase',text:'mText',img:'mImg'};
 function setMode(m){mode=m;for(let k in btns)document.getElementById(btns[k]).classList.toggle('on',k===m);
   if(m!=='draw'&&typeof polyDraw!=='undefined'&&polyDraw&&typeof cancelPoly==='function')cancelPoly();
@@ -919,29 +933,46 @@ function setMode(m){mode=m;for(let k in btns)document.getElementById(btns[k]).cl
     const bt=document.getElementById('mSplitTool'); if(bt)bt.classList.remove('on');}
   // navegar (orbitar / girar la cabeza) NO deselecciona; sólo los modos de edición
   if(m!=='sel'&&m!=='orbit'&&m!=='look'){deselect();
-    if(multiSel){multiSel=false;document.getElementById('mMulti').classList.remove('on');}}}
+    if(multiSel){multiSel=false;document.getElementById('mMulti').classList.remove('on');}}
+  updateDrawBtns();}
 for(let k in btns)document.getElementById(btns[k]).onclick=()=>setMode(k);
 document.getElementById('mDraw').onclick=()=>{
-  const d=document.getElementById('drawmenu');
-  if(mode!=='draw'){setMode('draw');applyDrawMode();rightOfIcon(d,document.getElementById('mDraw'));} // al entrar muestra los tipos de lápiz
-  else{ // ya en modo lápiz → alterna el submenú de modos (estilo Photoshop)
+  const d=document.getElementById('drawmenu'); document.getElementById('shapemenu').style.display='none';
+  const wasTrazo=(mode==='draw'&&!isShapeMode(drawMode));
+  if(!wasTrazo){ // entrar en TRAZO (desde otra herramienta o desde Forma): recupera su último modo
+    if(polyDraw&&typeof cancelPoly==='function')cancelPoly();
+    drawMode=trazoMode; setMode('draw'); applyDrawMode(); rightOfIcon(d,document.getElementById('mDraw'));}
+  else{ // ya en trazo → alterna el submenú de modos (estilo Photoshop)
     const show=(d.style.display==='none'||!d.style.display);
     if(show)rightOfIcon(d,document.getElementById('mDraw')); else d.style.display='none';}};
+document.getElementById('mShape').onclick=()=>{
+  const d=document.getElementById('shapemenu'); document.getElementById('drawmenu').style.display='none';
+  const wasShape=(mode==='draw'&&isShapeMode(drawMode));
+  if(!wasShape){ // entrar en FORMA: recupera la última forma elegida
+    drawMode=shapeMode; setMode('draw'); applyDrawMode(); rightOfIcon(d,document.getElementById('mShape'));}
+  else{ // ya en forma → alterna el submenú
+    const show=(d.style.display==='none'||!d.style.display);
+    if(show)rightOfIcon(d,document.getElementById('mShape')); else d.style.display='none';}};
 document.getElementById('drawmenu').addEventListener('click',e=>{
   const b=e.target.closest('[data-dm]');
-  if(b){if(polyDraw&&b.dataset.dm!=='poly'&&typeof cancelPoly==='function')cancelPoly();
-    drawMode=b.dataset.dm; applyDrawMode(); setMode('draw');
+  if(b){if(polyDraw&&typeof cancelPoly==='function')cancelPoly();
+    drawMode=trazoMode=b.dataset.dm; applyDrawMode(); setMode('draw');
     document.querySelectorAll('#drawmenu [data-dm]').forEach(x=>x.classList.toggle('on',x.dataset.dm===drawMode));
     document.getElementById('drawmenu').style.display='none';
-    toast('Lápiz: '+({geo:'pegado a geometría/láser',free:'libre',line:'recta',note:'nota con flecha',laser:'calco láser · sigue láseres y aristas',poly:'Poli 3D · toques encadenados'}[drawMode]));}});
-document.getElementById('dmLock').onclick=function(){drawLock=!drawLock;
-  this.classList.toggle('on',drawLock); const ld=document.getElementById('lockDot'); if(ld)ld.style.display=drawLock?'block':'none';
-  toast(drawLock?'Lápiz continuo 🔒':'Un trazo y vuelve a orbitar');};
-let contJoin=false;   // «Unir en continuidad»: los trazos que se tocan se funden en una sola forma
-document.getElementById('dmJoin').onclick=function(){contJoin=!contJoin;
-  this.classList.toggle('on',contJoin);
-  toast(contJoin?'⛓ Unir en continuidad: los trazos que se toquen quedarán unidos'
-                :'Los trazos quedan sueltos (Unir/Cancelar al editar)');};
+    toast('Trazo: '+({geo:'pegado a geometría/láser',free:'libre',note:'nota con flecha',laser:'calco láser · sigue láseres y aristas'}[drawMode]));}});
+document.getElementById('shapemenu').addEventListener('click',e=>{
+  const b=e.target.closest('[data-fm]');
+  if(b){if(polyDraw&&b.dataset.fm!=='poly'&&typeof cancelPoly==='function')cancelPoly();
+    drawMode=shapeMode=b.dataset.fm; applyDrawMode(); setMode('draw');
+    document.querySelectorAll('#shapemenu [data-fm]').forEach(x=>x.classList.toggle('on',x.dataset.fm===drawMode));
+    document.getElementById('shapemenu').style.display='none';
+    toast('Forma: '+({line:'recta · longitud en vivo, ejes y OSNAP',poly:'Poli 3D · polilínea, arcos y spline encadenados'}[drawMode]));}});
+let contJoin=false;   // «Continuo»: los trazos/formas que se tocan se funden en una sola forma
+document.getElementById('mCont').onclick=function(){
+  const on=!(drawLock&&contJoin);   // un solo conmutador global: candado + unir en continuidad
+  drawLock=on; contJoin=on; this.classList.toggle('on',on);
+  toast(on?'⛓ Continuo: sigue dibujando y lo que se toque queda unido en una sola forma'
+          :'Un trazo y vuelve a orbitar · los trazos quedan sueltos');};
 // Mueve un ANCLA (extremo o soldadura) de una línea continua: el desplazamiento
 // se reparte elásticamente hasta las anclas vecinas, que no se mueven; en un
 // contorno CERRADO los dos extremos van juntos (el anillo no se abre).
@@ -1711,7 +1742,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
     return;}
   lastX=e.clientX;lastY=e.clientY;button=e.button;
   if(em==='draw'&&e.button===0){
-    {const dm=document.getElementById('drawmenu'); if(dm.style.display&&dm.style.display!=='none')dm.style.display='none';}  // al empezar a dibujar se cierra el submenú
+    {for(const id of ['drawmenu','shapemenu']){const dm=document.getElementById(id); if(dm&&dm.style.display&&dm.style.display!=='none')dm.style.display='none';}}  // al empezar a dibujar se cierran los submenús
     if(drawMode==='note'){startCallout(e);return;}   // nota con flecha: pulsa la punta y arrastra la guía
     ndc(e); let hh=ray.intersectObjects(handles.map(h=>h.mesh));
     if(hh.length){handDrag=handles.find(h=>h.mesh===hh[0].object);handDrag.dist=hh[0].distance;
@@ -5444,7 +5475,7 @@ function buildExport(){
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
 window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},get pointersDbg(){return [...pointers.values()].map(v=>v.t)},get capsDbg(){return _caps.size},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
-buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},
+buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},get drawLock(){return drawLock},get trazoMode(){return trazoMode},get shapeMode(){return shapeMode},
 buildContourSurfaceFromPts,get axGhost(){return axGhost},selectStroke,surfToolStart,surfToolTap,get surfTool(){return surfTool},moveContPoint,
 buildRevolveFromPts,buildCoonsFromPts,buildExtrudeFromPts,buildTubeFromPts,chain4,buildExport,
 buildRuledFromPts,buildLoftFromPts,buildSweepFromPts,

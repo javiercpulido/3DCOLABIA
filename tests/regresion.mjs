@@ -112,8 +112,8 @@ const secciones = {
   async continuidad_partir() {
     const r = await page.evaluate(async () => {
       const D = window._dbg, frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 15)));
-      document.getElementById('mDraw').click(); document.getElementById('dmJoin').click();
-      document.getElementById('mDraw').click();
+      document.getElementById('mCont').click();   // Continuo global (candado + unir en continuidad)
+      document.getElementById('mDraw').click(); document.getElementById('mDraw').click();
       const s1 = { points: [[100, 10, 0], [110, 10, 0], [120, 10, 0]], color: '#000', w: 0.2, sobre: 't' };
       const s2 = { points: [[120, 10, 0], [120, 20, 0], [120, 30, 0]], color: '#000', w: 0.2, sobre: 't' };
       D.strokes.push(s1); D.strokes.push(s2);
@@ -714,6 +714,49 @@ const secciones = {
     ok('CSG intersección: solo el volumen común', r.interVol);
     ok('herramienta Restar: base = 1ª pieza, botón «Restar», no destructiva', r.btnRestar && r.dos && r.creada && r.esResta);
     ok('resta se guarda y se recupera conservando el orden (base)', r.exporta && r.importa);
+  },
+
+  async trazo_forma() {   // reorganización: Trazo (mano alzada) · Forma (exacta) · Continuo global
+    const r = await page.evaluate(async () => {
+      const D = window._dbg, out = {};
+      const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 15)));
+      // el menú de TRAZO ya no contiene recta/poli ni los toggles viejos
+      out.menuTrazo = document.querySelectorAll('#drawmenu [data-dm]').length === 4 &&
+        !document.querySelector('#drawmenu [data-dm="line"]') && !document.querySelector('#drawmenu [data-dm="poly"]') &&
+        !document.getElementById('dmLock') && !document.getElementById('dmJoin');
+      // el menú de FORMA tiene recta y poli
+      out.menuForma = document.querySelectorAll('#shapemenu [data-fm]').length === 2;
+      // botón Forma: entra en dibujo con la última forma (recta por defecto) y se ilumina él, no Trazo
+      document.getElementById('mShape').click(); await frame();
+      out.entraForma = D.mode === 'draw' && D.drawMode === 'line' &&
+        document.getElementById('mShape').classList.contains('on') &&
+        !document.getElementById('mDraw').classList.contains('on');
+      // elegir Poli en el submenú: el botón MUTA su icono y drawMode cambia
+      document.getElementById('mShape').click(); await frame();   // 2º toque abre el submenú
+      const icon0 = document.getElementById('mShape').innerHTML;
+      document.querySelector('#shapemenu [data-fm="poly"]').click(); await frame();
+      out.mutaIcono = D.drawMode === 'poly' && D.shapeMode === 'poly' &&
+        document.getElementById('mShape').innerHTML !== icon0 &&
+        document.getElementById('shapemenu').style.display === 'none';
+      // botón Trazo: vuelve a la mano alzada (geo), se ilumina Trazo y se apaga Forma
+      document.getElementById('mDraw').click(); await frame();
+      out.vuelveTrazo = D.drawMode === 'geo' && D.trazoMode === 'geo' &&
+        document.getElementById('mDraw').classList.contains('on') &&
+        !document.getElementById('mShape').classList.contains('on');
+      document.getElementById('drawmenu').style.display = 'none';
+      // CONTINUO global: un toque activa candado + unir; otro los apaga
+      document.getElementById('mCont').click();
+      out.contOn = D.drawLock === true && D.contJoin === true &&
+        document.getElementById('mCont').classList.contains('on');
+      document.getElementById('mCont').click();
+      out.contOff = D.drawLock === false && D.contJoin === false;
+      return out;
+    });
+    ok('Trazo: menú sin recta/poli ni toggles viejos (4 modos de mano alzada)', r.menuTrazo);
+    ok('Forma: botón propio con recta y poli, entra con la última forma', r.menuForma && r.entraForma);
+    ok('Forma: el botón muta al icono de la forma elegida', r.mutaIcono);
+    ok('Trazo y Forma se iluminan según el modo activo', r.vuelveTrazo);
+    ok('Continuo global: candado + unir en continuidad en un solo botón', r.contOn && r.contOff);
   },
 
   async fillet() {   // REDONDEAR: arco tangente de radio r en esquinas de líneas unidas
