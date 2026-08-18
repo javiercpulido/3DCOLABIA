@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.57 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.58 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -377,8 +377,11 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
 <div id="shapemenu" class="pill" style="position:fixed;top:76px;left:12px;z-index:11;display:none;flex-direction:column;padding:7px;gap:5px;width:186px;max-width:64vw;font-size:12.5px;color:var(--ink)">
  <b style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Forma exacta</b>
  <button class="secTgl on" data-fm="line" title="Línea recta con longitud en vivo, inferencia de ejes X/Y/Z y OSNAP (tipo SketchUp)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2" fill="currentColor"/><circle cx="20" cy="4" r="2" fill="currentColor"/></svg>Recta</button>
+ <button class="secTgl" data-fm="arc" title="Arco por 3 puntos: arrastra la CUERDA (inicio→fin, con ejes y OSNAP); después arrastra otra vez para CURVAR el arco — pasa por el lápiz — y suelta"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18 A 11 11 0 0 1 20 18"/><circle cx="4" cy="18" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="9.8" r="1.8" fill="currentColor" stroke="none"/><circle cx="20" cy="18" r="1.8" fill="currentColor" stroke="none"/></svg>Arco (3 puntos)</button>
+ <button class="secTgl" data-fm="circle" title="Circunferencia: arrastra del CENTRO hacia fuera; radio en vivo con OSNAP · con el círculo seleccionado teclea el radio exacto"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M12 12 18 6" stroke-dasharray="2 1.6"/></svg>Circunferencia (centro+radio)</button>
+ <button class="secTgl" data-fm="ellipse" title="Elipse: arrastra del CENTRO a una esquina; los semiejes siguen los ejes del plano"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="5.5"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>Elipse (centro+esquina)</button>
  <button class="secTgl" data-fm="poly" title="Poli 3D: toques encadenados recta⟷arco⟷spline entre superficies, con puntos de control, cierre y edición por vértices (polilínea · poliarco · spline)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 4 8 12 4 12 12 a5 5 0 0 0 8 4"/><circle cx="4" cy="19" r="1.8" fill="currentColor" stroke="none"/><circle cx="4" cy="8" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="4" r="1.8" fill="currentColor" stroke="none"/><circle cx="20" cy="16" r="1.8" fill="currentColor" stroke="none"/></svg>Poli 3D (polilínea·arcos·spline)</button>
- <span style="color:var(--mut);font-size:10.5px;line-height:1.35">Arco · circunferencia · elipse: dibuja a mano alzada y <b>mantén ≈1 s</b> al final — se convierte en la forma exacta. Como herramientas de toque, en camino.</span>
+ <span style="color:var(--mut);font-size:10.5px;line-height:1.35">El gesto sigue vivo: dibuja a mano alzada y <b>mantén ≈1 s</b> al final — se convierte en la forma exacta.</span>
 </div>
 <div id="surfmenu" class="pill" style="position:fixed;top:76px;left:12px;z-index:11;display:none;flex-direction:column;padding:7px;gap:5px;width:210px;max-width:64vw;font-size:12.5px;color:var(--ink)">
  <b style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Crear superficie</b>
@@ -902,18 +905,23 @@ let polyDraw=null, _joinCtx=null, laserDrag=null;   // POLI 3D en curso · popup
 let drawMode='geo';   // modo ACTIVO: 'geo'/'free'/'laser'/'note' (Trazo) · 'line'/'poly' (Forma)
 let trazoMode='geo';  // último modo elegido del botón TRAZO (mano alzada)
 let shapeMode='line'; // última FORMA exacta elegida (el botón Forma muta a su icono)
-const isShapeMode=m=>m==='line'||m==='poly';
+const isShapeMode=m=>m==='line'||m==='poly'||m==='arc'||m==='circle'||m==='ellipse';
 const PEN_ICONS={
   geo:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/><circle cx="18.5" cy="18.5" r="2.6"/></svg>',
   free:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
   line:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2.2" fill="currentColor"/><circle cx="20" cy="4" r="2.2" fill="currentColor"/></svg>',
   note:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 21.5l1.2-3.9L13 8.3l2.7 2.7L6.4 20.3 2.5 21.5z"/><path d="M14.2 7.1l1.6-1.6a1.5 1.5 0 0 1 2.1 0l.5.5a1.5 1.5 0 0 1 0 2.1l-1.6 1.6"/><text x="14.5" y="21" font-size="10" stroke="none" fill="currentColor" font-weight="800">A</text></svg>',
   laser:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17a9 9 0 0 1 18 0"/><circle cx="3" cy="17" r="1.7" fill="currentColor" stroke="none"/><circle cx="21" cy="17" r="1.7" fill="currentColor" stroke="none"/><path d="M12 3v3M12 8l0 0" stroke="#00c774"/></svg>',
-  poly:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 4 8 12 4 12 12 a5 5 0 0 0 8 4"/><circle cx="4" cy="19" r="2" fill="currentColor" stroke="none"/><circle cx="4" cy="8" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="4" r="2" fill="currentColor" stroke="none"/><circle cx="20" cy="16" r="2" fill="currentColor" stroke="none"/></svg>'};
+  poly:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 4 8 12 4 12 12 a5 5 0 0 0 8 4"/><circle cx="4" cy="19" r="2" fill="currentColor" stroke="none"/><circle cx="4" cy="8" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="4" r="2" fill="currentColor" stroke="none"/><circle cx="20" cy="16" r="2" fill="currentColor" stroke="none"/></svg>',
+  arc:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18 A 11 11 0 0 1 20 18"/><circle cx="4" cy="18" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="9.8" r="2" fill="currentColor" stroke="none"/><circle cx="20" cy="18" r="2" fill="currentColor" stroke="none"/></svg>',
+  circle:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><path d="M12 12 18 6" stroke-dasharray="2 1.6"/></svg>',
+  ellipse:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="5.5"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>'};
 function setPenIcon(){
   // cada botón muta al icono de SU última opción: Trazo (mano alzada) · Forma (exacta)
   const b=document.getElementById('mDraw'); if(b)b.innerHTML=PEN_ICONS[trazoMode];
   const f=document.getElementById('mShape'); if(f)f.innerHTML=PEN_ICONS[shapeMode];}
+function cancelShapeDraw(){   // aborta una forma exacta a medias (p. ej. arco esperando su 2º arrastre)
+  if(drawing&&drawing.shape){drawing=null; hideDrawTag(); hideAxGhost(); clearSnapState(); redraw();}}
 function updateDrawBtns(){
   // en modo dibujo se ilumina el botón dueño del modo activo (Trazo o Forma)
   const sh=isShapeMode(drawMode);
@@ -928,6 +936,7 @@ function applyDrawMode(){
 const btns={orbit:'mOrbit',sel:'mSel',draw:'mDraw',erase:'mErase',text:'mText',img:'mImg'};
 function setMode(m){mode=m;for(let k in btns)document.getElementById(btns[k]).classList.toggle('on',k===m);
   if(m!=='draw'&&typeof polyDraw!=='undefined'&&polyDraw&&typeof cancelPoly==='function')cancelPoly();
+  if(m!=='draw')cancelShapeDraw();
   const vl=document.getElementById('vLook'); if(vl)vl.classList.toggle('on',m==='look');
   if(m!=='sel'&&window._splitAny){window._splitAny=false;   // salir de sel desarma PARTIR
     const bt=document.getElementById('mSplitTool'); if(bt)bt.classList.remove('on');}
@@ -940,7 +949,7 @@ document.getElementById('mDraw').onclick=()=>{
   const d=document.getElementById('drawmenu'); document.getElementById('shapemenu').style.display='none';
   const wasTrazo=(mode==='draw'&&!isShapeMode(drawMode));
   if(!wasTrazo){ // entrar en TRAZO (desde otra herramienta o desde Forma): recupera su último modo
-    if(polyDraw&&typeof cancelPoly==='function')cancelPoly();
+    if(polyDraw&&typeof cancelPoly==='function')cancelPoly(); cancelShapeDraw();
     drawMode=trazoMode; setMode('draw'); applyDrawMode(); rightOfIcon(d,document.getElementById('mDraw'));}
   else{ // ya en trazo → alterna el submenú de modos (estilo Photoshop)
     const show=(d.style.display==='none'||!d.style.display);
@@ -955,18 +964,21 @@ document.getElementById('mShape').onclick=()=>{
     if(show)rightOfIcon(d,document.getElementById('mShape')); else d.style.display='none';}};
 document.getElementById('drawmenu').addEventListener('click',e=>{
   const b=e.target.closest('[data-dm]');
-  if(b){if(polyDraw&&typeof cancelPoly==='function')cancelPoly();
+  if(b){if(polyDraw&&typeof cancelPoly==='function')cancelPoly(); cancelShapeDraw();
     drawMode=trazoMode=b.dataset.dm; applyDrawMode(); setMode('draw');
     document.querySelectorAll('#drawmenu [data-dm]').forEach(x=>x.classList.toggle('on',x.dataset.dm===drawMode));
     document.getElementById('drawmenu').style.display='none';
     toast('Trazo: '+({geo:'pegado a geometría/láser',free:'libre',note:'nota con flecha',laser:'calco láser · sigue láseres y aristas'}[drawMode]));}});
 document.getElementById('shapemenu').addEventListener('click',e=>{
   const b=e.target.closest('[data-fm]');
-  if(b){if(polyDraw&&b.dataset.fm!=='poly'&&typeof cancelPoly==='function')cancelPoly();
+  if(b){if(polyDraw&&b.dataset.fm!=='poly'&&typeof cancelPoly==='function')cancelPoly(); cancelShapeDraw();
     drawMode=shapeMode=b.dataset.fm; applyDrawMode(); setMode('draw');
     document.querySelectorAll('#shapemenu [data-fm]').forEach(x=>x.classList.toggle('on',x.dataset.fm===drawMode));
     document.getElementById('shapemenu').style.display='none';
-    toast('Forma: '+({line:'recta · longitud en vivo, ejes y OSNAP',poly:'Poli 3D · polilínea, arcos y spline encadenados'}[drawMode]));}});
+    toast('Forma: '+({line:'recta · longitud en vivo, ejes y OSNAP',poly:'Poli 3D · polilínea, arcos y spline encadenados',
+      arc:'arco · arrastra la CUERDA y suelta; luego arrastra para curvarlo',
+      circle:'circunferencia · arrastra del CENTRO hacia fuera (radio en vivo)',
+      ellipse:'elipse · arrastra del CENTRO a una esquina'}[drawMode]));}});
 let contJoin=false;   // «Continuo»: los trazos/formas que se tocan se funden en una sola forma
 document.getElementById('mCont').onclick=function(){
   const on=!(drawLock&&contJoin);   // un solo conmutador global: candado + unir en continuidad
@@ -1531,9 +1543,12 @@ function select(kind,ref,label){
   document.getElementById('selname').textContent=label;
   const li=document.getElementById('selLen'),lu=document.getElementById('selLenU');
   const isLin=kind==='trazo'&&ref.reg&&ref.reg.tipo==='linea';
-  li.style.display=isLin?'inline-block':'none'; lu.style.display=isLin?'inline':'none';
+  const isCirc=kind==='trazo'&&ref.reg&&ref.reg.tipo==='circulo'&&ref.reg.circ;
+  li.style.display=(isLin||isCirc)?'inline-block':'none'; lu.style.display=(isLin||isCirc)?'inline':'none';
+  li.title=isCirc?'radio (mm)':'longitud (mm)';
   if(isLin){const a=new THREE.Vector3(...ref.points[0]),b=new THREE.Vector3(...ref.points[ref.points.length-1]);
     li.value=a.distanceTo(b).toFixed(1);}
+  else if(isCirc)li.value=ref.reg.circ.r.toFixed(1);
   showOpsFor(kind);
   if(kind==='laser')syncLaserOps(ref);
   updOpsBar();
@@ -1556,7 +1571,13 @@ function updOpsBar(){
 }
 document.getElementById('selLen').addEventListener('change',e=>{
   if(!selected||selected.kind!=='trazo')return; const st=selected.ref;
-  if(!st.reg||st.reg.tipo!=='linea')return;
+  if(!st.reg)return;
+  if(st.reg.tipo==='circulo'&&st.reg.circ){   // círculo: la casilla edita el RADIO exacto
+    const r=Math.max(0.05,+e.target.value||0); st.reg.circ.r=r;
+    st.points=genPoints(st.reg); st._dirty=true;
+    if(st.paperRef)st.uv=st.points.map(p=>paperUV(st.paperRef,p));
+    redraw(); toast('radio = '+r.toFixed(1)+' mm'); return;}
+  if(st.reg.tipo!=='linea')return;
   const L=Math.max(0.1,+e.target.value||0);
   const a=new THREE.Vector3(...st.points[0]),b=new THREE.Vector3(...st.points[st.points.length-1]);
   const U=b.clone().sub(a).normalize();
@@ -1773,6 +1794,8 @@ renderer.domElement.addEventListener('pointerdown',e=>{
       if(polyDraw.verts.length&&!polyDraw.guides)buildPolyGuides();   // guías desde el último vértice (láser + cilindros)
       redraw(); showPolyChips(); lastMoveT=performance.now(); return;
     }
+    if(drawing&&drawing.shape&&drawing.shape.kind==='arc'&&drawing.shape.stage==='wait'){
+      drawing.shape.stage='bulge'; lastMoveT=performance.now(); return;}   // ARCO: 2º arrastre = curvar
     if(activePaper){   // DIBUJO RESTRINGIDO al papel activo (proyecta sobre su plano)
       const pp=rayToPaper(e,activePaper)||planePoint(e,sph.r);
       drawing={points:[pp.toArray()],color,sobre:'papel',w:lineW,paperRef:activePaper};
@@ -1789,6 +1812,21 @@ renderer.domElement.addEventListener('pointerdown',e=>{
       const sq=snapQueryWorld(drawing.points[0],16);
       if(sq){drawing.points[0]=sq.p.slice(); drawing._startFix=sq.p.slice(); flashSnapFix(sq.p,sq.kind);}}
     if(drawMode==='line')drawing.straight=drawing.points[0].slice();   // recta: sólo inicio→fin
+    if(drawMode==='circle'||drawMode==='ellipse'||drawMode==='arc'){
+      // FORMA EXACTA de toque: marco del plano de la forma (papel → su plano;
+      // cara tocada → plano tangente; si no, plano de la vista)
+      const cen=new THREE.Vector3(...drawing.points[0]); let U,V;
+      if(drawing.paperRef){const f=paperFrame(drawing.paperRef); U=f.U.clone(); V=f.V.clone();}
+      else{const h2=castAt(e);
+        if(h2&&h2.face){const N=h2.face.normal.clone().applyMatrix3(new THREE.Matrix3().getNormalMatrix(h2.object.matrixWorld)).normalize();
+          U=(Math.abs(N.z)>0.9?new THREE.Vector3(1,0,0):new THREE.Vector3(0,0,1).cross(N).normalize());
+          V=new THREE.Vector3().crossVectors(N,U).normalize();}
+        else{const N=cam.getWorldDirection(new THREE.Vector3());
+          U=new THREE.Vector3().crossVectors(new THREE.Vector3(0,0,1),N); if(U.lengthSq()<1e-6)U.set(1,0,0); U.normalize();
+          V=new THREE.Vector3().crossVectors(N,U).normalize();}}
+      drawing.shape={kind:drawMode,cen:cen.toArray(),U,V,stage:'drag'};
+      delete drawing._startFix;   // el centro YA quedó imantado; la re-fijación rígida del extremo no aplica
+    }
     lastMoveT=performance.now();
   } else if(em==='sel'&&e.button===0){
     ndc(e);
@@ -2192,6 +2230,49 @@ addEventListener('pointermove',e=>{
       drawing.points=postLine(drawing,drawing.points);
       if(reg.tipo==='linea'&&drawing.points.length>1){const a=new THREE.Vector3(...drawing.points[0]),b=new THREE.Vector3(...drawing.points[drawing.points.length-1]);showDrawTag(p,a.distanceTo(b).toFixed(1)+' mm');}
       updateLivePreview(); return;}
+    if(drawing.shape){   // FORMA EXACTA: círculo (centro→radio) · elipse (centro→esquina) · arco (cuerda + curvar)
+      const sh=drawing.shape;
+      if(sh.kind==='arc'&&sh.stage==='wait')return;   // cuerda fijada: esperando el 2º arrastre
+      let p, badge='';
+      if(drawing.paperRef){p=rayToPaper(e,drawing.paperRef)||planePoint(e,drawDist);
+        if(mag){const g=paperGuideSnap(p,drawing.paperRef); if(g){p.copy(g); badge='◈';}}}
+      else{let h=mag?castAt(e):null; p=h?offPt(h):planePoint(e,drawDist);
+        const sq=mag?snapQuery(e):null;
+        if(sq&&sq.d<=14){p.set(sq.p[0],sq.p[1],sq.p[2]); setSnapState(sq,'mag'); badge='◈';}
+        else{if(sq)setSnapState(sq,'hint'); else clearSnapState();
+          if(mag){const lq=magSnap(p); if(lq)p.copy(lq);}}}
+      const C=new THREE.Vector3(...sh.cen), dv3=p.clone().sub(C);
+      const du=dv3.dot(sh.U), dw=dv3.dot(sh.V);   // proyección al plano de la forma
+      if(sh.kind==='circle'){
+        const r=Math.max(0.05,Math.hypot(du,dw));
+        drawing.reg={c:C.clone(),U:sh.U,V:sh.V,tipo:'circulo',circ:{cx:0,cy:0,r}};
+        drawing.points=genPoints(drawing.reg);
+        const t='r = '+r.toFixed(1)+' mm'+(badge?'  '+badge:'');
+        document.getElementById('hud').textContent='Radio '+t; showDrawTag(p,t);
+      } else if(sh.kind==='ellipse'){
+        const a=Math.max(0.05,Math.abs(du)), b2=Math.max(0.05,Math.abs(dw));
+        drawing.reg={c:C.clone(),U:sh.U,V:sh.V,tipo:'elipse',el:{mx:0,my:0,a,b:b2,ang:0}};
+        drawing.points=genPoints(drawing.reg);
+        showDrawTag(p,a.toFixed(1)+' × '+b2.toFixed(1)+' mm'+(badge?'  '+badge:''));
+      } else if(sh.stage==='drag'){   // ARCO 1º arrastre: la CUERDA (inferencia de ejes como la recta)
+        let q=C.clone().addScaledVector(sh.U,du).addScaledVector(sh.V,dw);
+        if(mag&&!badge){const ax=axisInferDir(C,q,_WAX,4.5);
+          if(ax){q.copy(ax.p); showAxGhost(C,ax.u,ax.k); badge='eje '+ax.k.toUpperCase();} else hideAxGhost();}
+        else if(badge==='◈')q=p.clone();   // un OSNAP exacto manda sobre la proyección al plano
+        sh.B=q.toArray();
+        drawing.reg=null; drawing.points=[sh.cen.slice(),q.toArray()];
+        showDrawTag(q,C.distanceTo(q).toFixed(1)+' mm'+(badge?'  '+badge:''));
+      } else {   // ARCO 2º arrastre: pasa por el punto del lápiz (arco por 3 puntos)
+        const B3=new THREE.Vector3(...sh.B).sub(C), B2=[B3.dot(sh.U),B3.dot(sh.V)], M2=[du,dw];
+        const c3=circleFrom3([0,0],M2,B2), chord=Math.hypot(B2[0],B2[1]);
+        const perp=Math.abs((B2[0]*M2[1]-B2[1]*M2[0])/Math.max(chord,1e-9));   // flecha (distancia a la cuerda)
+        if(c3&&perp>Math.max(0.2,chord*0.004)){
+          drawing.reg={c:C.clone(),U:sh.U,V:sh.V,tipo:'arco',circ:c3,pts2:[[0,0],M2,B2]};
+          drawing.points=genPoints(drawing.reg);
+          showDrawTag(p,'R = '+c3.r.toFixed(1)+' mm'+(badge?'  '+badge:''));
+        } else { drawing.reg=null; drawing.points=[sh.cen.slice(),sh.B.slice()]; showDrawTag(p,'recta (sin flecha)'); }
+      }
+      updateLivePreview(); return;}
     if(drawing.straight){   // MODO RECTA: sólo inicio→punto actual, con longitud en vivo
       let p, badge='';
       if(drawing.paperRef){p=rayToPaper(e,drawing.paperRef)||planePoint(e,drawDist);
@@ -2289,6 +2370,25 @@ function endPointer(e){
   if(polyDraw&&polyDraw.dragging){commitPolyTap(); hideDrawTag(); dragging=false; return;}   // soltar = fija el vértice; la poli continúa
   if(pointers.size<2){pinch=null;
     if(wasPinch)pointers.forEach((_,id)=>deadPointers.add(id));} // el dedo restante no orbita/pinta
+  if(drawing&&drawing.shape&&mode==='draw'){   // FORMA EXACTA: cierre por etapas
+    const sh=drawing.shape;
+    if(sh.kind==='arc'&&sh.stage==='drag'){   // fin del 1º arrastre: la cuerda queda fijada
+      hideAxGhost();
+      if(!sh.B||new THREE.Vector3(...sh.cen).distanceTo(new THREE.Vector3(...sh.B))<0.2){
+        drawing=null; hideDrawTag(); clearSnapState(); redraw();}
+      else{sh.stage='wait'; toast('⌒ Cuerda fijada · arrastra otra vez para CURVAR el arco y suelta');}
+      dragging=false; return;}
+    if(sh.kind==='arc'&&sh.stage==='wait'){dragging=false; return;}   // toque suelto: sigue esperando
+    if(!drawing.reg){   // arco sin flecha → recta · círculo/elipse sin arrastre → nada
+      if(sh.kind==='arc'&&sh.B){
+        const A=new THREE.Vector3(...sh.cen), B=new THREE.Vector3(...sh.B), U2=B.clone().sub(A), Lw=U2.length();
+        if(Lw>1e-6){U2.normalize();
+          drawing.reg={c:A.clone(),U:U2,V:Math.abs(U2.z)>0.9?new THREE.Vector3(1,0,0):new THREE.Vector3(0,0,1).cross(U2).normalize(),tipo:'linea',pts2:[[0,0],[Lw,0]]};
+          drawing.points=genPoints(drawing.reg);} else drawing=null;
+      } else drawing=null;
+      if(!drawing){hideDrawTag(); clearSnapState(); redraw(); dragging=false; return;}}
+    delete drawing.shape; drawing._endMag=false; drawing._exact=true;   // la forma es exacta: sin re-imán del extremo
+  }
   if(drawing&&drawing.points.length>1){
     if(mag&&!drawing.paperRef&&!drawing.laserArc&&drawing._endMag!==false){const sn=snapPt(drawing.points[drawing.points.length-1],drawing);
       if(sn)drawing.points[drawing.points.length-1]=sn;
@@ -2310,6 +2410,7 @@ function endPointer(e){
         drawing.points=genPoints(drawing.reg); selLine=drawing;}
       delete drawing.straight; hideAxGhost();
     }
+    else if(drawing._exact){selLine=drawing; delete drawing._exact;}   // forma exacta: lista para teclear radio/medidas
     if(drawing._startFix&&!drawing.paperRef){
       // el ARRANQUE se imantó a un punto exacto: si la regularización/pegado lo ha
       // movido, se traslada TODO el trazo rígido para clavarlo de nuevo (sin codos
@@ -2400,7 +2501,7 @@ setInterval(()=>{
 renderer.domElement.addEventListener('wheel',e=>{sph.r*=(e.deltaY>0?1.1:0.9);
   sph.r=Math.max(20,Math.min(2000,sph.r));updCam();});
 function checkHold(){
-  if(drawing&&!drawing.editEnd&&drawing.points.length>5&&performance.now()-lastMoveT>700){
+  if(drawing&&!drawing.editEnd&&!drawing.shape&&!drawing.straight&&drawing.points.length>5&&performance.now()-lastMoveT>700){
     let reg=fitStroke(drawing.points);
     if(reg){let pts=genPoints(reg);
       if(pts&&mag&&drawing.sobre!=='aire')pts=glue(pts);
@@ -5475,7 +5576,7 @@ function buildExport(){
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
 window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},get pointersDbg(){return [...pointers.values()].map(v=>v.t)},get capsDbg(){return _caps.size},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
-buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},get drawLock(){return drawLock},get trazoMode(){return trazoMode},get shapeMode(){return shapeMode},
+buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},get drawLock(){return drawLock},get trazoMode(){return trazoMode},get shapeMode(){return shapeMode},cancelShapeDraw,circleFrom3,genPoints,to3,
 buildContourSurfaceFromPts,get axGhost(){return axGhost},selectStroke,surfToolStart,surfToolTap,get surfTool(){return surfTool},moveContPoint,
 buildRevolveFromPts,buildCoonsFromPts,buildExtrudeFromPts,buildTubeFromPts,chain4,buildExport,
 buildRuledFromPts,buildLoftFromPts,buildSweepFromPts,

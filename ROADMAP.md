@@ -84,11 +84,16 @@ icono de su última opción; y **Continuo** como conmutador global en el dock
 (funde el candado «seguir dibujando» + «unir en continuidad» en uno, estilo
 SketchUp). Sin cambios de comportamiento en las herramientas.
 
-**Fase B — pendiente**: formas exactas de TOQUE en el menú Forma — **arco**
-(3 puntos / centro), **circunferencia** (centro + radio) y **elipse** —
-reutilizando la matemática de `regularize` y la maquinaria de la Recta
-(longitud/radio en vivo, inferencia de ejes, OSNAP, casilla + ▲▼). El gesto
-«mantén ≈1 s» se conserva en paralelo.
+**Fase B (v6.58) — hecha**: formas exactas de TOQUE en el menú Forma —
+**circunferencia** (arrastre centro→radio, radio en vivo y radio exacto por
+casilla al quedar seleccionada), **elipse** (arrastre centro→esquina, semiejes
+según los ejes del plano) y **arco por 3 puntos** (1º arrastre = cuerda con
+inferencia de ejes; 2º arrastre = curvar, el arco pasa por el lápiz; sin
+flecha → recta). Plano de la forma: papel activo → su plano; cara tocada →
+plano tangente; si no, plano de vista. Todas con OSNAP en centro y arrastre,
+tiradores ya existentes (centro/radio · p0/pm/p1) y glifos OSNAP automáticos
+(centro ⊙ + cuadrantes ◇). El gesto «mantén ≈1 s» se conserva en paralelo.
+Pendiente menor: tiradores de la elipse y casilla numérica para arco/elipse.
 
 **Fase C — pendiente**: converger a un lápiz inteligente único + «Formas
 exactas», sin quitar nada hasta que el unificado cubra el 100 %.

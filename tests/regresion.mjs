@@ -724,8 +724,8 @@ const secciones = {
       out.menuTrazo = document.querySelectorAll('#drawmenu [data-dm]').length === 4 &&
         !document.querySelector('#drawmenu [data-dm="line"]') && !document.querySelector('#drawmenu [data-dm="poly"]') &&
         !document.getElementById('dmLock') && !document.getElementById('dmJoin');
-      // el menú de FORMA tiene recta y poli
-      out.menuForma = document.querySelectorAll('#shapemenu [data-fm]').length === 2;
+      // el menú de FORMA tiene recta, arco, circunferencia, elipse y poli
+      out.menuForma = document.querySelectorAll('#shapemenu [data-fm]').length === 5;
       // botón Forma: entra en dibujo con la última forma (recta por defecto) y se ilumina él, no Trazo
       document.getElementById('mShape').click(); await frame();
       out.entraForma = D.mode === 'draw' && D.drawMode === 'line' &&
@@ -757,6 +757,85 @@ const secciones = {
     ok('Forma: el botón muta al icono de la forma elegida', r.mutaIcono);
     ok('Trazo y Forma se iluminan según el modo activo', r.vuelveTrazo);
     ok('Continuo global: candado + unir en continuidad en un solo botón', r.contOn && r.contOff);
+  },
+
+  async formas_exactas() {   // Fase B: circunferencia, elipse y arco de TOQUE (arrastres reales)
+    // helpers: eventos de lápiz sobre el canvas
+    const pen = async (type, x, y) => page.evaluate(([t, px, py]) => {
+      document.querySelector('canvas').dispatchEvent(new PointerEvent(t,
+        { pointerId: 7, pointerType: 'pen', isPrimary: true, button: t === 'pointermove' ? -1 : 0, clientX: px, clientY: py, bubbles: true }));
+    }, [type, x, y]);
+    const dragPen = async (x0, y0, x1, y1) => {
+      await pen('pointerdown', x0, y0); await page.waitForTimeout(40);
+      await pen('pointermove', (x0 + x1) / 2, (y0 + y1) / 2); await page.waitForTimeout(30);
+      await pen('pointermove', x1, y1); await page.waitForTimeout(30);
+      await pen('pointerup', x1, y1); await page.waitForTimeout(80);
+    };
+    const cx = 640, cy = 400;   // zona de aire (sin piezas): plano de vista
+    // CIRCUNFERENCIA: elegir en el menú Forma y arrastrar centro→radio
+    await page.evaluate(() => { document.getElementById('mShape').click();
+      document.querySelector('#shapemenu [data-fm="circle"]').click(); });
+    const n0 = await page.evaluate(() => window._dbg.strokes.length);
+    await dragPen(cx, cy, cx + 90, cy);
+    let r = await page.evaluate(n => {
+      const D = window._dbg, st = D.strokes[D.strokes.length - 1], out = {};
+      out.creado = D.strokes.length === n + 1 && !!st.reg && st.reg.tipo === 'circulo' && st.reg.circ.r > 1;
+      const P = st.points;
+      out.cerrado = Math.hypot(P[0][0] - P[P.length - 1][0], P[0][1] - P[P.length - 1][1], P[0][2] - P[P.length - 1][2]) < 0.01;
+      // OSNAP: el catálogo da centro ⊙ y cuadrantes ◇ del círculo nuevo
+      const pts = D.buildSnapPts(null, true);
+      out.glifos = pts.some(g => g.kind === 'center') && pts.filter(g => g.kind === 'quad').length >= 4;
+      out.seleccionado = D.selected && D.selected.ref === st;   // queda seleccionado para teclear el radio
+      return out;
+    }, n0);
+    ok('circunferencia de toque: centro→radio, cerrada, kind circulo', r.creado && r.cerrado);
+    ok('circunferencia: glifos OSNAP (centro + 4 cuadrantes) y auto-selección', r.glifos && r.seleccionado);
+    // RADIO NUMÉRICO: teclear en la casilla cambia el radio exacto
+    r = await page.evaluate(() => {
+      const D = window._dbg, st = D.strokes[D.strokes.length - 1];
+      const li = document.getElementById('selLen');
+      const visible = li.style.display !== 'none';
+      li.value = '25'; li.dispatchEvent(new Event('change'));
+      const C = st.reg.c, p0 = st.points[0];
+      const rr = Math.hypot(p0[0] - C.x, p0[1] - C.y, p0[2] - C.z);
+      return { visible, radioOk: st.reg.circ.r === 25 && Math.abs(rr - 25) < 0.05 };
+    });
+    ok('circunferencia: radio exacto por casilla (25 mm)', r.visible && r.radioOk);
+    // aislar: retirar el círculo (r=25 mm es enorme en pantalla y su OSNAP interferiría)
+    await page.evaluate(() => { const D = window._dbg; D.deselect(); D.strokes.pop(); D.redraw(); });
+    // ELIPSE: arrastre centro→esquina (semiejes distintos)
+    await page.evaluate(() => { document.getElementById('mShape').click();
+      document.querySelector('#shapemenu [data-fm="ellipse"]').click(); });
+    await dragPen(200, 660, 310, 620);   // AIRE (plano de vista): los px mapean directo a los semiejes
+    r = await page.evaluate(() => {
+      const D = window._dbg, st = D.strokes[D.strokes.length - 1];
+      return { ok: !!st.reg && st.reg.tipo === 'elipse' && st.reg.el.a > 0.1 && st.reg.el.b > 0.1 &&
+        st.reg.el.a > st.reg.el.b * 1.15 };   // el arrastre 90×40 px da semieje mayor según U
+    });
+    ok('elipse de toque: centro→esquina, semiejes distintos', r.ok);
+    // ARCO: 1º arrastre = cuerda · 2º arrastre = curvar · suelta
+    await page.evaluate(() => { document.getElementById('mShape').click();
+      document.querySelector('#shapemenu [data-fm="arc"]').click(); });
+    const nA = await page.evaluate(() => window._dbg.strokes.length);
+    await dragPen(cx - 60, cy + 160, cx + 60, cy + 160);           // cuerda horizontal
+    const waiting = await page.evaluate(() => {
+      const D = window._dbg; return !!(D.drawing && D.drawing.shape && D.drawing.shape.stage === 'wait'); });
+    await dragPen(cx, cy + 160, cx, cy + 110);                     // curvar hacia arriba
+    r = await page.evaluate(n => {
+      const D = window._dbg, st = D.strokes[D.strokes.length - 1], out = {};
+      out.creado = D.strokes.length === n + 1 && !!st.reg && st.reg.tipo === 'arco' && st.reg.circ.r > 1;
+      out.sinPendiente = !D.drawing;
+      // los extremos del arco clavan la cuerda (mismo plano, curva entre medias)
+      const P = st.points;
+      out.curvo = P.length > 10;
+      return out;
+    }, nA);
+    ok('arco de toque: cuerda + curvar en 2 arrastres (kind arco)', waiting && r.creado && r.curvo && r.sinPendiente);
+    // deshacer quita el arco
+    await page.evaluate(() => document.getElementById('undo').click());
+    r = await page.evaluate(n => window._dbg.strokes.length === n, nA);
+    ok('formas exactas: deshacer retira la última forma', r);
+    await page.evaluate(() => { const D = window._dbg; D.cancelShapeDraw(); });
   },
 
   async fillet() {   // REDONDEAR: arco tangente de radio r en esquinas de líneas unidas
