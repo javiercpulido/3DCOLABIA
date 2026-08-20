@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.65 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.66 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -403,6 +403,7 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <button class="secTgl" data-sm="ruled" title="Toca DOS curvas: superficie reglada que las une punto a punto (transiciones alabeadas entre carriles)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 7 Q12 3 21 9"/><path d="M3 17 Q12 21 21 15"/><path d="M5 7.6V17.4M9.5 5.6V19M14 5.6V19M18.5 7.6V16.2" opacity=".4" stroke-width="1.1"/></svg>Reglada (2 curvas)</button>
  <button class="secTgl" data-sm="loft" title="Toca varias curvas-SECCIÓN en orden y toca en vacío: piel que pasa por todas (loft)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="5" rx="6" ry="2"/><ellipse cx="12" cy="12" rx="8.5" ry="2.4" opacity=".7"/><ellipse cx="12" cy="19" rx="5" ry="1.8"/><path d="M3.5 12 6 5M20.5 12 18 5M7 19 3.5 12M17 19 20.5 12" opacity=".4" stroke-width="1.1"/></svg>Loft por secciones</button>
  <button class="secTgl" data-sm="sweep" title="Toca el PERFIL y después el CAMINO: el perfil se barre a lo largo del camino (Sígueme)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 18 Q10 16 14 10 Q16 7 21 6" stroke-dasharray="2.2 2"/><circle cx="4.5" cy="17.6" r="2.6"/><ellipse cx="20" cy="6.2" rx="1.6" ry="2.4" transform="rotate(28 20 6.2)" opacity=".6"/></svg>Sígueme (perfil × camino)</button>
+ <button class="secTgl" data-sm="blend" title="Barrido que MORFEA: toca la DIRECTRIZ (línea central), luego el PERFIL inicial y el PERFIL final; la sección cambia de forma y tamaño a lo largo del camino (como el cuello de Kazan)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 19 Q9 18 13 12 Q16 7 21 5" stroke-dasharray="2.2 2"/><circle cx="4" cy="18.5" r="3"/><ellipse cx="20.5" cy="5" rx="1.3" ry="2.6" transform="rotate(30 20.5 5)" opacity=".7"/><ellipse cx="12" cy="12.5" rx="1.9" ry="2.6" transform="rotate(20 12 12.5)" opacity=".45"/></svg>Barrido morphing (2 perfiles)</button>
  <div style="height:1px;background:rgba(0,0,0,.09);margin:2px 2px"></div>
  <b style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Booleanas</b>
  <button class="secTgl" data-sm="union" title="Unir sólidos: toca 2 o más piezas y pulsa Fundir; se crea un sólido fundido SIN solape, conservando las piezas originales (no destructivo)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg>Unir sólidos</button>
@@ -4851,6 +4852,43 @@ function buildSweepFromPts(profPts,pathPts,colHex,name){
   geo.setAttribute('position',new THREE.BufferAttribute(pos,3)); geo.setIndex(idx);
   return registerSurface(geo,colHex,name,{kind:'sweep',prof:profPts.map(p=>p.slice()),path:pathPts.map(p=>p.slice())});
 }
+// ⇥ BARRIDO CON 2 PERFILES (swept blend): la sección MORFEA del perfil inicial al
+// final a lo largo del camino, orientada perpendicular a la tangente (marco RMF,
+// sin retorcerse). Da un cuello/palanca que cambia de forma y tamaño, como Kazan.
+function buildBlendSweepFromPts(profAPts,profBPts,pathPts,colHex,name){
+  const P=resampleCurve(pathPts,Math.min(120,Math.max(28,pathPts.length*2)));
+  const n=P.length, T=[];
+  for(let i=0;i<n;i++)T.push((i<n-1?P[i+1].clone().sub(P[i]):P[i].clone().sub(P[i-1])).normalize());
+  let nor=Math.abs(T[0].z)>0.9?new THREE.Vector3(1,0,0):new THREE.Vector3(0,0,1);
+  nor=new THREE.Vector3().crossVectors(T[0],nor).normalize();
+  let bin=new THREE.Vector3().crossVectors(T[0],nor).normalize();
+  const M=40;
+  const pa=resampleCurve(profAPts,M), pb=resampleCurve(profBPts,M);
+  const cA=pa.reduce((s,v)=>s.add(v.clone()),new THREE.Vector3()).multiplyScalar(1/pa.length);
+  const cB=pb.reduce((s,v)=>s.add(v.clone()),new THREE.Vector3()).multiplyScalar(1/pb.length);
+  const uvA=pa.map(q=>{const d=q.clone().sub(cA);return [d.dot(nor),d.dot(bin)];});
+  let uvB=pb.map(q=>{const d=q.clone().sub(cB);return [d.dot(nor),d.dot(bin)];});
+  const dist=(X,Y)=>{let s=0;for(let k=0;k<X.length;k++)s+=Math.hypot(X[k][0]-Y[k][0],X[k][1]-Y[k][1]);return s;};
+  const uvBrev=uvB.slice().reverse();
+  if(dist(uvA,uvBrev)<dist(uvA,uvB))uvB=uvBrev;   // alinea el sentido de recorrido
+  const m=uvA.length;
+  const pos=new Float32Array(n*m*3), idx=[];
+  for(let i=0;i<n;i++){
+    if(i>0){const ax=new THREE.Vector3().crossVectors(T[i-1],T[i]);
+      if(ax.lengthSq()>1e-12){const ang=Math.acos(Math.min(1,Math.max(-1,T[i-1].dot(T[i]))));
+        nor.applyAxisAngle(ax.clone().normalize(),ang);}}
+    bin=new THREE.Vector3().crossVectors(T[i],nor).normalize();
+    const t=(n>1)?i/(n-1):0;
+    for(let k=0;k<m;k++){
+      const u=uvA[k][0]+(uvB[k][0]-uvA[k][0])*t, w=uvA[k][1]+(uvB[k][1]-uvA[k][1])*t;
+      const v=P[i].clone().addScaledVector(nor,u).addScaledVector(bin,w);
+      const o=(i*m+k)*3; pos[o]=v.x;pos[o+1]=v.y;pos[o+2]=v.z;}}
+  for(let i=0;i+1<n;i++)for(let k=0;k+1<m;k++){
+    const a=i*m+k,b3=a+1,c3=a+m,d3=c3+1; idx.push(a,c3,b3,b3,c3,d3);}
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3)); geo.setIndex(idx);
+  return registerSurface(geo,colHex,name,{kind:'blend',pA:profAPts.map(p=>p.slice()),pB:profBPts.map(p=>p.slice()),path:pathPts.map(p=>p.slice())});
+}
 // ◇ MALLA DE 4 BORDES (parche de Coons): respeta las cuatro curvas
 function chain4(cs){
   const tol=Math.max(1.5,sph.r*0.03);
@@ -5273,6 +5311,7 @@ function surfToolStart(mode){
         mode==='intersect'?'⊓ Toca 2 o más piezas (queda el volumen común)':
         mode==='face'?'▱ Toca un contorno CERRADO':
         mode==='ribs'?'◠ Toca el contorno cerrado; luego sus líneas interiores':
+        mode==='blend'?'⇥ Toca la DIRECTRIZ; luego el perfil inicial y el final':
                       '▦ Toca la curva DIRECTRIZ');
   updateSurfPop();
 }
@@ -5285,7 +5324,7 @@ function surfToolCancel(msg){
 // BARRA FLOTANTE «Crear superficie»: sustituye al «toca en vacío» de los modos
 // que dependían de ello (cara con línea interior · loft) y da un botón Crear /
 // Cancelar claro, con un resumen en vivo de lo seleccionado.
-const SURF_NAMES={face:'Cara de contorno',ribs:'Cara con línea interior',dxg:'Directriz × generatriz',rev:'Revolución',coons:'Malla de 4 bordes',ext:'Extrusión',tube:'Tubo',ruled:'Reglada',loft:'Loft',sweep:'Sígueme',union:'Unir sólidos',subtract:'Restar sólidos',intersect:'Intersecar sólidos'};
+const SURF_NAMES={face:'Cara de contorno',ribs:'Cara con línea interior',dxg:'Directriz × generatriz',rev:'Revolución',coons:'Malla de 4 bordes',ext:'Extrusión',tube:'Tubo',ruled:'Reglada',loft:'Loft',sweep:'Sígueme',blend:'Barrido morphing',union:'Unir sólidos',subtract:'Restar sólidos',intersect:'Intersecar sólidos'};
 const BOOL_OPS={union:'union',subtract:'subtract',intersect:'intersect'};
 const isBoolMode=m=>m==='union'||m==='subtract'||m==='intersect';
 function updateSurfPop(){
@@ -5312,6 +5351,7 @@ function updateSurfPop(){
   else if(T.mode==='rev')status=T.dir?'Perfil ✓ · toca el eje':'Toca el perfil';
   else if(T.mode==='ruled')status=T.dir?'1ª curva ✓ · toca la 2ª':'Toca la 1ª curva';
   else if(T.mode==='sweep')status=T.dir?'Perfil ✓ · toca el camino':'Toca el perfil';
+  else if(T.mode==='blend')status=!T.dir?'Toca la DIRECTRIZ (línea central)':!T.p1?'Directriz ✓ · toca el PERFIL inicial':'Directriz + perfil inicial ✓ · toca el PERFIL final';
   else if(T.mode==='coons')status='Borde '+(T.inner.length)+' de 4';
   else if(T.mode==='ext')status='Toca un contorno cerrado (pedirá altura)';
   else if(T.mode==='tube')status='Toca la curva-camino (pedirá radio)';
@@ -5461,6 +5501,13 @@ function surfToolTap(e){
     else if(st!==T.dir)
       surfToolFinish(buildSweepFromPts(T.dir.points,st.points,
         new THREE.Color(T.dir.color||color).getHex()));
+  } else if(T.mode==='blend'){   // barrido morphing: directriz → perfil inicial → perfil final
+    if(!st){surfToolCancel('Superficie cancelada');return;}
+    if(!T.dir){T.dir=st; toast('⇥ Directriz fijada · toca el PERFIL inicial');}
+    else if(!T.p1&&st!==T.dir){T.p1=st; toast('⇥ Perfil inicial ✓ · toca el PERFIL final');}
+    else if(st!==T.dir&&st!==T.p1)
+      surfToolFinish(buildBlendSweepFromPts(T.p1.points,st.points,T.dir.points,
+        new THREE.Color(T.p1.color||color).getHex()));
   } else if(T.mode==='coons'){
     if(!st){surfToolCancel('Superficie cancelada');return;}
     if(!T.inner.includes(st)){
@@ -5879,6 +5926,7 @@ function buildExport(){
       if(S.kind==='ruled')return Object.assign(base,{kind:'ruled',a:S.a,b:S.b});
       if(S.kind==='loft')return Object.assign(base,{kind:'loft',secs:S.secs});
       if(S.kind==='sweep')return Object.assign(base,{kind:'sweep',prof:S.prof,path:S.path});
+      if(S.kind==='blend')return Object.assign(base,{kind:'blend',pA:S.pA,pB:S.pB,path:S.path});
       if(S.kind==='union'||S.kind==='subtract'||S.kind==='intersect')return Object.assign(base,{kind:S.kind,src:S.srcNames});   // re-booleana desde las piezas al reabrir
       if(S.kind==='fillet3d')return Object.assign(base,{kind:'fillet3d',fedge:S.fedge,fr:S.fr,fmode:S.fmode});   // media caña / bisel de arista
       if(S.kind==='cara')return Object.assign(base,{kind:'cara',src:S.src,   // cara de una pieza descompuesta (malla propia)
@@ -5892,7 +5940,7 @@ window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strok
 buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},set contJoin(v){contJoin=v},get drawLock(){return drawLock},set drawLock(v){drawLock=v; const b=document.getElementById('mCont'); if(b)b.classList.toggle('on',drawLock&&contJoin);},get trazoMode(){return trazoMode},get shapeMode(){return shapeMode},cancelShapeDraw,circleFrom3,genPoints,to3,
 buildContourSurfaceFromPts,get axGhost(){return axGhost},selectStroke,surfToolStart,surfToolTap,get surfTool(){return surfTool},moveContPoint,askClose,closeContourStroke,strokeClosed,
 buildRevolveFromPts,buildCoonsFromPts,buildExtrudeFromPts,buildTubeFromPts,chain4,buildExport,
-buildRuledFromPts,buildLoftFromPts,buildSweepFromPts,
+buildRuledFromPts,buildLoftFromPts,buildSweepFromPts,buildBlendSweepFromPts,
 get selDrag(){return selDrag},get gizDrag(){return gizDrag},get axLock(){return axLock},get drawing(){return drawing},set drawing(v){drawing=v},get laserDrag(){return laserDrag},
 _polyStart(p){polyDraw={verts:[p.slice()],segTypes:[],arcMids:{},guidePts:{},nextType:'L',arcPending:null,dragging:false,prov:null};showPolyChips();redraw();},
 _polyVert(p){if(!polyDraw)return;polyDraw.prov=p.slice();polyDraw.dragging=true;commitPolyTap();},
@@ -5972,6 +6020,7 @@ function applyImport(d){
           :(sd.kind==='ruled')?buildRuledFromPts(sd.a,sd.b,cl,sd.name)
           :(sd.kind==='loft')?buildLoftFromPts(sd.secs,cl,sd.name)
           :(sd.kind==='sweep')?buildSweepFromPts(sd.prof,sd.path,cl,sd.name)
+          :(sd.kind==='blend')?buildBlendSweepFromPts(sd.pA,sd.pB,sd.path,cl,sd.name)
           :(sd.kind==='union'||sd.kind==='subtract'||sd.kind==='intersect')?(function(){   // re-booleana desde las piezas conservadas (mantiene el orden para restar)
               const ms=(sd.src||[]).map(n=>pieces[n]).filter(Boolean);
               if(ms.length<2)return null; let g=null; try{g=booleanSolids(ms,sd.kind);}catch(_){g=null;}

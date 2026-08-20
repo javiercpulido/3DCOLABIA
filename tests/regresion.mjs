@@ -252,7 +252,7 @@ const secciones = {
   async superficies() {
     const r = await page.evaluate(() => {
       const D = window._dbg, out = {};
-      out.menu = document.querySelectorAll('#surfmenu [data-sm]').length === 13;   // 10 superficies + 3 booleanas (unir/restar/intersecar)
+      out.menu = document.querySelectorAll('#surfmenu [data-sm]').length === 14;   // 10 superficies + 3 booleanas (unir/restar/intersecar)
       const ring = []; for (let i = 0; i < 32; i++) { const a = 2 * Math.PI * i / 32; ring.push([30 + 12 * Math.cos(a), 75 + 12 * Math.sin(a), 0]); }
       ring.push(ring[0].slice());
       const inner = []; for (let i = 0; i <= 16; i++) { const t = i / 16; inner.push([18 + 24 * t, 75, 6 * Math.sin(Math.PI * t)]); }
@@ -293,7 +293,7 @@ const secciones = {
       out.lockBorra = D.surfaces.length === nAntes; S0.locked = false;
       return out;
     });
-    ok('submenú de superficies con 10 modos + 3 booleanas', r.menu);
+    ok('submenú de superficies con 11 modos + 3 booleanas', r.menu);
     ok('los 9 constructores crean superficie y exportan su tipo', r.n === 9 && r.kinds);
     ok('cara con línea interior respeta la cresta', r.crest);
     ok('membrana armónica clavada a la curva interior (0 mm)', r.clavada);
@@ -322,6 +322,30 @@ const secciones = {
     });
     ok('contorno NO plano + línea interior: membrana con columna (sin abanico)', rs.creada && rs.spine);
     ok('membrana de silla: geometría sana (sin NaN) y pasa por la línea central', rs.sana);
+    // BARRIDO MORPHING (2 perfiles a lo largo de un camino): morfea y orienta la sección
+    const rb = await page.evaluate(() => {
+      const D = window._dbg, T3 = window.THREE, out = {};
+      const path = []; for (let i = 0; i <= 10; i++) { const t = i / 10; path.push([100 * t, -100, 0]); }
+      const A = [], B = [];   // círculo r=8 → círculo r=2 (afina); ambos en el plano YZ del inicio
+      for (let k = 0; k <= 32; k++) { const a = 2 * Math.PI * k / 32;
+        A.push([0, -100 + 8 * Math.cos(a), 8 * Math.sin(a)]);
+        B.push([100, -100 + 2 * Math.cos(a), 2 * Math.sin(a)]); }
+      const nS = D.surfaces.length;
+      const S = D.buildBlendSweepFromPts(A, B, path, 0x0a84ff, 'blend');
+      out.creada = D.surfaces.length === nS + 1;
+      const pos = S.mesh.geometry.attributes.position;
+      // radio de la sección: grande cerca de x=0, pequeño cerca de x=100 (afina)
+      let r0 = 0, r1 = 0; for (let i = 0; i < pos.count; i++) { const x = pos.getX(i);
+        const rr = Math.hypot(pos.getY(i) + 100, pos.getZ(i));
+        if (x < 8) r0 = Math.max(r0, rr); if (x > 92) r1 = Math.max(r1, rr); }
+      out.morfea = r0 > 7 && r0 < 9 && r1 > 1.5 && r1 < 2.5;   // 8 → 2
+      // export/import conserva kind blend
+      const sd = D.buildExport().superficies.find(s => s.kind === 'blend');
+      out.serial = !!sd && !!sd.pA && !!sd.pB && !!sd.path;
+      return out;
+    });
+    ok('barrido morphing: crea la piel y la sección MORFEA (8→2) orientada al camino', rb.creada && rb.morfea);
+    ok('barrido morphing: se guarda y recupera (kind blend)', rb.serial);
     ok('tinta oscura → superficie clara · color elegido se respeta', r.tinta);
     ok('fila tipo pieza (ojo·candado·papelera) y candado bloquea borrar', r.fila && r.lockBorra);
   },

@@ -129,3 +129,12 @@ exactas», sin quitar nada hasta que el unificado cubra el 100 %.
 - **Deshacer de giro/desplazamiento de pieza**: mover o girar una pieza (gizmo
   o casillas Δmm/∠°) ahora registra su propio deshacer/rehacer; antes «deshacer»
   quitaba por error la última línea creada.
+
+## Fundir piezas evitando el solapado (pendiente, tras Kazan)
+
+Herramienta para **fundir varias piezas/superficies solapadas en un cuerpo
+único** de forma **recuperable** (no destructiva) pero **eliminando el solape**
+de superficies (paredes internas dobles). Es la unión booleana pero pensada para
+el flujo del cuello solapado: dejas el cuello montado sobre las piezas y la
+herramienta funde y limpia. Se implementará cuando Kazan esté resuelto de varias
+formas (loft / barrido morphing / membrana / solapado+fundir).
