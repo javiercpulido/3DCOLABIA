@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.60 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.61 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -943,6 +943,9 @@ function setMode(m){mode=m;for(let k in btns)document.getElementById(btns[k]).cl
   if(m!=='draw'&&typeof polyDraw!=='undefined'&&polyDraw&&typeof cancelPoly==='function')cancelPoly();
   if(m!=='draw')cancelShapeDraw();
   const vl=document.getElementById('vLook'); if(vl)vl.classList.toggle('on',m==='look');
+  // INVARIANTE de navegación: Órbita y «Girar la cabeza» nunca están ambos inactivos.
+  // La órbita es la navegación por defecto (con los dedos) SIEMPRE salvo en «Girar la cabeza».
+  const mo=document.getElementById('mOrbit'); if(mo)mo.classList.toggle('on',m!=='look');
   if(m!=='sel'&&window._splitAny){window._splitAny=false;   // salir de sel desarma PARTIR
     const bt=document.getElementById('mSplitTool'); if(bt)bt.classList.remove('on');}
   // navegar (orbitar / girar la cabeza) NO deselecciona; sólo los modos de edición
@@ -3103,8 +3106,13 @@ function moveGizDrag(){
     let st=a1-g.prevA;
     while(st>Math.PI)st-=2*Math.PI; while(st<-Math.PI)st+=2*Math.PI;
     g.acc+=st; g.prevA=a1;
-    applyGiz(null,g.acc);
-    document.getElementById('hud').textContent='∠'+g.g.axis.toUpperCase()+' '+(g.acc*180/Math.PI).toFixed(1)+'°';
+    // AJUSTE DE ÁNGULO (imán): se acopla a múltiplos de 15° — incluido 0° = orientación
+    // original — para poder devolver la pieza/forma a su sitio y encajar giros exactos
+    let show=g.acc, snapped=false;
+    if(mag){const step=15*Math.PI/180, k=Math.round(g.acc/step), near=k*step;
+      if(Math.abs(g.acc-near)<5*Math.PI/180){show=near; snapped=true;}}
+    applyGiz(null,show);
+    document.getElementById('hud').textContent='∠'+g.g.axis.toUpperCase()+' '+(show*180/Math.PI).toFixed(1)+'°'+(snapped?' 🧲':'');
   }
 }
 

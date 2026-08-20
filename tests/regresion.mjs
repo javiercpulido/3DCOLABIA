@@ -373,6 +373,25 @@ const secciones = {
     ok('grupo de secciones se reacopla sobre la barra', r4.re);
   },
 
+  async navegacion() {   // Órbita y «Girar la cabeza» nunca ambos inactivos
+    const r = await page.evaluate(() => {
+      const orbit = () => document.getElementById('mOrbit').classList.contains('on');
+      const look = () => document.getElementById('vLook').classList.contains('on');
+      const out = {};
+      out.defecto = orbit() && !look();                         // por defecto: órbita
+      document.getElementById('vLook').click(); out.mira = look() && !orbit();   // girar la cabeza
+      document.getElementById('vLook').click(); out.vuelve = orbit() && !look(); // vuelve a órbita
+      document.getElementById('mDraw').click(); out.dibujo = orbit();            // en dibujo, órbita sigue disponible
+      document.getElementById('mShape').click(); out.forma = orbit();
+      document.getElementById('mSel').click();
+      // invariante: exactamente uno de {órbita, girar la cabeza} activo en todo momento
+      out.nuncaAmbosOff = orbit() || look();
+      return out;
+    });
+    ok('navegación: por defecto órbita, y girar-la-cabeza la alterna', r.defecto && r.mira && r.vuelve);
+    ok('navegación: órbita nunca inactiva salvo en girar-la-cabeza', r.dibujo && r.forma && r.nuncaAmbosOff);
+  },
+
   async vista_punteros() {
     const r = await page.evaluate(async () => {
       const D = window._dbg, cv = document.querySelector('canvas'), out = {};
