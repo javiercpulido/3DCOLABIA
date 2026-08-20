@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.61 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.62 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -213,6 +213,11 @@
  <button id="gpUnite" class="pchip pcok" style="width:auto;padding:0 10px">Unir en una</button>
  <button id="gpGroup" class="pchip" style="width:auto;padding:0 10px">Agrupar</button>
  <button id="gpCancel" class="pchip" style="width:auto;padding:0 10px">Cancelar</button>
+</div>
+<div id="confirmpop" style="position:fixed;left:50%;transform:translateX(-50%);bottom:120px;z-index:17;display:none;gap:8px;align-items:center;background:var(--bg,#fff);border:1px solid rgba(0,0,0,.12);border-radius:11px;padding:8px 10px;box-shadow:0 8px 26px rgba(0,0,0,.22)">
+ <span id="cfMsg" style="font-size:12.5px;color:var(--ink);padding:0 4px">¿Cerrar el contorno y seguir?</span>
+ <button id="cfYes" class="pchip pcok" style="width:auto;padding:0 12px">Cerrar y seguir</button>
+ <button id="cfNo" class="pchip" style="width:auto;padding:0 10px">Cancelar</button>
 </div>
 <div id="surfpop" style="position:fixed;left:50%;transform:translateX(-50%);bottom:78px;z-index:16;display:none;align-items:center;gap:10px;background:var(--bg,#fff);border:1px solid rgba(0,0,0,.12);border-radius:12px;padding:7px 9px 7px 12px;box-shadow:0 8px 28px rgba(0,0,0,.20);font-size:13px;color:var(--ink)">
  <span style="display:flex;flex-direction:column;line-height:1.25;min-width:120px">
@@ -5178,6 +5183,7 @@ function surfToolStart(mode){
 function surfToolCancel(msg){
   surfTool=null; document.getElementById('mSurf').classList.remove('on');
   const el=document.getElementById('surfpop'); if(el)el.style.display='none';
+  const cp=document.getElementById('confirmpop'); if(cp)cp.style.display='none';
   if(msg)toast(msg);
 }
 // BARRA FLOTANTE «Crear superficie»: sustituye al «toca en vacío» de los modos
@@ -5260,6 +5266,35 @@ function surfToolFinish(S){
   surfToolCancel(); redraw();
   toast('Superficie '+S.name+' creada ✓ · está en el panel, junto a las piezas');
 }
+// POPUP de confirmación reutilizable (sí/no) — usado por «cerrar contorno y seguir»
+function askClose(msg,onYes){
+  const pop=document.getElementById('confirmpop');
+  document.getElementById('cfMsg').textContent=msg||'¿Cerrar el contorno y seguir?';
+  pop.style.display='flex';
+  const close=()=>{pop.style.display='none';document.getElementById('cfYes').onclick=null;document.getElementById('cfNo').onclick=null;};
+  document.getElementById('cfYes').onclick=()=>{close();onYes();};
+  document.getElementById('cfNo').onclick=()=>{close();};
+}
+// cierra el contorno ABIERTO de un trazo (poli o línea) y crea su cara, en un solo
+// deshacer; también sirve para fijarlo como contorno de «Cara con línea interior»
+function closeContourStroke(st){
+  const before={points:st.points.map(p=>p.slice()),closed:st.closed,joints:st.joints?st.joints.slice():null,reg:st.reg};
+  if(st.poly){st.closed=true; delete st.reg; if(typeof rebuildPoly==='function')rebuildPoly(st);}
+  else{const a=st.points[0],b=st.points[st.points.length-1];
+    if(Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2])>1e-6){st.points=st.points.concat([a.slice()]); delete st.reg;}}
+  st._dirty=true;
+  const after={points:st.points.map(p=>p.slice()),closed:st.closed,joints:st.joints?st.joints.slice():null,reg:st.reg};
+  return {before,after,apply(s){st.points=s.points.map(p=>p.slice()); st.closed=s.closed; st.joints=s.joints?s.joints.slice():null; st.reg=s.reg; st._dirty=true;}};
+}
+function closeContourAndBuildFace(st){
+  const c=closeContourStroke(st);
+  const S=buildContourSurfaceFromPts(st.points,new THREE.Color(st.color||color).getHex());
+  pushUndo('cerrar contorno y crear superficie',
+    ()=>{c.apply(c.before); removeSurface(S,true); redraw();},
+    ()=>{c.apply(c.after); scene.add(S.mesh); if(!surfaces.includes(S))surfaces.push(S); renderSurfList(); redraw();});
+  surfToolCancel(); redraw();
+  toast('Contorno cerrado ✓ · superficie creada (en el panel)');
+}
 function surfToolTap(e){
   const T=surfTool;
   if(isBoolMode(T.mode)){   // BOOLEANA: se tocan PIEZAS (sólidos), no trazos
@@ -5279,12 +5314,14 @@ function surfToolTap(e){
   const st=pickStrokeAt(e);
   if(T.mode==='face'){
     if(!st){surfToolCancel('Superficie cancelada');return;}
-    if(!strokeClosed(st)){toast('▱ Ese contorno no está cerrado · une los extremos (⛓)');return;}
+    if(!strokeClosed(st)){askClose('El contorno está abierto. ¿Cerrar contorno y seguir?',()=>closeContourAndBuildFace(st));return;}
     surfToolFinish(buildContourSurfaceFromPts(st.points,new THREE.Color(st.color||color).getHex()));
   } else if(T.mode==='ribs'){
     if(!T.contour){
       if(!st){surfToolCancel('Superficie cancelada');return;}
-      if(!strokeClosed(st)){toast('◠ Ese contorno no está cerrado · une los extremos (⛓)');return;}
+      if(!strokeClosed(st)){askClose('El contorno está abierto. ¿Cerrar contorno y seguir?',()=>{
+        const c=closeContourStroke(st); pushUndo('cerrar contorno',()=>c.apply(c.before),()=>c.apply(c.after)); redraw();
+        T.contour=st; toast('◠ Contorno cerrado y fijado · toca sus líneas INTERIORES · ✓ Crear');});return;}
       T.contour=st; toast('◠ Contorno fijado · toca sus líneas INTERIORES · toca en vacío para crear');
     } else if(st&&st!==T.contour){
       T.inner.push(st); toast('◠ Línea interior '+T.inner.length+' añadida · pulsa ✓ Crear superficie');
@@ -5338,11 +5375,18 @@ function surfToolTap(e){
     }
   } else if(T.mode==='ext'){
     if(!st){surfToolCancel('Superficie cancelada');return;}
-    if(!strokeClosed(st)){toast('⇧ Ese contorno no está cerrado · une los extremos (⛓)');return;}
-    toast('⇧ Altura de extrusión en mm (negativa = hacia el otro lado)');
-    askNum(Math.round(Math.max(5,sph.r*0.15)),dd=>{
-      if(dd===null||!dd){surfToolCancel('Extrusión cancelada');return;}
-      surfToolFinish(buildExtrudeFromPts(st.points,dd,new THREE.Color(st.color||color).getHex()));});
+    const doExt=(closeRec)=>{
+      toast('⇧ Altura de extrusión en mm (negativa = hacia el otro lado)');
+      askNum(Math.round(Math.max(5,sph.r*0.15)),dd=>{
+        if(dd===null||!dd){if(closeRec)closeRec.apply(closeRec.before); surfToolCancel('Extrusión cancelada');return;}
+        const S=buildExtrudeFromPts(st.points,dd,new THREE.Color(st.color||color).getHex());
+        pushUndo(closeRec?'cerrar contorno y extruir':'superficie '+S.name,
+          ()=>{if(closeRec)closeRec.apply(closeRec.before); removeSurface(S,true); redraw();},
+          ()=>{if(closeRec)closeRec.apply(closeRec.after); scene.add(S.mesh); if(!surfaces.includes(S))surfaces.push(S); renderSurfList(); redraw();});
+        surfToolCancel(); redraw(); toast('Superficie '+S.name+' creada ✓ · en el panel');});
+    };
+    if(!strokeClosed(st)){askClose('El contorno está abierto. ¿Cerrar contorno y seguir?',()=>doExt(closeContourStroke(st)));return;}
+    doExt(null);
   } else if(T.mode==='tube'){
     if(!st){surfToolCancel('Superficie cancelada');return;}
     toast('○ Radio del tubo en mm');
@@ -5748,7 +5792,7 @@ function buildExport(){
 }
 window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},get pointersDbg(){return [...pointers.values()].map(v=>v.t)},get capsDbg(){return _caps.size},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
 buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},get drawLock(){return drawLock},get trazoMode(){return trazoMode},get shapeMode(){return shapeMode},cancelShapeDraw,circleFrom3,genPoints,to3,
-buildContourSurfaceFromPts,get axGhost(){return axGhost},selectStroke,surfToolStart,surfToolTap,get surfTool(){return surfTool},moveContPoint,
+buildContourSurfaceFromPts,get axGhost(){return axGhost},selectStroke,surfToolStart,surfToolTap,get surfTool(){return surfTool},moveContPoint,askClose,closeContourStroke,strokeClosed,
 buildRevolveFromPts,buildCoonsFromPts,buildExtrudeFromPts,buildTubeFromPts,chain4,buildExport,
 buildRuledFromPts,buildLoftFromPts,buildSweepFromPts,
 get selDrag(){return selDrag},get gizDrag(){return gizDrag},get axLock(){return axLock},get drawing(){return drawing},set drawing(v){drawing=v},get laserDrag(){return laserDrag},

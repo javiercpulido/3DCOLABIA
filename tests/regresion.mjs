@@ -373,6 +373,38 @@ const secciones = {
     ok('grupo de secciones se reacopla sobre la barra', r4.re);
   },
 
+  async cerrar_contorno() {   // superficie con contorno abierto → pregunta «Cerrar contorno y seguir»
+    const r = await page.evaluate(async () => {
+      const D = window._dbg, T3 = window.THREE, out = {};
+      const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 15)));
+      const st = { points: [[0, 0, 0], [0, 22, 0], [22, 22, 0], [22, 0, 0]], color: '#111', w: 0.2, sobre: 'aire' };
+      D.strokes.push(st); D.redraw();
+      out.abierto = !D.strokeClosed(st);
+      const nS = D.surfaces.length;
+      const rct = document.querySelector('canvas').getBoundingClientRect();
+      const scr = w => { const v = new T3.Vector3(...w).project(D.cam);
+        return { target: document.querySelector('canvas'), clientX: rct.left + (v.x*0.5+0.5)*rct.width, clientY: rct.top + (-v.y*0.5+0.5)*rct.height, button: 0 }; };
+      D.surfToolStart('face'); D.surfToolTap(scr([0, 22, 0])); await frame();
+      const pop = document.getElementById('confirmpop');
+      out.pregunta = pop.style.display === 'flex' && document.getElementById('cfMsg').textContent.includes('Cerrar');
+      // «Cancelar» no crea nada ni cierra el contorno
+      document.getElementById('cfNo').click(); await frame();
+      out.cancela = D.surfaces.length === nS && !D.strokeClosed(st) && pop.style.display === 'none';
+      // repetir y «Cerrar y seguir» → cierra el contorno y crea la cara
+      D.surfToolStart('face'); D.surfToolTap(scr([0, 22, 0])); await frame();
+      document.getElementById('cfYes').click(); await frame();
+      out.cerrado = D.strokeClosed(st);
+      out.creada = D.surfaces.length === nS + 1;
+      document.getElementById('undo').click(); await frame();
+      out.undo = D.surfaces.length === nS && !D.strokeClosed(st);   // deshacer: quita la cara Y reabre el contorno
+      return out;
+    });
+    ok('superficie: contorno abierto pregunta «¿Cerrar contorno y seguir?»', r.abierto && r.pregunta);
+    ok('cerrar contorno: «Cancelar» no cierra ni crea', r.cancela);
+    ok('cerrar contorno: «Cerrar y seguir» cierra el contorno y crea la cara', r.cerrado && r.creada);
+    ok('cerrar contorno: un solo deshacer quita la cara y reabre el contorno', r.undo);
+  },
+
   async navegacion() {   // Órbita y «Girar la cabeza» nunca ambos inactivos
     const r = await page.evaluate(() => {
       const orbit = () => document.getElementById('mOrbit').classList.contains('on');
