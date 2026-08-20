@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.63 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.64 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -209,7 +209,7 @@
  <button id="jpCancel" class="pchip" style="width:auto;padding:0 10px">Cancelar</button>
 </div>
 <div id="grouppop" style="position:fixed;z-index:15;display:none;gap:5px;align-items:center;background:var(--bg,#fff);border:1px solid rgba(0,0,0,.12);border-radius:10px;padding:6px;box-shadow:0 6px 20px rgba(0,0,0,.18)">
- <span style="font-size:12px;color:var(--mut);padding:0 4px">¿Qué hago con la selección?</span>
+ <span data-gp-msg style="font-size:12px;color:var(--mut);padding:0 4px">¿Qué hago con la selección?</span>
  <button id="gpUnite" class="pchip pcok" style="width:auto;padding:0 10px">Unir en una</button>
  <button id="gpGroup" class="pchip" style="width:auto;padding:0 10px">Agrupar</button>
  <button id="gpCancel" class="pchip" style="width:auto;padding:0 10px">Cancelar</button>
@@ -909,7 +909,7 @@ vPla.onclick=()=>setView(-Math.PI/2,0.01);             // planta (superior)
 vPlaInv.onclick=()=>setView(-Math.PI/2,Math.PI-0.01);  // planta invertida (inferior)
 
 // ---- estado UI ----
-let mode='orbit', color='#d500f9', mag=true, lineW=0.2, penSeen=false, drawLock=false, selDrag=null, textDrag=null;
+let mode='orbit', color='#d500f9', mag=true, lineW=0.2, penSeen=false, drawLock=true, selDrag=null, textDrag=null;   // Continuo ON por defecto
 let polyDraw=null, _joinCtx=null, laserDrag=null;   // POLI 3D en curso · popup Unir/Cancelar · arrastre directo del láser
 let drawMode='geo';   // modo ACTIVO: 'geo'/'free'/'laser'/'note' (Trazo) · 'line'/'poly' (Forma)
 let trazoMode='geo';  // último modo elegido del botón TRAZO (mano alzada)
@@ -993,12 +993,16 @@ document.getElementById('shapemenu').addEventListener('click',e=>{
       circle:'circunferencia · arrastra del CENTRO hacia fuera (radio en vivo)',
       ellipse:'elipse · arrastra del CENTRO a una esquina',
       rect:'rectángulo · arrastra de una esquina a la opuesta (con imán)'}[drawMode]));}});
-let contJoin=false;   // «Continuo»: los trazos/formas que se tocan se funden en una sola forma
+let contJoin=true;   // «Continuo» ON por defecto: los trazos/formas que se tocan se funden en una sola forma
 document.getElementById('mCont').onclick=function(){
+  // atajo: con un GRUPO seleccionado, ⛓ une sus elementos en una sola forma
+  const sel=(typeof effSel==='function')?effSel():[];
+  if(sel.length>1&&sel.every(s=>s.grp!=null&&s.grp===sel[0].grp)){doGroupChoice(true);return;}
   const on=!(drawLock&&contJoin);   // un solo conmutador global: candado + unir en continuidad
   drawLock=on; contJoin=on; this.classList.toggle('on',on);
   toast(on?'⛓ Continuo: sigue dibujando y lo que se toque queda unido en una sola forma'
           :'Un trazo y vuelve a orbitar · los trazos quedan sueltos');};
+document.getElementById('mCont').classList.toggle('on',drawLock&&contJoin);   // refleja el estado inicial (ON)
 // Mueve un ANCLA (extremo o soldadura) de una línea continua: el desplazamiento
 // se reparte elásticamente hasta las anclas vecinas, que no se mueven; en un
 // contorno CERRADO los dos extremos van juntos (el anillo no se abre).
@@ -2789,16 +2793,30 @@ function doGroupChoice(unite){
     toast('grupo de '+list.length+' trazos 🔗'); updOpsBar();
   }
 }
+function doUngroup(){
+  const list=effSel().filter(s=>s.grp!=null); if(!list.length)return;
+  const snap=list.map(s=>({s,g:s.grp})); list.forEach(s=>{delete s.grp;});
+  pushUndo('desagrupar',()=>{snap.forEach(x=>x.s.grp=x.g);updOpsBar();},()=>{snap.forEach(x=>{delete x.s.grp;});updOpsBar();});
+  toast('desagrupado'); updOpsBar();
+}
+let _grpPopMode='ungrouped';
+function openGroupPop(mode){
+  _grpPopMode=mode;
+  document.getElementById('gpGroup').textContent=(mode==='grouped')?'Desagrupar':'Agrupar';
+  document.querySelector('#grouppop [data-gp-msg]').textContent=(mode==='grouped')?'Están agrupadas. ¿Qué hago?':'¿Qué hago con la selección?';
+  const gp=document.getElementById('grouppop'), r=document.getElementById('selGrp').getBoundingClientRect();
+  gp.style.display='flex'; gp.style.left=Math.max(6,Math.min(r.left,innerWidth-320))+'px'; gp.style.top=Math.max(6,r.top-48)+'px';
+}
 document.getElementById('selGrp').onclick=()=>{
   const list=effSel(); if(!list.length)return;
   const grouped=list.length>1&&list.every(s=>s.grp!=null&&s.grp===list[0].grp);
-  if(grouped){list.forEach(s=>{delete s.grp;});toast('desagrupado');updOpsBar();return;}
+  if(grouped){openGroupPop('grouped');return;}   // agrupadas: pregunta Desagrupar / Unir
   if(list.length<2){toast('para agrupar/unir: suma más trazos con la multi-selección');return;}
-  const gp=document.getElementById('grouppop'), r=document.getElementById('selGrp').getBoundingClientRect();
-  gp.style.display='flex'; gp.style.left=Math.max(6,Math.min(r.left,innerWidth-300))+'px'; gp.style.top=Math.max(6,r.top-48)+'px';
+  openGroupPop('ungrouped');                       // sueltas: pregunta Unir / Agrupar
 };
 document.getElementById('gpUnite').onclick=()=>{document.getElementById('grouppop').style.display='none';doGroupChoice(true);};
-document.getElementById('gpGroup').onclick=()=>{document.getElementById('grouppop').style.display='none';doGroupChoice(false);};
+document.getElementById('gpGroup').onclick=()=>{document.getElementById('grouppop').style.display='none';
+  if(_grpPopMode==='grouped')doUngroup(); else doGroupChoice(false);};
 document.getElementById('gpCancel').onclick=()=>{document.getElementById('grouppop').style.display='none';};
 // DESCOMPONER: separar una forma en sus segmentos (cada recta y cada arco entre puntos de control)
 function decomposeStroke(st){
@@ -5829,7 +5847,7 @@ function buildExport(){
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
 window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},get pointersDbg(){return [...pointers.values()].map(v=>v.t)},get capsDbg(){return _caps.size},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
-buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},get drawLock(){return drawLock},get trazoMode(){return trazoMode},get shapeMode(){return shapeMode},cancelShapeDraw,circleFrom3,genPoints,to3,
+buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},set contJoin(v){contJoin=v},get drawLock(){return drawLock},set drawLock(v){drawLock=v; const b=document.getElementById('mCont'); if(b)b.classList.toggle('on',drawLock&&contJoin);},get trazoMode(){return trazoMode},get shapeMode(){return shapeMode},cancelShapeDraw,circleFrom3,genPoints,to3,
 buildContourSurfaceFromPts,get axGhost(){return axGhost},selectStroke,surfToolStart,surfToolTap,get surfTool(){return surfTool},moveContPoint,askClose,closeContourStroke,strokeClosed,
 buildRevolveFromPts,buildCoonsFromPts,buildExtrudeFromPts,buildTubeFromPts,chain4,buildExport,
 buildRuledFromPts,buildLoftFromPts,buildSweepFromPts,

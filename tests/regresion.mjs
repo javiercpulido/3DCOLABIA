@@ -62,6 +62,7 @@ const secciones = {
   async calco() {
     await page.evaluate(() => {
       const D = window._dbg;
+      D.drawLock = false; D.contJoin = false;   // calco puro (sin continuo)
       D.strokes.push({ points: [[60, 42, 10], [60, 42, -10]], color: '#000', w: 0.2, sobre: 't' }); D.redraw();
       document.getElementById('mDraw').click();
       document.querySelector('#drawmenu [data-dm="laser"]').click();
@@ -112,7 +113,7 @@ const secciones = {
   async continuidad_partir() {
     const r = await page.evaluate(async () => {
       const D = window._dbg, frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 15)));
-      document.getElementById('mCont').click();   // Continuo global (candado + unir en continuidad)
+      D.drawLock = true; D.contJoin = true;   // Continuo ON (por defecto) para la soldadura
       document.getElementById('mDraw').click(); document.getElementById('mDraw').click();
       const s1 = { points: [[100, 10, 0], [110, 10, 0], [120, 10, 0]], color: '#000', w: 0.2, sobre: 't' };
       const s2 = { points: [[120, 10, 0], [120, 20, 0], [120, 30, 0]], color: '#000', w: 0.2, sobre: 't' };
@@ -795,19 +796,21 @@ const secciones = {
         document.getElementById('mDraw').classList.contains('on') &&
         !document.getElementById('mShape').classList.contains('on');
       document.getElementById('drawmenu').style.display = 'none';
-      // CONTINUO global: un toque activa candado + unir; otro los apaga
-      document.getElementById('mCont').click();
-      out.contOn = D.drawLock === true && D.contJoin === true &&
+      // CONTINUO global: ON por defecto (candado + unir); un toque lo apaga, otro lo enciende
+      D.deselect();
+      out.contDefecto = D.drawLock === true && D.contJoin === true &&
         document.getElementById('mCont').classList.contains('on');
       document.getElementById('mCont').click();
-      out.contOff = D.drawLock === false && D.contJoin === false;
+      out.contOff = D.drawLock === false && D.contJoin === false && !document.getElementById('mCont').classList.contains('on');
+      document.getElementById('mCont').click();
+      out.contOn = D.drawLock === true && D.contJoin === true && document.getElementById('mCont').classList.contains('on');
       return out;
     });
     ok('Trazo: menú sin recta/poli ni toggles viejos (4 modos de mano alzada)', r.menuTrazo);
     ok('Forma: botón propio con recta y poli, entra con la última forma', r.menuForma && r.entraForma);
     ok('Forma: el botón muta al icono de la forma elegida', r.mutaIcono);
     ok('Trazo y Forma se iluminan según el modo activo', r.vuelveTrazo);
-    ok('Continuo global: candado + unir en continuidad en un solo botón', r.contOn && r.contOff);
+    ok('Continuo global: ON por defecto y alterna candado + unir en un botón', r.contDefecto && r.contOff && r.contOn);
   },
 
   async formas_exactas() {   // Fase B: circunferencia, elipse y arco de TOQUE (arrastres reales)
@@ -1148,6 +1151,42 @@ const secciones = {
     ok('agrupar/unir: el botón pregunta y «Unir en una» funde la selección', r.popup && r.unido);
     ok('descomponer: separa la forma en sus segmentos (con deshacer)', r.descomp && r.undo);
     ok('descomponer poli: recta y arco como segmentos separados', r.poly);
+  },
+
+  async agrupar_preguntas() {   // 🔗 preguntas Desagrupar/Unir · grupo + ⛓ = unir
+    const r = await page.evaluate(async () => {
+      const D = window._dbg, out = {};
+      const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 15)));
+      const a = { points: [[0, 0, 0], [30, 0, 0]], color: '#111', w: 0.2, sobre: 't' };
+      const b = { points: [[30, 0, 0], [30, 30, 0]], color: '#111', w: 0.2, sobre: 't' };
+      D.strokes.push(a, b); D.redraw();
+      // agrupar (sueltas → popup Unir/Agrupar → Agrupar)
+      D.select('trazo', a, 'sel'); D.selSet = [a, b];
+      document.getElementById('selGrp').click(); await frame();
+      out.popSueltas = document.getElementById('grouppop').style.display === 'flex' &&
+        document.getElementById('gpGroup').textContent === 'Agrupar';
+      document.getElementById('gpGroup').click(); await frame();
+      out.agrupado = a.grp != null && a.grp === b.grp;
+      // agrupadas + 🔗 → popup con «Desagrupar»
+      D.select('trazo', a, 'sel'); D.selSet = [a, b];
+      document.getElementById('selGrp').click(); await frame();
+      out.popGrupo = document.getElementById('grouppop').style.display === 'flex' &&
+        document.getElementById('gpGroup').textContent === 'Desagrupar';
+      // «Desagrupar» quita el grupo
+      document.getElementById('gpGroup').click(); await frame();
+      out.desagrupado = a.grp == null && b.grp == null;
+      document.getElementById('undo').click(); await frame();   // deshacer restaura el grupo
+      out.undoDesagrupar = a.grp != null && a.grp === b.grp;
+      // GRUPO + ⛓ (Continuo) = unir sus elementos en una sola forma
+      D.select('trazo', a, 'sel'); D.selSet = [a, b];
+      const n0 = D.strokes.length;
+      document.getElementById('mCont').click(); await frame();
+      out.cadenaUne = D.strokes.length === n0 - 1 && D.strokes[D.strokes.length - 1].cont === true;
+      return out;
+    });
+    ok('🔗 sueltas: popup Unir/Agrupar y agrupa', r.popSueltas && r.agrupado);
+    ok('🔗 agrupadas: popup ofrece «Desagrupar» (y deshacer lo restaura)', r.popGrupo && r.desagrupado && r.undoDesagrupar);
+    ok('grupo + ⛓ Continuo: une los elementos en una sola forma', r.cadenaUne);
   },
 
   async plano_seccion() {   // plano de dibujo: líneas de sección azules (guías) + vista alineada
