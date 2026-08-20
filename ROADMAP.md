@@ -114,3 +114,18 @@ el panel de superficies: ver/ocultar, bloquear, borrar).
 
 **Fase C — pendiente**: converger a un lápiz inteligente único + «Formas
 exactas», sin quitar nada hasta que el unificado cubra el 100 %.
+
+## Correcciones (v6.60)
+
+- **Imán del plano de dibujo al moverse**: al desplazar un plano/sección con el
+  imán activo se comporta como el láser — se resalta al acercarse y se acopla a
+  caras, aristas, plano de montaje y a los puntos OSNAP (medio, centro,
+  cuadrante, extremo, intersección) proyectados sobre su normal. Además su
+  movimiento ya registra deshacer.
+- **Grosor visual de aristas en tiempo real**: el control afecta ahora a las
+  aristas de las piezas/volúmenes (silueta + aristas de característica),
+  dibujadas con el mismo shader de ancho-en-pantalla que los trazos; el px se
+  actualiza en vivo sin reconstruir geometría.
+- **Deshacer de giro/desplazamiento de pieza**: mover o girar una pieza (gizmo
+  o casillas Δmm/∠°) ahora registra su propio deshacer/rehacer; antes «deshacer»
+  quitaba por error la última línea creada.

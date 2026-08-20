@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.59 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.60 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -502,6 +502,7 @@ let dl=new THREE.DirectionalLight(0xffffff,.7); dl.position.set(1,-1.2,1.6); sce
 let dl2=new THREE.DirectionalLight(0xffffff,.25); dl2.position.set(-1,1,-.5); scene.add(dl2);
 
 // ---- modelo ----
+let edgePx=1.6;   // grosor VISUAL de las aristas (px en pantalla) · declarado antes del modelo (lo usa makeFatSeg)
 let pieces={}, pickables=[], bbox=new THREE.Box3();
 MESHES.forEach(m=>{
   let g=new THREE.BufferGeometry();
@@ -1166,7 +1167,6 @@ const HAIRLINE=0.26;   // por debajo de esto el trazo es una ARISTA (grosor VISU
 // el ancho de THREE.Line (siempre 1px), así que las aristas se dibujan con una
 // cinta expandida en el shader a un ancho exacto en píxeles — control fino y
 // perceptible de cómo se ven TODAS las líneas de la escena.
-let edgePx=1.6;
 const _fatRes={value:new THREE.Vector2(1,1)};
 const _FAT_VS=`attribute vec3 pA; attribute vec3 pB; attribute float side; attribute float endv;
   uniform vec2 uRes; uniform float uPx;
@@ -1203,6 +1203,46 @@ function fatLine(points,colHex,px,op,depthTest){
   g.setIndex(idx);
   const m=new THREE.Mesh(g,fatLineMat(colHex,px,op,depthTest)); m.frustumCulled=false; return m;
 }
+// ARISTAS GRUESAS de las piezas: mismo shader de ancho-en-pantalla, pero sobre
+// PARES de puntos (segmentos sueltos) y con búfer preasignado que se rellena por
+// cuadros (para la silueta, que se recalcula). El px se controla con edgePx en vivo.
+const _pieceEdgeMats=[];   // registro para actualizar el grosor de TODAS a la vez
+function makeFatSeg(maxSeg,colHex){
+  const cap=Math.max(1,maxSeg);
+  const pA=new Float32Array(cap*4*3),pB=new Float32Array(cap*4*3),posv=new Float32Array(cap*4*3),
+        side=new Float32Array(cap*4),endv=new Float32Array(cap*4),idx=new Uint32Array(cap*6);
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(posv,3));
+  g.setAttribute('pA',new THREE.BufferAttribute(pA,3));
+  g.setAttribute('pB',new THREE.BufferAttribute(pB,3));
+  g.setAttribute('side',new THREE.BufferAttribute(side,1));
+  g.setAttribute('endv',new THREE.BufferAttribute(endv,1));
+  g.setIndex(new THREE.BufferAttribute(idx,1)); g.setDrawRange(0,0);
+  const mat=fatLineMat(colHex,edgePx,1,true); _pieceEdgeMats.push(mat);   // depthTest ON: se ocultan como las finas
+  const mesh=new THREE.Mesh(g,mat); mesh.frustumCulled=false; mesh.renderOrder=2;
+  const S=[[0,-1],[0,1],[1,-1],[1,1]];
+  function setSegments(arr,count){
+    let vi=0,ii=0;
+    for(let s=0;s<count;s++){const a=s*6;
+      for(let q=0;q<4;q++){const o=vi*3;
+        pA[o]=arr[a];pA[o+1]=arr[a+1];pA[o+2]=arr[a+2];
+        pB[o]=arr[a+3];pB[o+1]=arr[a+4];pB[o+2]=arr[a+5];
+        posv[o]=arr[a];posv[o+1]=arr[a+1];posv[o+2]=arr[a+2];
+        endv[vi]=S[q][0];side[vi]=S[q][1];vi++;}
+      const b=s*4; idx[ii++]=b;idx[ii++]=b+2;idx[ii++]=b+1;idx[ii++]=b+1;idx[ii++]=b+2;idx[ii++]=b+3;}
+    g.attributes.position.needsUpdate=g.attributes.pA.needsUpdate=g.attributes.pB.needsUpdate=true;
+    g.attributes.side.needsUpdate=g.attributes.endv.needsUpdate=g.index.needsUpdate=true;
+    g.setDrawRange(0,count*6);
+  }
+  return {mesh,mat,setSegments};
+}
+// construir las aristas GRUESAS de cada pieza (aquí, ya definido makeFatSeg):
+// · aristas de característica (estáticas) · silueta (se rellena por cuadros)
+for(const nm in pieces){const mesh=pieces[nm],ud=mesh.userData;
+  const ep=ud.edges&&ud.edges.geometry.attributes.position;
+  if(ep){const nSeg=ep.count/2, fe=makeFatSeg(nSeg,0x1c1c1e); fe.setSegments(ep.array,nSeg);
+    fe.mesh.visible=false; mesh.add(fe.mesh); ud.edgesFat=fe;}
+  if(ud.silh){const sf=makeFatSeg(ud.silh.list.length,0x1c1c1e); sf.mesh.visible=false; mesh.add(sf.mesh); ud.silh.fat=sf;}}
 function strokeLine(s){
   // TRAZO fino → LÍNEA de 1px constante en pantalla (aristas/construcción tipo SketchUp).
   // TRAZO grueso → TUBO 3D con grosor real en mm (SIEMPRE VISIBLE, depthTest off).
@@ -1867,7 +1907,8 @@ renderer.domElement.addEventListener('pointerdown',e=>{
         const ah=ex.find(h=>h.object.userData.flipCone&&h.object.userData.secRef===selected.ref);
         if(ah){const s3=selected.ref;
           if(s3.locked){toast(s3.name+' bloqueado 🔒 · desbloquéalo para mover');return;}
-          secMoveDrag={s:s3,u:s3.normal.clone(),pt0:s3.pt.clone(),t0:axisParam(s3.pt.clone(),s3.normal)};return;}}}
+          secMoveDrag={s:s3,u:s3.normal.clone(),pt0:s3.pt.clone(),t0:axisParam(s3.pt.clone(),s3.normal),
+            mag:mag?buildPlaneMag(s3.normal):null, p0:s3.pt.clone(), q0:null};return;}}}
     // PRIORIDAD a los trazos: si hay un trazo bajo el cursor, se maneja aunque haya un plano detrás
     const hitS=pickStrokeAt(e);
     if(hitS){
@@ -1989,10 +2030,24 @@ addEventListener('pointermove',e=>{
                          .addScaledVector(up,(my-pinch.my0)/H*sph.r*1.2);
     updCam(); return;}
   if(secPlacing){moveSecPlacement(e);return;}          // colocación en vivo (no corta hasta soltar)
-  if(secMoveDrag){ndc(e);const t=axisParam(secMoveDrag.pt0,secMoveDrag.u);
+  if(secMoveDrag){ndc(e);let t=axisParam(secMoveDrag.pt0,secMoveDrag.u);
+    // IMÁN (como el láser): al acercar el plano a una cara/arista/plano de montaje o
+    // a un punto OSNAP (medio, centro, cuadrante, extremo, intersección), se acopla y se resalta
+    let snapped=false, glyph=null, hiMesh=null;
+    if(mag&&secMoveDrag.mag&&secMoveDrag.mag.length){
+      const oc=secMoveDrag.pt0.dot(secMoveDrag.u)+(t-secMoveDrag.t0);
+      const tol=Math.max(1.5,Math.min(6,sph.r*0.02)); let bd=tol,best=null;
+      for(const cd of secMoveDrag.mag){const dd=Math.abs(cd.c-oc); if(dd<bd){bd=dd;best=cd;}}
+      if(best){t=secMoveDrag.t0+(best.c-secMoveDrag.pt0.dot(secMoveDrag.u)); snapped=true;
+        if(best.p)glyph=best; else if(best.mesh)hiMesh=best.mesh;}
+    }
     secMoveDrag.s.pt.copy(secMoveDrag.pt0).addScaledVector(secMoveDrag.u,t-secMoveDrag.t0);
-    syncSecWidget(secMoveDrag.s); if(secMoveDrag.s.active)applySec(); updateGizmo();
-    document.getElementById('hud').textContent='Δ '+(t-secMoveDrag.t0).toFixed(1)+' mm · '+secMoveDrag.s.name;
+    syncSecWidget(secMoveDrag.s); if(secMoveDrag.s.active)applySec();
+    if(secMoveDrag.s.paper&&typeof updatePaperSecs==='function')updatePaperSecs();   // las líneas de sección siguen al plano
+    updateGizmo();
+    if(glyph)setSnapState({p:glyph.p,kind:glyph.kind},'mag'); else clearSnapState();
+    if(hiMesh)showMagHi(hiMesh); else hideMagHi();
+    document.getElementById('hud').textContent='Δ '+(t-secMoveDrag.t0).toFixed(1)+' mm · '+secMoveDrag.s.name+(snapped?' 🧲':'');
     return;}
   if(gizDrag){ndc(e);moveGizDrag();redraw();return;}
   if(laserDrag){   // arrastre directo del láser (dedo o Pencil) con imán OSNAP
@@ -2378,7 +2433,13 @@ function endPointer(e){
   try{renderer.domElement.releasePointerCapture(e.pointerId);}catch(_){}
   if(secPlacing){finishSecPlacement();return;}     // soltar = activa la sección
   if(filletDrag){filletDrag=null;}                 // fin del arrastre de radio 3D (la arista sigue seleccionada)
-  if(secMoveDrag)secMoveDrag=null;
+  if(secMoveDrag){   // fin del movimiento del plano/sección: registra deshacer y limpia el imán
+    const s=secMoveDrag.s;
+    if(secMoveDrag.p0&&!s.pt.equals(secMoveDrag.p0)){
+      const p0=secMoveDrag.p0.clone(), p1=s.pt.clone();
+      const rec=()=>{syncSecWidget(s); if(s.active)applySec(); if(s.paper&&typeof updatePaperSecs==='function')updatePaperSecs(); if(selected&&selected.ref===s)updateGizmo();};
+      pushUndo('mover '+s.name,()=>{s.pt.copy(p0);rec();},()=>{s.pt.copy(p1);rec();});}
+    hideMagHi(); clearSnapState(); secMoveDrag=null;}
   if(polyDraw&&polyDraw.dragging){commitPolyTap(); hideDrawTag(); dragging=false; return;}   // soltar = fija el vértice; la poli continúa
   if(pointers.size<2){pinch=null;
     if(wasPinch)pointers.forEach((_,id)=>deadPointers.add(id));} // el dedo restante no orbita/pinta
@@ -2463,7 +2524,8 @@ function endPointer(e){
         toast('extremo unido 🧲');break;}}}
   if(selDrag)hideContact();
   if(gizDrag){
-    if(gizDrag.t==='pieza'){computeIntersections();applySec();_silhFrame=-1;updateLasers();}
+    if(gizDrag.t==='pieza'){computeIntersections();applySec();_silhFrame=-1;updateLasers();
+      if(gizDrag.mesh&&gizDrag.pos0)pushPieceXform(gizDrag.mesh,gizDrag.pos0,gizDrag.quat0);}   // registra deshacer del giro/mov.
     if(gizDrag.t==='laser'&&gizDrag.mesh&&
        (!gizDrag.pos0.equals(gizDrag.mesh.position)||!gizDrag.quat0.equals(gizDrag.mesh.quaternion))){
       const m=gizDrag.mesh,p0=gizDrag.pos0.clone(),q0=gizDrag.quat0.clone(),
@@ -2590,8 +2652,10 @@ document.getElementById('selMove').addEventListener('change',e=>{
   const ax=axLock||'z'; const d=new THREE.Vector3(); d[ax]=v;
   if(selected&&selected.kind==='pieza'){ // desplazar PIEZA
     if(selected.ref.userData.locked){e.target.value='';toast(selected.ref.name+' bloqueada 🔒');return;}
-    selected.ref.position.add(d);
+    const m=selected.ref, p0=m.position.clone(), q0=m.quaternion.clone();
+    m.position.add(d);
     computeIntersections();applySec();_silhFrame=-1;updateLasers();updateGizmo();
+    pushPieceXform(m,p0,q0,m.name+' Δ'+ax.toUpperCase());
     e.target.value=''; toast('pieza Δ'+ax.toUpperCase()+' = '+v+' mm'); return;}
   if(selected&&selected.kind==='laser'){ // desplazar LÁSER
     const L=selected.ref;
@@ -2618,12 +2682,13 @@ document.getElementById('selRot').addEventListener('change',e=>{
     const ax2=axLock||'z';
     const u2=new THREE.Vector3(ax2==='x'?1:0,ax2==='y'?1:0,ax2==='z'?1:0);
     const q=new THREE.Quaternion().setFromAxisAngle(u2,v*Math.PI/180);
-    const m=selected.ref; m.updateMatrixWorld();
+    const m=selected.ref; const p0=m.position.clone(), q0=m.quaternion.clone(); m.updateMatrixWorld();
     m.geometry.computeBoundingBox();
     const Cc=m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld).getCenter(new THREE.Vector3());
     m.quaternion.premultiply(q);
     m.position.sub(Cc).applyQuaternion(q).add(Cc);
     computeIntersections();applySec();_silhFrame=-1;updateLasers();updateGizmo();
+    pushPieceXform(m,p0,q0,m.name+' giro '+v+'°');
     e.target.value=''; toast('pieza giro '+v+'° · eje '+ax2.toUpperCase()); return;}
   if(selected&&selected.kind==='laser'){ // girar LÁSER sobre sí mismo
     const L=selected.ref;
@@ -2957,6 +3022,16 @@ function ringAngle(C,u){
   const B2=new THREE.Vector3().crossVectors(u,B1).normalize();
   const v=P.sub(C);
   return Math.atan2(v.dot(B2),v.dot(B1));
+}
+// deshacer/rehacer de una TRANSFORMACIÓN de pieza (mover o girar): restaura
+// posición + orientación y recalcula intersecciones/secciones/láseres
+function pushPieceXform(m,p0,q0,label){
+  const p1=m.position.clone(), q1=m.quaternion.clone();
+  if(p0.equals(p1)&&q0.equals(q1))return;
+  const rec=()=>{computeIntersections();applySec();_silhFrame=-1;updateLasers();if(selected&&selected.ref===m)updateGizmo();};
+  pushUndo(label||('mover '+m.name),
+    ()=>{m.position.copy(p0);m.quaternion.copy(q0);rec();},
+    ()=>{m.position.copy(p1);m.quaternion.copy(q1);rec();});
 }
 function startGizDrag(g){
   const t=gizTarget(); if(!t)return;
@@ -5424,6 +5499,16 @@ function buildLaserMag(u){
     cand.push({c:0,mesh:null});
   return cand;
 }
+// imán del PLANO DE DIBUJO/SECCIÓN al moverse en su normal u: caras y extents
+// (como el láser) MÁS los puntos OSNAP (medio · centro · cuadrante · extremo ·
+// intersección) proyectados sobre u, para que el plano pase exactamente por ellos
+function buildPlaneMag(u){
+  const cand=buildLaserMag(u);
+  try{const pts=buildSnapPts(null,false);
+    for(const g of pts){const c=g.p[0]*u.x+g.p[1]*u.y+g.p[2]*u.z; cand.push({c,mesh:null,kind:g.kind,p:g.p});}
+  }catch(_){}
+  return cand;
+}
 function addLaser(silent){
   const g=new THREE.Group();
   const cubeMat=new THREE.MeshStandardMaterial({color:0x8e939a,metalness:.3,roughness:.55,transparent:true});   // cuerpo GRIS
@@ -5586,12 +5671,13 @@ document.getElementById('lwDn').onclick=()=>setLineW(lineW-0.05);
 // GROSOR VISUAL (aristas, px en pantalla): control global, afecta a TODAS las líneas finas
 function setEdgePx(v){edgePx=Math.max(0.5,Math.min(6,Math.round(v*4)/4));
   const n=document.getElementById('edgeNum'); if(n)n.value=edgePx.toFixed(2);
+  for(const m of _pieceEdgeMats)m.uniforms.uPx.value=edgePx;   // aristas de piezas: en TIEMPO REAL
   strokes.forEach(s=>s._dirty=true); redraw();}
 document.getElementById('edgeUp').onclick=()=>setEdgePx(edgePx+0.25);
 document.getElementById('edgeDn').onclick=()=>setEdgePx(edgePx-0.25);
 (function(){const en=document.getElementById('edgeNum');
   en.addEventListener('input',e=>{const v=parseFloat(String(e.target.value).replace(',','.'));
-    if(isFinite(v)){edgePx=Math.max(0.5,Math.min(6,v)); strokes.forEach(s=>s._dirty=true); redraw();}});
+    if(isFinite(v)){edgePx=Math.max(0.5,Math.min(6,v)); for(const m of _pieceEdgeMats)m.uniforms.uPx.value=edgePx; strokes.forEach(s=>s._dirty=true); redraw();}});
   en.addEventListener('change',()=>setEdgePx(edgePx));})();
 axSnap.onchange=e=>{axisSnap=e.target.checked;};
 document.getElementById('meshChk').onchange=e=>{meshOverlay=e.target.checked;};
@@ -5666,7 +5752,7 @@ computeIntersections,snapPt,midByArc,get lineW(){return lineW},
 get faceRef(){return faceRef},get frame(){return {on:frameOn,Rface}},get pickables(){return pickables},
 datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes},
 updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},
-get edgePx(){return edgePx},fatLine,get HAIRLINE(){return HAIRLINE},
+get edgePx(){return edgePx},setEdgePx,fatLine,buildPlaneMag,get HAIRLINE(){return HAIRLINE},
 filletStart,filletStop,filletApplyAll,computeFilletCorners,applyFilletCorner,filletArc,setFilletR,get filletR(){return filletR},get filletMarkers(){return filletMarkers},
 uniteStrokes,decomposeStroke,faceGroupsOf,decomposePieceFaces,get selSet(){return selSet},set selSet(v){selSet=v},setLaserBlack,
 updatePaperSecs,cutPiecesWithPlane,alignToSection,laserSnap,
@@ -5833,11 +5919,11 @@ addEventListener('orientationchange',()=>setTimeout(fitSize,300));
 let _silhFrame=-1;
 function updateSilh(){
   if(!edgesWanted()){for(const n in pieces){const sd=pieces[n].userData.silh;
-    if(sd){sd.line.visible=false;sd.lineHid.visible=false;}} return;}
+    if(sd){sd.line.visible=false;sd.lineHid.visible=false; if(sd.fat)sd.fat.mesh.visible=false;}} return;}
   if(_silhFrame===camFrame)return; _silhFrame=camFrame;
   for(const n in pieces){const mch=pieces[n],sd=mch.userData.silh;
     if(!sd)continue;
-    if(!mch.visible){sd.line.visible=false;sd.lineHid.visible=false;continue;}
+    if(!mch.visible){sd.line.visible=false;sd.lineHid.visible=false; if(sd.fat)sd.fat.mesh.visible=false; continue;}
     // camara en coordenadas LOCALES de la pieza (la pieza puede estar transformada)
     mch.updateMatrixWorld();
     const camL=cam.position.clone().applyMatrix4(new THREE.Matrix4().copy(mch.matrixWorld).invert());
@@ -5858,7 +5944,10 @@ function updateSilh(){
     }
     sd.geo.setDrawRange(0,c*2); sd.geo.attributes.position.needsUpdate=true;
     sd.geo.attributes.lineDistance.needsUpdate=true;
-    sd.line.visible=true;
+    // SILUETA GRUESA (responde a edgePx); la fina se oculta y hace de fuente de datos
+    if(sd.fat){sd.fat.setSegments(sd.pos,c); sd.fat.mat.uniforms.uColor.value.copy(sd.line.material.color);
+      sd.fat.mesh.visible=true; sd.line.visible=false;}
+    else sd.line.visible=true;
     sd.lineHid.visible=(viewMode==='oculto');
   }
 }
@@ -6028,10 +6117,13 @@ try{const iv=localStorage.getItem('tectosInv')==='1';
 applyMode();   // asegura la configuración del poché (stencil) tras crear las mallas stencil
 
 (function loop(){requestAnimationFrame(loop);checkHold();
-  for(const n in pieces){const ud=pieces[n].userData;
-    if(ud&&ud.edges)ud.edges.visible=pieces[n].visible&&edgesWanted();
-    if(ud&&ud.edgesHid)ud.edgesHid.visible=pieces[n].visible&&viewMode==='oculto';
-    if(ud&&ud.wire)ud.wire.visible=pieces[n].visible&&meshOverlay;}
+  for(const n in pieces){const P=pieces[n];
+    const ew=P.visible&&edgesWanted();
+    if(P.userData.edgesFat){P.userData.edgesFat.mesh.visible=ew;   // aristas de característica GRUESAS
+      P.userData.edgesFat.mat.uniforms.uColor.value.copy(P.userData.edges.material.color);}
+    if(P.userData.edges)P.userData.edges.visible=false;            // la fina cede su sitio a la gruesa
+    if(P.userData.edgesHid)P.userData.edgesHid.visible=P.visible&&viewMode==='oculto';
+    if(P.userData.wire)P.userData.wire.visible=P.visible&&meshOverlay;}
   interPairs.forEach(ip=>{
     const on=interOn&&pieces[ip.a]&&pieces[ip.a].visible&&pieces[ip.b]&&pieces[ip.b].visible;
     ip.l1.visible=on; ip.l2.visible=on;});

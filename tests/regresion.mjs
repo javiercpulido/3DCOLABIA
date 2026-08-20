@@ -838,6 +838,49 @@ const secciones = {
     await page.evaluate(() => { const D = window._dbg; D.cancelShapeDraw(); });
   },
 
+  async pieza_undo_iman_grosor() {   // deshacer de giro/mov. de pieza · imán del plano · grosor de aristas en vivo
+    const r = await page.evaluate(async () => {
+      const D = window._dbg, T3 = window.THREE, out = {};
+      const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 15)));
+      // 1) DESHACER de un GIRO de pieza revierte el giro, NO la última línea
+      D.strokes.push({ points: [[0, 0, 0], [12, 0, 0]], color: '#000', w: 0.2, sobre: 't' }); D.redraw();
+      const nStrokes = D.strokes.length;
+      const m = D.pieces['2 cuello'], q0 = m.quaternion.clone(), p0 = m.position.clone();
+      D.select('pieza', m, m.name);
+      document.querySelector('.mvax[data-ax="y"]').click();
+      const rot = document.getElementById('selRot'); rot.value = '30'; rot.dispatchEvent(new Event('change'));
+      out.giro = !m.quaternion.equals(q0);
+      document.getElementById('undo').click(); await frame();
+      out.deshaceGiro = m.quaternion.equals(q0) && D.strokes.length === nStrokes;   // revierte el giro, conserva la línea
+      document.getElementById('redo').click(); await frame();
+      out.rehaceGiro = !m.quaternion.equals(q0);
+      document.getElementById('undo').click(); await frame();
+      // 2) DESHACER de un DESPLAZAMIENTO de pieza
+      const selM = document.getElementById('selMove'); document.querySelector('.mvax[data-ax="z"]').click();
+      selM.value = '15'; selM.dispatchEvent(new Event('change')); await frame();
+      out.mueve = !m.position.equals(p0);
+      document.getElementById('undo').click(); await frame();
+      out.deshaceMov = m.position.equals(p0) && D.strokes.length === nStrokes;
+      D.deselect();
+      // 3) IMÁN del plano de dibujo: buildPlaneMag da caras/extents Y puntos OSNAP
+      const cand = D.buildPlaneMag(new T3.Vector3(0, 0, 1));
+      out.magCaras = cand.some(c => c.mesh);
+      out.magPuntos = cand.some(c => c.p && c.kind);   // medio/centro/cuadrante/extremo proyectados
+      // 4) GROSOR VISUAL de aristas: afecta el uniform de las aristas gruesas de las piezas EN VIVO
+      const fe = D.pieces['2 cuello'].userData.edgesFat, sf = D.pieces['2 cuello'].userData.silh.fat;
+      out.hayFat = !!fe && !!sf;
+      const px0 = fe.mat.uniforms.uPx.value;
+      D.setEdgePx(4.5);
+      out.edgeLive = fe.mat.uniforms.uPx.value === 4.5 && sf.mat.uniforms.uPx.value === 4.5 && px0 !== 4.5;
+      D.setEdgePx(1.6);
+      return out;
+    });
+    ok('pieza: deshacer/rehacer de un GIRO revierte el giro (no la última línea)', r.giro && r.deshaceGiro && r.rehaceGiro);
+    ok('pieza: deshacer de un DESPLAZAMIENTO revierte el movimiento', r.mueve && r.deshaceMov);
+    ok('plano de dibujo: imán con caras/aristas y puntos OSNAP (como el láser)', r.magCaras && r.magPuntos);
+    ok('grosor visual de aristas: afecta a las aristas de las piezas en tiempo real', r.hayFat && r.edgeLive);
+  },
+
   async rect_descomponer() {   // Rectángulo de toque · Descomponer forma→líneas y pieza→caras
     const pen = async (type, x, y) => page.evaluate(([t, px, py]) => {
       document.querySelector('canvas').dispatchEvent(new PointerEvent(t,
