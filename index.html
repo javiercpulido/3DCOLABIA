@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.62 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.63 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -4957,9 +4957,43 @@ function computeFilletCorners(){
         out.push({st,j,anchors:anchors.slice(),ai,V:_fv(P[j]),A:_fv(P[anchors[ai-1]]),B:_fv(P[anchors[ai+1]])});}
     }
   }
+  // EXTREMOS QUE COINCIDEN: dos líneas/trazos (o los dos extremos de uno abierto)
+  // cuyos extremos se tocan forman una esquina redondeable AUNQUE no estén unidas
+  const tol=Math.max(1.2,sph.r*0.02);
+  const ends=[];
+  for(const st of strokes){
+    const P=st.points; if(!P||P.length<2)continue;
+    if(st.cont&&st.joints&&st.joints.length)continue;                 // ya cubierto arriba
+    if(st.reg&&(st.reg.tipo==='circulo'||st.reg.tipo==='elipse'))continue;   // sin extremos
+    if(st.poly&&st.closed)continue;
+    const closed=Math.hypot(P[0][0]-P[P.length-1][0],P[0][1]-P[P.length-1][1],P[0][2]-P[P.length-1][2])<tol;
+    if(closed)continue;
+    ends.push({st,e:0,V:_fv(P[0]),nb:_fv(P[1])});
+    ends.push({st,e:P.length-1,V:_fv(P[P.length-1]),nb:_fv(P[P.length-2])});
+  }
+  const usedPair=new Set();
+  for(let i=0;i<ends.length;i++)for(let j=i+1;j<ends.length;j++){
+    if(ends[i].st===ends[j].st)continue;                             // dos extremos del MISMO abierto: es el cierre, no una esquina
+    if(ends[i].V.distanceTo(ends[j].V)>tol)continue;
+    const key=[strokes.indexOf(ends[i].st),ends[i].e,strokes.indexOf(ends[j].st),ends[j].e].sort().join('_');
+    if(usedPair.has(key))continue; usedPair.add(key);
+    const V=ends[i].V.clone().add(ends[j].V).multiplyScalar(0.5);
+    out.push({cross:true,st1:ends[i].st,e1:ends[i].e,st2:ends[j].st,e2:ends[j].e,
+      V,A:ends[i].nb.clone(),B:ends[j].nb.clone()});
+  }
   return out;
 }
 function applyFilletCorner(c,r){
+  if(c.cross){   // esquina entre DOS trazos con extremos coincidentes → recorta ambos e inserta el arco, uniéndolos
+    const g=filletArc(c.V,c.A,c.B,r); if(!g||g.tooBig)return false;
+    const armTo=(st,e,T)=>{const P=st.points; return (e===0)?P.slice(1).reverse().concat([T.toArray()]):P.slice(0,P.length-1).concat([T.toArray()]);};
+    const armFrom=(st,e,T)=>{const P=st.points; return (e===0)?[T.toArray()].concat(P.slice(1)):[T.toArray()].concat(P.slice(0,P.length-1).reverse());};
+    const a1=armTo(c.st1,c.e1,g.T1), arc=g.arc.map(v=>v.toArray()), a2=armFrom(c.st2,c.e2,g.T2);
+    const united=a1.concat(arc.slice(1)).concat(a2.slice(1));
+    const ns={points:united,color:c.st1.color,w:(c.st1.w!=null?c.st1.w:0.2),sobre:c.st1.sobre||'aire'};
+    strokes=strokes.filter(s=>s!==c.st1&&s!==c.st2); strokes.push(ns);
+    return true;
+  }
   const g=filletArc(c.V,c.A,c.B,r); if(!g||g.tooBig)return false;
   const st=c.st,P=st.points,prevA=c.anchors[c.ai-1],nextA=c.anchors[c.ai+1];
   const arcArr=g.arc.map(v=>v.toArray());
@@ -5001,7 +5035,7 @@ function refreshFillet(){
   filletCorners=computeFilletCorners();
   const st=document.querySelector('#filletpop [data-fi-status]');
   const viable=filletCorners.filter(c=>{const g=filletArc(c.V,c.A,c.B,filletR);return g&&!g.tooBig;}).length;
-  if(st)st.textContent=filletCorners.length?(viable+' de '+filletCorners.length+' esquina'+(filletCorners.length>1?'s':'')+' viable'+(viable>1?'s':'')+' · toca la ✓'):'No hay esquinas de líneas unidas (⛓)';
+  if(st)st.textContent=filletCorners.length?(viable+' de '+filletCorners.length+' esquina'+(filletCorners.length>1?'s':'')+' viable'+(viable>1?'s':'')+' · toca la ✓'):'No hay esquinas: une líneas (⛓) o haz que sus extremos coincidan';
   drawFilletGhosts();
 }
 function filletStart(){
@@ -5027,27 +5061,29 @@ function filletTapMarker(e){
     const sx=(v.x*0.5+0.5)*rct.width, sy=(-v.y*0.5+0.5)*rct.height;
     const d2=(sx-px)**2+(sy-py)**2; if(d2<bd){bd=d2;best=sp;}}
   if(!best){toast('⌒ Toca una ✓ verde (esquina viable)');return true;}
-  const c=best.userData.corner, before=c.st.points.slice(), beforeJ=(c.st.joints||[]).slice(), stRef=c.st;
+  const c=best.userData.corner;
+  const prev=strokes.slice(), prevD=strokes.map(s=>({s,p:s.points.slice(),j:(s.joints||[]).slice()}));
   if(applyFilletCorner(c,filletR)){
-    const after=c.st.points.slice(), afterJ=(c.st.joints||[]).slice();
-    pushUndo('redondear esquina',()=>{stRef.points=before.slice();stRef.joints=beforeJ.slice();stRef._dirty=true;refreshFillet();},
-      ()=>{stRef.points=after.slice();stRef.joints=afterJ.slice();stRef._dirty=true;refreshFillet();});
+    const after=strokes.slice(), afterD=strokes.map(s=>({s,p:s.points.slice(),j:(s.joints||[]).slice()}));
+    pushUndo('redondear esquina',
+      ()=>{strokes=prev.slice(); prevD.forEach(x=>{x.s.points=x.p.slice();x.s.joints=x.j.slice();x.s._dirty=true;}); if(selected&&!strokes.includes(selected.ref))deselect(); refreshFillet();},
+      ()=>{strokes=after.slice(); afterD.forEach(x=>{x.s.points=x.p.slice();x.s.joints=x.j.slice();x.s._dirty=true;}); refreshFillet();});
     redraw(); refreshFillet(); toast('⌒ Esquina redondeada (r='+filletR+' mm)');
   } else toast('⌒ El radio no cabe en esa esquina');
   return true;
 }
 function filletApplyAll(){
   if(fillet3d){confirmFilletEdge();return;}         // con una arista 3D seleccionada, el botón la confirma
-  let done=0, snapStrokes=strokes.map(s=>({s,p:s.points.slice(),j:(s.joints||[]).slice()}));
+  let done=0, prev=strokes.slice(), prevD=strokes.map(s=>({s,p:s.points.slice(),j:(s.joints||[]).slice()}));
   for(let guard=0;guard<200;guard++){
     const cs=computeFilletCorners().filter(c=>{const g=filletArc(c.V,c.A,c.B,filletR);return g&&!g.tooBig;});
     if(!cs.length)break; if(applyFilletCorner(cs[0],filletR))done++; else break;
   }
   if(done){
-    const after=strokes.map(s=>({s,p:s.points.slice(),j:(s.joints||[]).slice()}));
+    const after=strokes.slice(), afterD=strokes.map(s=>({s,p:s.points.slice(),j:(s.joints||[]).slice()}));
     pushUndo('redondear '+done+' esquinas',
-      ()=>{snapStrokes.forEach(x=>{x.s.points=x.p.slice();x.s.joints=x.j.slice();x.s._dirty=true;});refreshFillet();},
-      ()=>{after.forEach(x=>{x.s.points=x.p.slice();x.s.joints=x.j.slice();x.s._dirty=true;});refreshFillet();});
+      ()=>{strokes=prev.slice(); prevD.forEach(x=>{x.s.points=x.p.slice();x.s.joints=x.j.slice();x.s._dirty=true;}); if(selected&&!strokes.includes(selected.ref))deselect(); refreshFillet();},
+      ()=>{strokes=after.slice(); afterD.forEach(x=>{x.s.points=x.p.slice();x.s.joints=x.j.slice();x.s._dirty=true;});refreshFillet();});
     redraw(); refreshFillet(); toast('⌒ '+done+' esquina'+(done>1?'s':'')+' redondeada'+(done>1?'s':'')+' (r='+filletR+' mm)');
   } else toast('⌒ Ninguna esquina viable con r='+filletR+' mm');
 }
@@ -5257,8 +5293,10 @@ function surfPopCreate(){
 function strokeClosed(st){
   const pts=st.points; if(!pts||pts.length<3)return false;
   if(st.poly&&st.closed)return true;
+  if(st.reg&&(st.reg.tipo==='circulo'||st.reg.tipo==='elipse'))return true;   // formas sin extremos
+  // tolerancia más generosa: un contorno de calco/continuo casi cerrado cuenta como cerrado
   return Math.hypot(pts[0][0]-pts[pts.length-1][0],pts[0][1]-pts[pts.length-1][1],
-    pts[0][2]-pts[pts.length-1][2])<Math.max(1,sph.r*0.02);
+    pts[0][2]-pts[pts.length-1][2])<Math.max(2.5,sph.r*0.045);
 }
 function surfToolFinish(S){
   pushUndo('superficie '+S.name,()=>removeSurface(S,true),

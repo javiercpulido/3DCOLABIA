@@ -1030,6 +1030,38 @@ const secciones = {
     ok('fillet: deshacer y rehacer', r.undo && r.redo && r.cierra);
   },
 
+  async fillet_extremos() {   // REDONDEAR sobre EXTREMOS COINCIDENTES (líneas no unidas)
+    const r = await page.evaluate(async () => {
+      const D = window._dbg, T3 = window.THREE, out = {};
+      const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 15)));
+      // dos líneas SUELTAS que comparten el extremo (40,0,0) en ángulo recto — NO unidas
+      const l1 = { points: [[0, 0, 0], [40, 0, 0]], color: '#111', w: 0.2, sobre: 't' };
+      const l2 = { points: [[40, 0, 0], [40, 40, 0]], color: '#111', w: 0.2, sobre: 't' };
+      D.strokes.push(l1); D.strokes.push(l2); D.redraw();
+      const corners = D.computeFilletCorners();
+      const cc = corners.find(c => c.cross);
+      out.detecta = !!cc && Math.abs(cc.V.x - 40) < 0.01 && Math.abs(cc.V.y) < 0.01;   // esquina en el extremo común
+      // aplicar: 2 líneas → 1 forma unida con arco tangente (T1=(32,0), T2=(40,8) a r=8)
+      const n0 = D.strokes.length;
+      D.setFilletR(8);
+      const prev = D.strokes.length;
+      out.aplica = D.applyFilletCorner(cc, 8) && D.strokes.length === prev - 1;
+      const ns = D.strokes[D.strokes.length - 1];
+      const near = (x, y) => ns.points.some(q => Math.hypot(q[0] - x, q[1] - y) < 1.2);
+      out.tangente = near(32, 0) && near(40, 8) && ns.points.length > 10;
+      // sin esquina viva: el ángulo mínimo interior es suave
+      const ang = i => { const a = new T3.Vector3(...ns.points[i - 1]).sub(new T3.Vector3(...ns.points[i]));
+        const b = new T3.Vector3(...ns.points[i + 1]).sub(new T3.Vector3(...ns.points[i]));
+        return Math.acos(Math.max(-1, Math.min(1, a.normalize().dot(b.normalize())))) * 180 / Math.PI; };
+      let mn = 180; for (let i = 1; i + 1 < ns.points.length; i++) mn = Math.min(mn, ang(i));
+      out.suave = mn > 140;
+      return out;
+    });
+    ok('fillet-extremos: detecta esquina entre dos líneas cuyos extremos coinciden', r.detecta);
+    ok('fillet-extremos: las une con arco tangente exacto (una sola forma)', r.aplica && r.tangente);
+    ok('fillet-extremos: la unión queda suave (sin esquina viva)', r.suave);
+  },
+
   async fillet3d() {   // REDONDEAR ARISTAS 3D: media caña / bisel tangente a las dos caras (no destructivo)
     const r = await page.evaluate(async () => {
       const D = window._dbg, T3 = window.THREE, out = {};
