@@ -252,7 +252,7 @@ const secciones = {
   async superficies() {
     const r = await page.evaluate(() => {
       const D = window._dbg, out = {};
-      out.menu = document.querySelectorAll('#surfmenu [data-sm]').length === 14;   // 10 superficies + 3 booleanas (unir/restar/intersecar)
+      out.menu = document.querySelectorAll('#surfmenu [data-sm]').length === 15;   // 12 superficies + 3 booleanas (unir/restar/intersecar)
       const ring = []; for (let i = 0; i < 32; i++) { const a = 2 * Math.PI * i / 32; ring.push([30 + 12 * Math.cos(a), 75 + 12 * Math.sin(a), 0]); }
       ring.push(ring[0].slice());
       const inner = []; for (let i = 0; i <= 16; i++) { const t = i / 16; inner.push([18 + 24 * t, 75, 6 * Math.sin(Math.PI * t)]); }
@@ -293,7 +293,7 @@ const secciones = {
       out.lockBorra = D.surfaces.length === nAntes; S0.locked = false;
       return out;
     });
-    ok('submenú de superficies con 11 modos + 3 booleanas', r.menu);
+    ok('submenú de superficies con 12 modos + 3 booleanas', r.menu);
     ok('los 9 constructores crean superficie y exportan su tipo', r.n === 9 && r.kinds);
     ok('cara con línea interior respeta la cresta', r.crest);
     ok('membrana armónica clavada a la curva interior (0 mm)', r.clavada);
@@ -346,6 +346,70 @@ const secciones = {
     });
     ok('barrido morphing: crea la piel y la sección MORFEA (8→2) orientada al camino', rb.creada && rb.morfea);
     ok('barrido morphing: se guarda y recupera (kind blend)', rb.serial);
+    // BARRIDO MORPHING con CARA de pieza como perfil (tapa del cilindro)
+    const rf = await page.evaluate(() => {
+      const D = window._dbg, T3 = window.THREE, out = {};
+      // toma el contorno de una cara de una pieza vía pickFaceLoopAt (proyectando su centroide)
+      const m = D.pieces['4 palanca']; m.updateMatrixWorld();
+      const groups = D.faceGroupsOf(m), g = m.geometry, idx = g.index, pos = g.attributes.position, M = m.matrixWorld;
+      const capLoop = (gi) => {
+        const tris = groups[gi], c = new T3.Vector3(), v = new T3.Vector3(); let cnt = 0;
+        for (const t of tris) for (let k = 0; k < 3; k++) { v.fromBufferAttribute(pos, idx.getX(t * 3 + k)).applyMatrix4(M); c.add(v); cnt++; }
+        c.multiplyScalar(1 / cnt);
+        const q = c.clone().project(D.cam), rct = { left: 0, top: 0, width: D.W, height: D.H };
+        const canvas = document.querySelector('canvas'), orig = canvas.getBoundingClientRect.bind(canvas);
+        canvas.getBoundingClientRect = () => rct;
+        const loop = D.pickFaceLoopAt({ clientX: (q.x * 0.5 + 0.5) * D.W, clientY: (-q.y * 0.5 + 0.5) * D.H });
+        canvas.getBoundingClientRect = orig; return loop;
+      };
+      const A = capLoop(1), B = capLoop(2);
+      out.loops = !!(A && B && A.points.length > 3 && B.points.length > 3 && A._fromFace);
+      if (out.loops) {
+        const c0 = A.points.reduce((s, p) => [s[0] + p[0], s[1] + p[1], s[2] + p[2]], [0, 0, 0]).map(x => x / A.points.length);
+        const c1 = B.points.reduce((s, p) => [s[0] + p[0], s[1] + p[1], s[2] + p[2]], [0, 0, 0]).map(x => x / B.points.length);
+        const dir = [c0, [(c0[0]+c1[0])/2,(c0[1]+c1[1])/2,(c0[2]+c1[2])/2], c1];
+        const nS = D.surfaces.length;
+        const S = D.buildBlendSweepFromPts(A.points, B.points, dir, 0x0a84ff, 'blend-cara');
+        out.creada = !!S && D.surfaces.length === nS + 1 && S.mesh.geometry.attributes.position.count > 0;
+        D.removeSurface(S, true);
+      }
+      return out;
+    });
+    ok('barrido morphing: acepta CARA de pieza (tapa) como perfil', rf.loops && rf.creada);
+    // TERRENO por curvas de nivel: rejilla regular que pasa por las isohipsas
+    const rt = await page.evaluate(() => {
+      const D = window._dbg, out = {};
+      // contorno cuadrado grande (plano z base) + 3 curvas de nivel a alturas 4, 8, 4
+      const S = 40, y0 = 140;
+      const box = [[-S,y0-S,0],[S,y0-S,0],[S,y0+S,0],[-S,y0+S,0],[-S,y0-S,0]];
+      const lv = []; // 3 curvas de nivel horizontales a distinta altura
+      const mk = (yy, hh) => { const a = []; for (let i = 0; i <= 20; i++) { const t = i/20; a.push([-S*0.7 + 2*S*0.7*t, yy, hh]); } return a; };
+      lv.push(mk(y0-14, 4)); lv.push(mk(y0, 9)); lv.push(mk(y0+14, 4));
+      const nS = D.surfaces.length;
+      const T = D.buildTerrainFromContour(box, lv, 0x2ca24c, 'terreno');
+      out.creada = !!T && D.surfaces.length === nS + 1;
+      if (!out.creada) return out;
+      const pos = T.mesh.geometry.attributes.position;
+      out.kind = T.kind === 'terrain';
+      // sano (sin NaN) y sin picos disparados: alturas dentro de un rango razonable
+      let finite = true, zmax = -Infinity, zmin = Infinity;
+      for (let i = 0; i < pos.count; i++) { const z = pos.getZ(i);
+        if (!isFinite(pos.getX(i)) || !isFinite(pos.getY(i)) || !isFinite(z)) finite = false;
+        zmax = Math.max(zmax, z); zmin = Math.min(zmin, z); }
+      out.sano = finite && zmax < 12 && zmin > -3;   // no dispara por encima de la cresta (9)
+      // pasa por la cresta central (altura ~9 cerca de y0)
+      let crest = 0; for (let i = 0; i < pos.count; i++)
+        if (Math.abs(pos.getY(i) - y0) < 4 && Math.abs(pos.getX(i)) < 8) crest = Math.max(crest, pos.getZ(i));
+      out.cresta = crest > 7;
+      // serial: se exporta y recupera con kind terrain
+      const sd = D.buildExport().superficies.find(s => s.kind === 'terrain');
+      out.serial = !!sd && !!sd.pts && !!sd.inner;
+      D.removeSurface(T, true);
+      return out;
+    });
+    ok('terreno por curvas de nivel: crea rejilla sana (sin NaN ni picos)', rt.creada && rt.kind && rt.sano);
+    ok('terreno: la superficie pasa por la cresta de nivel más alta', rt.cresta);
+    ok('terreno: se guarda y recupera (kind terrain)', rt.serial);
     ok('tinta oscura → superficie clara · color elegido se respeta', r.tinta);
     ok('fila tipo pieza (ojo·candado·papelera) y candado bloquea borrar', r.fila && r.lockBorra);
   },
