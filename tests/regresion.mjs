@@ -724,8 +724,8 @@ const secciones = {
       out.menuTrazo = document.querySelectorAll('#drawmenu [data-dm]').length === 4 &&
         !document.querySelector('#drawmenu [data-dm="line"]') && !document.querySelector('#drawmenu [data-dm="poly"]') &&
         !document.getElementById('dmLock') && !document.getElementById('dmJoin');
-      // el menú de FORMA tiene recta, arco, circunferencia, elipse y poli
-      out.menuForma = document.querySelectorAll('#shapemenu [data-fm]').length === 5;
+      // el menú de FORMA tiene recta, arco, circunferencia, elipse, rectángulo y poli
+      out.menuForma = document.querySelectorAll('#shapemenu [data-fm]').length === 6;
       // botón Forma: entra en dibujo con la última forma (recta por defecto) y se ilumina él, no Trazo
       document.getElementById('mShape').click(); await frame();
       out.entraForma = D.mode === 'draw' && D.drawMode === 'line' &&
@@ -836,6 +836,61 @@ const secciones = {
     r = await page.evaluate(n => window._dbg.strokes.length === n, nA);
     ok('formas exactas: deshacer retira la última forma', r);
     await page.evaluate(() => { const D = window._dbg; D.cancelShapeDraw(); });
+  },
+
+  async rect_descomponer() {   // Rectángulo de toque · Descomponer forma→líneas y pieza→caras
+    const pen = async (type, x, y) => page.evaluate(([t, px, py]) => {
+      document.querySelector('canvas').dispatchEvent(new PointerEvent(t,
+        { pointerId: 7, pointerType: 'pen', isPrimary: true, button: t === 'pointermove' ? -1 : 0, clientX: px, clientY: py, bubbles: true }));
+    }, [type, x, y]);
+    const dragPen = async (x0, y0, x1, y1) => {
+      await pen('pointerdown', x0, y0); await page.waitForTimeout(40);
+      await pen('pointermove', (x0 + x1) / 2, (y0 + y1) / 2); await page.waitForTimeout(30);
+      await pen('pointermove', x1, y1); await page.waitForTimeout(30);
+      await pen('pointerup', x1, y1); await page.waitForTimeout(80);
+    };
+    // RECTÁNGULO: esquina→esquina opuesta en aire
+    await page.evaluate(() => { document.getElementById('mShape').click();
+      document.querySelector('#shapemenu [data-fm="rect"]').click(); });
+    const n0 = await page.evaluate(() => window._dbg.strokes.length);
+    await dragPen(200, 640, 360, 720);
+    let r = await page.evaluate(n => {
+      const D = window._dbg, st = D.strokes[D.strokes.length - 1], P = st.points;
+      return { creado: D.strokes.length === n + 1 && P.length === 5,
+        cerrado: Math.hypot(P[0][0] - P[4][0], P[0][1] - P[4][1], P[0][2] - P[4][2]) < 0.01,
+        angRecto: (() => {   // 4 esquinas ~90°: dos lados contiguos perpendiculares
+          const v = i => [P[i + 1][0] - P[i][0], P[i + 1][1] - P[i][1], P[i + 1][2] - P[i][2]];
+          const dot = (p, q) => p[0]*q[0] + p[1]*q[1] + p[2]*q[2], len = p => Math.hypot(...p);
+          const s0 = v(0), s1 = v(1); return Math.abs(dot(s0, s1)) / (len(s0) * len(s1)) < 0.05; })(),
+        sel: D.selected && D.selected.ref === st };
+    }, n0);
+    ok('rectángulo de toque: contorno cerrado de 4 lados perpendiculares, auto-seleccionado', r.creado && r.cerrado && r.angRecto && r.sel);
+    // DESCOMPONER la forma → 4 líneas independientes
+    const before = await page.evaluate(() => window._dbg.strokes.length);
+    await page.evaluate(() => document.getElementById('selDecomp').click());
+    r = await page.evaluate(b => {
+      const D = window._dbg;
+      return { cuatro: D.strokes.length === b + 3,   // 1 rectángulo → 4 líneas (=+3)
+        sueltas: D.strokes.slice(-4).every(s => s.points.length === 2) };
+    }, before);
+    ok('descomponer forma: el rectángulo se separa en 4 líneas sueltas', r.cuatro && r.sueltas);
+    // DESCOMPONER PIEZA → caras (superficies)
+    r = await page.evaluate(async () => {
+      const D = window._dbg, m = D.pieces['2 cuello'], out = {};
+      const gr = D.faceGroupsOf(m); out.grupos = gr && gr.length >= 3;   // pared + 2 tapas
+      const nS = D.surfaces.length;
+      D.select('pieza', m, m.name);
+      const btn = document.getElementById('selDecomp');
+      out.visible = document.getElementById('decompOps').style.display !== 'none';   // el botón aparece con pieza
+      btn.click();
+      out.caras = D.surfaces.length === nS + gr.length && !m.visible &&
+        D.surfaces.slice(-gr.length).every(S => S.kind === 'cara');
+      document.getElementById('undo').click();
+      out.deshace = D.surfaces.length === nS && m.visible === true;
+      return out;
+    });
+    ok('pieza: el botón Descomponer aparece con una pieza seleccionada', r.visible);
+    ok('descomponer pieza: sólido → caras (superficies), pieza oculta; deshacer restaura', r.grupos && r.caras && r.deshace);
   },
 
   async fillet() {   // REDONDEAR: arco tangente de radio r en esquinas de líneas unidas

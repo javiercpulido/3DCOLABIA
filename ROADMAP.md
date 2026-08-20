@@ -95,5 +95,22 @@ tiradores ya existentes (centro/radio · p0/pm/p1) y glifos OSNAP automáticos
 (centro ⊙ + cuadrantes ◇). El gesto «mantén ≈1 s» se conserva en paralelo.
 Pendiente menor: tiradores de la elipse y casilla numérica para arco/elipse.
 
+**Rectángulo (v6.59) — hecho**: forma exacta de 2 esquinas en el menú Forma;
+arrastre esquina→esquina opuesta con imán (OSNAP, láser y aristas) en ambas
+esquinas; se crea como contorno cerrado (4 líneas) que **Descomponer** separa.
+Pendiente menor: tiradores por esquina y casilla ancho×alto.
+
+## Descomponer (v6.59) — hecho
+
+Botón **Descomponer** en la barra de selección, ahora para dos casos:
+- **Forma/trazo** con varias líneas → líneas **independientes** seleccionables
+  por separado (ya existía para trazos; el rectángulo encaja aquí).
+- **Pieza/sólido** → sus **caras** como superficies independientes en el panel
+  (agrupa triángulos por adyacencia + normales similares, ~25°: pared del
+  cilindro + tapas, etc.). No destructivo: la pieza se **oculta** y el deshacer
+  la restaura; las caras se guardan y recuperan en el proyecto.
+Pendiente: selección de superficies/caras por toque en 3D (hoy se gestionan en
+el panel de superficies: ver/ocultar, bloquear, borrar).
+
 **Fase C — pendiente**: converger a un lápiz inteligente único + «Formas
 exactas», sin quitar nada hasta que el unificado cubra el 100 %.

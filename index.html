@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.58 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.59 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -167,7 +167,9 @@
   <button id="selDup" title="Duplicar selección">⎘</button>
   <button id="selGrp" title="Agrupar / unir / desagrupar">🔗</button>
   <button id="selSplit" title="Partir la línea por un punto (sin separar las partes)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M3 12 H10 M14 12 H21"/><path d="M12 8 V16" stroke-dasharray="2 2.4"/></svg></button>
-  <button id="selDecomp" title="Descomponer: separar la forma en segmentos (cada recta y cada arco entre puntos de control)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8 H8"/><path d="M11 8 H16"/><path d="M19 8 Q21 12 19 16"/><path d="M3 16 H8"/><circle cx="9.5" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="9.5" cy="16" r="1" fill="currentColor" stroke="none"/></svg></button>
+ </span>
+ <span id="decompOps">
+  <button id="selDecomp" title="Descomponer: una forma con varias líneas → líneas independientes; una pieza/sólido → sus caras (superficies) por separado"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8 H8"/><path d="M11 8 H16"/><path d="M19 8 Q21 12 19 16"/><path d="M3 16 H8"/><circle cx="9.5" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="9.5" cy="16" r="1" fill="currentColor" stroke="none"/></svg></button>
  </span>
  <span id="xformOps">
   <button class="mvax" data-ax="x">X</button><button class="mvax" data-ax="y">Y</button><button class="mvax" data-ax="z">Z</button>
@@ -380,6 +382,7 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <button class="secTgl" data-fm="arc" title="Arco por 3 puntos: arrastra la CUERDA (inicio→fin, con ejes y OSNAP); después arrastra otra vez para CURVAR el arco — pasa por el lápiz — y suelta"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18 A 11 11 0 0 1 20 18"/><circle cx="4" cy="18" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="9.8" r="1.8" fill="currentColor" stroke="none"/><circle cx="20" cy="18" r="1.8" fill="currentColor" stroke="none"/></svg>Arco (3 puntos)</button>
  <button class="secTgl" data-fm="circle" title="Circunferencia: arrastra del CENTRO hacia fuera; radio en vivo con OSNAP · con el círculo seleccionado teclea el radio exacto"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M12 12 18 6" stroke-dasharray="2 1.6"/></svg>Circunferencia (centro+radio)</button>
  <button class="secTgl" data-fm="ellipse" title="Elipse: arrastra del CENTRO a una esquina; los semiejes siguen los ejes del plano"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="5.5"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>Elipse (centro+esquina)</button>
+ <button class="secTgl" data-fm="rect" title="Rectángulo: arrastra de una esquina a la opuesta; ambas esquinas responden al imán (OSNAP, láser y aristas). Se crea como 4 líneas (Descomponer las separa)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="6" width="17" height="12" rx="0.5"/><circle cx="3.5" cy="6" r="1.6" fill="currentColor" stroke="none"/><circle cx="20.5" cy="18" r="1.6" fill="currentColor" stroke="none"/></svg>Rectángulo (2 esquinas)</button>
  <button class="secTgl" data-fm="poly" title="Poli 3D: toques encadenados recta⟷arco⟷spline entre superficies, con puntos de control, cierre y edición por vértices (polilínea · poliarco · spline)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 4 8 12 4 12 12 a5 5 0 0 0 8 4"/><circle cx="4" cy="19" r="1.8" fill="currentColor" stroke="none"/><circle cx="4" cy="8" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="4" r="1.8" fill="currentColor" stroke="none"/><circle cx="20" cy="16" r="1.8" fill="currentColor" stroke="none"/></svg>Poli 3D (polilínea·arcos·spline)</button>
  <span style="color:var(--mut);font-size:10.5px;line-height:1.35">El gesto sigue vivo: dibuja a mano alzada y <b>mantén ≈1 s</b> al final — se convierte en la forma exacta.</span>
 </div>
@@ -905,7 +908,7 @@ let polyDraw=null, _joinCtx=null, laserDrag=null;   // POLI 3D en curso · popup
 let drawMode='geo';   // modo ACTIVO: 'geo'/'free'/'laser'/'note' (Trazo) · 'line'/'poly' (Forma)
 let trazoMode='geo';  // último modo elegido del botón TRAZO (mano alzada)
 let shapeMode='line'; // última FORMA exacta elegida (el botón Forma muta a su icono)
-const isShapeMode=m=>m==='line'||m==='poly'||m==='arc'||m==='circle'||m==='ellipse';
+const isShapeMode=m=>m==='line'||m==='poly'||m==='arc'||m==='circle'||m==='ellipse'||m==='rect';
 const PEN_ICONS={
   geo:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/><circle cx="18.5" cy="18.5" r="2.6"/></svg>',
   free:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
@@ -915,7 +918,8 @@ const PEN_ICONS={
   poly:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 4 8 12 4 12 12 a5 5 0 0 0 8 4"/><circle cx="4" cy="19" r="2" fill="currentColor" stroke="none"/><circle cx="4" cy="8" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="4" r="2" fill="currentColor" stroke="none"/><circle cx="20" cy="16" r="2" fill="currentColor" stroke="none"/></svg>',
   arc:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18 A 11 11 0 0 1 20 18"/><circle cx="4" cy="18" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="9.8" r="2" fill="currentColor" stroke="none"/><circle cx="20" cy="18" r="2" fill="currentColor" stroke="none"/></svg>',
   circle:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><path d="M12 12 18 6" stroke-dasharray="2 1.6"/></svg>',
-  ellipse:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="5.5"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>'};
+  ellipse:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="5.5"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>',
+  rect:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="6" width="17" height="12" rx="0.5"/><circle cx="3.5" cy="6" r="1.7" fill="currentColor" stroke="none"/><circle cx="20.5" cy="18" r="1.7" fill="currentColor" stroke="none"/></svg>'};
 function setPenIcon(){
   // cada botón muta al icono de SU última opción: Trazo (mano alzada) · Forma (exacta)
   const b=document.getElementById('mDraw'); if(b)b.innerHTML=PEN_ICONS[trazoMode];
@@ -978,7 +982,8 @@ document.getElementById('shapemenu').addEventListener('click',e=>{
     toast('Forma: '+({line:'recta · longitud en vivo, ejes y OSNAP',poly:'Poli 3D · polilínea, arcos y spline encadenados',
       arc:'arco · arrastra la CUERDA y suelta; luego arrastra para curvarlo',
       circle:'circunferencia · arrastra del CENTRO hacia fuera (radio en vivo)',
-      ellipse:'elipse · arrastra del CENTRO a una esquina'}[drawMode]));}});
+      ellipse:'elipse · arrastra del CENTRO a una esquina',
+      rect:'rectángulo · arrastra de una esquina a la opuesta (con imán)'}[drawMode]));}});
 let contJoin=false;   // «Continuo»: los trazos/formas que se tocan se funden en una sola forma
 document.getElementById('mCont').onclick=function(){
   const on=!(drawLock&&contJoin);   // un solo conmutador global: candado + unir en continuidad
@@ -1812,7 +1817,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
       const sq=snapQueryWorld(drawing.points[0],16);
       if(sq){drawing.points[0]=sq.p.slice(); drawing._startFix=sq.p.slice(); flashSnapFix(sq.p,sq.kind);}}
     if(drawMode==='line')drawing.straight=drawing.points[0].slice();   // recta: sólo inicio→fin
-    if(drawMode==='circle'||drawMode==='ellipse'||drawMode==='arc'){
+    if(drawMode==='circle'||drawMode==='ellipse'||drawMode==='arc'||drawMode==='rect'){
       // FORMA EXACTA de toque: marco del plano de la forma (papel → su plano;
       // cara tocada → plano tangente; si no, plano de la vista)
       const cen=new THREE.Vector3(...drawing.points[0]); let U,V;
@@ -2254,6 +2259,13 @@ addEventListener('pointermove',e=>{
         drawing.reg={c:C.clone(),U:sh.U,V:sh.V,tipo:'elipse',el:{mx:0,my:0,a,b:b2,ang:0}};
         drawing.points=genPoints(drawing.reg);
         showDrawTag(p,a.toFixed(1)+' × '+b2.toFixed(1)+' mm'+(badge?'  '+badge:''));
+      } else if(sh.kind==='rect'){   // RECTÁNGULO: esquina C → esquina opuesta (du,dw) en el plano
+        const c0=C.clone(), c1=C.clone().addScaledVector(sh.U,du),
+              c2=C.clone().addScaledVector(sh.U,du).addScaledVector(sh.V,dw),
+              c3=C.clone().addScaledVector(sh.V,dw);
+        drawing.reg=null;
+        drawing.points=[c0.toArray(),c1.toArray(),c2.toArray(),c3.toArray(),c0.toArray()];
+        showDrawTag(p,Math.abs(du).toFixed(1)+' × '+Math.abs(dw).toFixed(1)+' mm'+(badge?'  '+badge:''));
       } else if(sh.stage==='drag'){   // ARCO 1º arrastre: la CUERDA (inferencia de ejes como la recta)
         let q=C.clone().addScaledVector(sh.U,du).addScaledVector(sh.V,dw);
         if(mag&&!badge){const ax=axisInferDir(C,q,_WAX,4.5);
@@ -2379,7 +2391,11 @@ function endPointer(e){
       else{sh.stage='wait'; toast('⌒ Cuerda fijada · arrastra otra vez para CURVAR el arco y suelta');}
       dragging=false; return;}
     if(sh.kind==='arc'&&sh.stage==='wait'){dragging=false; return;}   // toque suelto: sigue esperando
-    if(!drawing.reg){   // arco sin flecha → recta · círculo/elipse sin arrastre → nada
+    if(sh.kind==='rect'){   // rectángulo válido = 4 esquinas + cierre (5 puntos)
+      if(!drawing.points||drawing.points.length<5||
+         new THREE.Vector3(...drawing.points[0]).distanceTo(new THREE.Vector3(...drawing.points[2]))<0.2){
+        drawing=null; hideDrawTag(); clearSnapState(); redraw(); dragging=false; return;}
+    } else if(!drawing.reg){   // arco sin flecha → recta · círculo/elipse sin arrastre → nada
       if(sh.kind==='arc'&&sh.B){
         const A=new THREE.Vector3(...sh.cen), B=new THREE.Vector3(...sh.B), U2=B.clone().sub(A), Lw=U2.length();
         if(Lw>1e-6){U2.normalize();
@@ -2733,12 +2749,70 @@ function decomposeStroke(st){
   }
   return out;
 }
+// DESCOMPONER PIEZA/SÓLIDO → CARAS: agrupa los triángulos en regiones de cara
+// (adyacencia por arista + normales similares) y registra cada región como una
+// superficie independiente en el panel. No destructivo: la pieza se OCULTA (el
+// deshacer la restaura), su geometría no se toca.
+function faceGroupsOf(mesh){
+  const g=mesh.geometry, idx=g.index, pos=g.attributes.position;
+  if(!idx)return null;
+  const nT=idx.count/3;
+  const N=[];   // normal (local) por triángulo
+  const a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3(),ab=new THREE.Vector3(),ac=new THREE.Vector3();
+  for(let t=0;t<nT;t++){
+    a.fromBufferAttribute(pos,idx.getX(t*3)); b.fromBufferAttribute(pos,idx.getX(t*3+1)); c.fromBufferAttribute(pos,idx.getX(t*3+2));
+    ab.subVectors(b,a); ac.subVectors(c,a); const n=new THREE.Vector3().crossVectors(ab,ac);
+    if(n.lengthSq()>1e-20)n.normalize(); N.push(n);
+  }
+  // adyacencia por arista (par de índices de vértice ordenado)
+  const emap=new Map();
+  for(let t=0;t<nT;t++){const vi=[idx.getX(t*3),idx.getX(t*3+1),idx.getX(t*3+2)];
+    for(let k=0;k<3;k++){const A=vi[k],B=vi[(k+1)%3],key=A<B?A+'_'+B:B+'_'+A;
+      let e=emap.get(key); if(!e){e=[]; emap.set(key,e);} e.push(t);}}
+  // union-find: dos triángulos adyacentes con normales casi iguales = misma cara
+  const parent=new Array(nT); for(let i=0;i<nT;i++)parent[i]=i;
+  const find=x=>{while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x];}return x;};
+  const COS=0.9;   // ~25°: agrupa las bandas del cilindro y el empalme suave; separa en las tapas
+  for(const ts of emap.values()){ if(ts.length!==2)continue;
+    if(N[ts[0]].dot(N[ts[1]])>COS){const ra=find(ts[0]),rb=find(ts[1]); if(ra!==rb)parent[ra]=rb;}}
+  const groups=new Map();
+  for(let t=0;t<nT;t++){const r=find(t); if(!groups.has(r))groups.set(r,[]); groups.get(r).push(t);}
+  return [...groups.values()].sort((x,y)=>y.length-x.length);   // regiones grandes primero
+}
+function decomposePieceFaces(mesh){
+  const groups=faceGroupsOf(mesh); if(!groups||groups.length<2)return [];
+  mesh.updateMatrixWorld(); const M=mesh.matrixWorld;
+  const g=mesh.geometry, idx=g.index, pos=g.attributes.position;
+  const base=mesh.userData.baseColor!=null?mesh.userData.baseColor:0x9aa2a8;
+  const short=mesh.name.replace(/^\d+\s*/,''), out=[]; const v=new THREE.Vector3();
+  groups.forEach((tris,gi)=>{
+    const arr=[];
+    for(const t of tris)for(let k=0;k<3;k++){
+      v.fromBufferAttribute(pos,idx.getX(t*3+k)).applyMatrix4(M); arr.push(v.x,v.y,v.z);}
+    const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(arr,3));
+    out.push(registerSurface(geo,base,short+' · cara '+(gi+1),{kind:'cara',src:mesh.name}));
+  });
+  return out;
+}
 document.getElementById('selDecomp').onclick=()=>{
-  const list=effSel().filter(s=>s.points); if(!list.length){toast('selecciona una forma para descomponer');return;}
+  // PIEZA/SÓLIDO seleccionado → descomponer en caras (superficies)
+  if(selected&&selected.kind==='pieza'){
+    const m=selected.ref;
+    if(m.userData.locked){toast(m.name+' bloqueada 🔒 · desbloquéala para descomponer');return;}
+    const faces=decomposePieceFaces(m);
+    if(!faces.length){toast('no se pudo descomponer esta pieza en caras');return;}
+    const wasVis=m.visible; m.visible=false; deselect(); renderSurfList(); redraw();
+    pushUndo('descomponer pieza en '+faces.length+' caras',
+      ()=>{faces.forEach(S=>removeSurface(S,true)); m.visible=wasVis; redraw();},
+      ()=>{faces.forEach(S=>{scene.add(S.mesh); if(!surfaces.includes(S))surfaces.push(S);}); m.visible=false; renderSurfList(); redraw();});
+    toast('◪ '+m.name+' descompuesta en '+faces.length+' caras (en el panel de superficies)');
+    return;}
+  // FORMA/TRAZO seleccionado → separar en líneas independientes
+  const list=effSel().filter(s=>s.points); if(!list.length){toast('selecciona una forma o una pieza para descomponer');return;}
   const prev=strokes.slice(); let n=0;
   for(const st of list){const segs=decomposeStroke(st); if(segs.length>1){strokes=strokes.filter(s=>s!==st); segs.forEach(s=>strokes.push(s)); n+=segs.length;}}
   if(n){const after=strokes.slice(); pushUndo('descomponer',()=>{strokes=prev.slice();},()=>{strokes=after.slice();});
-    deselect(); redraw(); toast('descompuesto en '+n+' segmentos');}
+    deselect(); redraw(); toast('descompuesto en '+n+' líneas independientes');}
   else toast('esta forma no tiene segmentos que separar');
 };
 document.getElementById('selMag').onclick=()=>{
@@ -5494,6 +5568,7 @@ function exPick(){const a2=[];lasers.forEach(L=>a2.push(L.mesh));
 function showOpsFor(kind){
   const $=id=>document.getElementById(id);
   $('strokeOps').style.display=(kind==='trazo')?'flex':'none';
+  $('decompOps').style.display=(kind==='trazo'||kind==='pieza')?'flex':'none';   // Descomponer: formas y piezas
   $('xformOps').style.display=(kind==='trazo'||kind==='pieza'||kind==='laser'||kind==='section')?'flex':'none';
   $('laserOps').style.display=(kind==='laser')?'flex':'none';
   $('secOps').style.display=(kind==='section')?'flex':'none';
@@ -5570,6 +5645,8 @@ function buildExport(){
       if(S.kind==='sweep')return Object.assign(base,{kind:'sweep',prof:S.prof,path:S.path});
       if(S.kind==='union'||S.kind==='subtract'||S.kind==='intersect')return Object.assign(base,{kind:S.kind,src:S.srcNames});   // re-booleana desde las piezas al reabrir
       if(S.kind==='fillet3d')return Object.assign(base,{kind:'fillet3d',fedge:S.fedge,fr:S.fr,fmode:S.fmode});   // media caña / bisel de arista
+      if(S.kind==='cara')return Object.assign(base,{kind:'cara',src:S.src,   // cara de una pieza descompuesta (malla propia)
+        verts:Array.from(S.mesh.geometry.attributes.position.array).map(x=>+x.toFixed(3))});
       return Object.assign(base,{d:S.dirPts,g:S.genPts});}),
     textos:texts,
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
@@ -5591,7 +5668,7 @@ datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return 
 updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},
 get edgePx(){return edgePx},fatLine,get HAIRLINE(){return HAIRLINE},
 filletStart,filletStop,filletApplyAll,computeFilletCorners,applyFilletCorner,filletArc,setFilletR,get filletR(){return filletR},get filletMarkers(){return filletMarkers},
-uniteStrokes,decomposeStroke,get selSet(){return selSet},set selSet(v){selSet=v},setLaserBlack,
+uniteStrokes,decomposeStroke,faceGroupsOf,decomposePieceFaces,get selSet(){return selSet},set selSet(v){selSet=v},setLaserBlack,
 updatePaperSecs,cutPiecesWithPlane,alignToSection,laserSnap,
 computeFeatEdges,pieceFeatEdgesAll,buildEdgeFilletGeo,showFilletEdgeGhost,confirmFilletEdge,clearFilletEdge,
 secLineSegs,magSnap,paperGuideSnap,buildSnapPts,axisInferDir,paperFrame,newSectionObj,showAxGhost,hideAxGhost,get sections(){return sections},renderPaperList,updateGizmo,get gizmoVisible(){return gizmo.visible},get axGhostOn(){return axGhost.visible},
@@ -5668,6 +5745,9 @@ function applyImport(d){
               const ed={a:new THREE.Vector3(...fe[0]),b:new THREE.Vector3(...fe[1]),n1:new THREE.Vector3(...fe[2]),n2:new THREE.Vector3(...fe[3])};
               const res=buildEdgeFilletGeo(ed,sd.fr||8,sd.fmode||'round');
               return (res&&!res.tooBig&&res.geo)?registerSurface(res.geo,cl,sd.name,{kind:'fillet3d',fedge:fe,fr:sd.fr,fmode:sd.fmode}):null;})()
+          :(sd.kind==='cara')?(function(){   // cara de pieza descompuesta: malla propia guardada
+              const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(sd.verts||[],3));
+              return (sd.verts&&sd.verts.length>=9)?registerSurface(geo,cl,sd.name,{kind:'cara',src:sd.src}):null;})()
           :buildSurfaceFromPts(sd.d,sd.g,cl,sd.name);
         if(!S)return;
         if(sd.vis===false)S.mesh.visible=false;
