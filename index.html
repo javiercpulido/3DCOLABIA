@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.64 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.65 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -4521,6 +4521,40 @@ function subdivideTris(verts,tris){
     nt.push(a,ab,ca, ab,b,bc, ca,bc,c, ab,bc,ca);}
   return {verts:nv,tris:nt};
 }
+// MEMBRANA CON COLUMNA (spine): para contornos NO planos (sillas 3D) donde la
+// proyección plana se auto-intersecta. La línea interior hace de columna central;
+// el contorno se parte en dos arcos (uno a cada lado de la columna) y se tiende
+// una piel reglada arco↔columna↔arco. No depende de proyectar a un plano.
+function buildSpineMembrane(Vloop,innerArr){
+  const M=40,K=8;
+  const spine=resampleCurve(innerArr.map(p=>Array.isArray(p)?p:p.toArray()),M);   // M+1 puntos
+  const s0=spine[0],s1=spine[spine.length-1],n=Vloop.length;
+  let i0=0,i1=0,d0=Infinity,d1=Infinity;
+  for(let i=0;i<n;i++){const a=Vloop[i].distanceToSquared(s0); if(a<d0){d0=a;i0=i;}
+    const b=Vloop[i].distanceToSquared(s1); if(b<d1){d1=b;i1=i;}}
+  if(i0===i1)return null;
+  const fwd=[]; for(let i=i0;;i=(i+1)%n){fwd.push(Vloop[i]); if(i===i1)break; if(fwd.length>n)break;}
+  const bwd=[]; for(let i=i0;;i=(i-1+n)%n){bwd.push(Vloop[i]); if(i===i1)break; if(bwd.length>n)break;}
+  if(fwd.length<2||bwd.length<2)return null;
+  const arc1=resampleCurve(fwd.map(v=>v.toArray()),M), arc2=resampleCurve(bwd.map(v=>v.toArray()),M);
+  const W=2*K+1, verts=[];
+  for(let i=0;i<=M;i++){
+    for(let j=0;j<K;j++)verts.push(arc1[i].clone().lerp(spine[i],j/K));   // arco1 → columna
+    for(let j=0;j<=K;j++)verts.push(spine[i].clone().lerp(arc2[i],j/K));  // columna → arco2
+  }
+  const tris=[], idx=(i,j)=>i*W+j;
+  for(let i=0;i<M;i++)for(let j=0;j<W-1;j++)
+    tris.push(idx(i,j),idx(i+1,j),idx(i,j+1), idx(i,j+1),idx(i+1,j),idx(i+1,j+1));
+  // relajación suave dejando FIJOS el contorno (j=0, j=W-1) y la columna (j=K)
+  const nv=verts.length, pinned=new Uint8Array(nv);
+  for(let i=0;i<=M;i++){pinned[idx(i,0)]=1; pinned[idx(i,W-1)]=1; pinned[idx(i,K)]=1;}
+  const nbr=Array.from({length:nv},()=>[]);
+  for(let t=0;t<tris.length;t+=3)for(let k=0;k<3;k++){const a=tris[t+k],b=tris[t+(k+1)%3]; nbr[a].push(b); nbr[b].push(a);}
+  for(let it=0;it<60;it++)for(let i=0;i<nv;i++){ if(pinned[i]||!nbr[i].length)continue;
+    let x=0,y=0,z=0; for(const j of nbr[i]){const q=verts[j]; x+=q.x;y+=q.y;z+=q.z;}
+    const k=1/nbr[i].length; verts[i].set(x*k,y*k,z*k);}
+  return {verts,tris};
+}
 function buildContourSurfaceFromPts(rawPts,colHex,name,innerPts){
   colHex=surfInk(colHex);
   let P=rawPts.map(p=>p.slice());
@@ -4540,12 +4574,20 @@ function buildContourSurfaceFromPts(rawPts,colHex,name,innerPts){
   const U=(Math.abs(N.z)>0.9?new THREE.Vector3(1,0,0):new THREE.Vector3(0,0,1)).cross(N).normalize();
   const W2=new THREE.Vector3().crossVectors(N,U);
   const pts2=V.map(v=>{const d=v.clone().sub(O);return [d.dot(U),d.dot(W2)];});
-  let tris=triangulate2(pts2), verts=V.map(v=>v.clone());
-  if(!tris){                                              // abanico desde el centroide
+  // ¿el contorno es NO plano (silla 3D)? desviación máxima al plano / tamaño
+  let maxDev=0; for(const v of V)maxDev=Math.max(maxDev,Math.abs(v.clone().sub(O).dot(N)));
+  const bb=new THREE.Box3().setFromPoints(V), diag=bb.getSize(new THREE.Vector3()).length()||1;
+  const nonPlanar=(maxDev/diag)>0.08;
+  let tris=triangulate2(pts2), verts=V.map(v=>v.clone()), usedSpine=false;
+  if((!tris||nonPlanar)&&innerPts&&innerPts.length){   // contorno NO plano (silla) + línea interior → membrana con COLUMNA
+    const sm=buildSpineMembrane(V,innerPts[0]);
+    if(sm){verts=sm.verts; tris=sm.tris; usedSpine=true;}
+  }
+  if(!tris&&!usedSpine){                                  // abanico desde el centroide
     verts=V.map(v=>v.clone()).concat([O.clone()]); tris=[];
     for(let i=0;i<V.length;i++)tris.push(i,(i+1)%V.length,V.length);
   }
-  if(innerPts&&innerPts.length){
+  if(innerPts&&innerPts.length&&!usedSpine){
     // LÍNEAS INTERIORES: la superficie debe pasar por ellas SIN arrugas.
     // 1) malla subdividida ×3 · 2) siembra por inverso de distancia ·
     // 3) los vértices más cercanos a cada muestra interior se CLAVAN en 3D a la

@@ -297,6 +297,31 @@ const secciones = {
     ok('los 9 constructores crean superficie y exportan su tipo', r.n === 9 && r.kinds);
     ok('cara con línea interior respeta la cresta', r.crest);
     ok('membrana armónica clavada a la curva interior (0 mm)', r.clavada);
+    // CONTORNO NO PLANO (silla 3D) + línea interior → membrana con columna, sin abanico
+    const rs = await page.evaluate(() => {
+      const D = window._dbg, out = {};
+      // dos curvas arqueadas en z opuestas, unidas en bucle = silla no plana
+      const top = [], bot = [];
+      for (let i = 0; i <= 20; i++) { const t = i / 20; const arch = 12 * Math.sin(Math.PI * t);
+        top.push([40 * t, -60, arch]); bot.push([40 * t, -30, -arch]); }
+      const loop = top.concat(bot.slice().reverse()); loop.push(loop[0].slice());
+      const inner = []; for (let i = 0; i <= 16; i++) { const t = i / 16; inner.push([40 * t, -45, 0]); }
+      const nS = D.surfaces.length;
+      const S = D.buildContourSurfaceFromPts(loop, 0x0a84ff, 'silla', [inner]);
+      out.creada = D.surfaces.length === nS + 1;
+      const pos = S.mesh.geometry.attributes.position;
+      // membrana con columna: 41×17 = 697 vértices (no el abanico N+1)
+      out.spine = pos.count === 697;
+      // sin NaN y la piel pasa cerca de la línea central (por el punto medio [20,-45,0])
+      let finite = true, near = Infinity;
+      for (let i = 0; i < pos.count; i++) { const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+        if (!isFinite(x) || !isFinite(y) || !isFinite(z)) finite = false;
+        near = Math.min(near, Math.hypot(x - 20, y - 45 * -1, z)); }   // cerca de [20,-45,0]
+      out.sana = finite && near < 2;
+      return out;
+    });
+    ok('contorno NO plano + línea interior: membrana con columna (sin abanico)', rs.creada && rs.spine);
+    ok('membrana de silla: geometría sana (sin NaN) y pasa por la línea central', rs.sana);
     ok('tinta oscura → superficie clara · color elegido se respeta', r.tinta);
     ok('fila tipo pieza (ojo·candado·papelera) y candado bloquea borrar', r.fila && r.lockBorra);
   },
