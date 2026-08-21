@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.67 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.68 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -394,7 +394,7 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
 <div id="surfmenu" class="pill" style="position:fixed;top:76px;left:12px;z-index:11;display:none;flex-direction:column;padding:7px;gap:5px;width:210px;max-width:64vw;font-size:12.5px;color:var(--ink)">
  <b style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Crear superficie</b>
  <button class="secTgl" data-sm="face" title="Toca un contorno CERRADO (calco, poliarco o líneas unidas en continuidad) y se crea su cara, aunque sea alabeado"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16.5 8 5.5 20 7.5 16 18.5Z"/></svg>Cara de contorno</button>
- <button class="secTgl" data-sm="ribs" title="Toca el contorno cerrado, después las LÍNEAS INTERIORES por las que debe pasar la superficie (como la curva tangente central), y toca en vacío para crearla"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16.5 8 5.5 20 7.5 16 18.5Z"/><path d="M6.5 13.5 Q12 7.5 17.5 12.5" stroke-dasharray="2 2"/></svg>Cara con línea interior</button>
+ <button class="secTgl" data-sm="ribs" title="Parche: toca el contorno cerrado y después las CURVAS GUÍA por las que debe pasar la superficie (como la curva tangente central). Superficie que se ajusta a las curvas (el «Patch» de Rhino / «Superficie de relleno» de SolidWorks)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16.5 8 5.5 20 7.5 16 18.5Z"/><path d="M6.5 13.5 Q12 7.5 17.5 12.5" stroke-dasharray="2 2"/></svg>Parche</button>
  <button class="secTgl" data-sm="terrain" title="Toca el contorno cerrado y después VARIAS líneas interiores (curvas de nivel); se crea un terreno liso en malla de rejilla que pasa por todas ellas, sin pliegues"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15 Q7 9 12 12 Q17 15 21 9"/><path d="M4 19 Q8 14 12 16.5 Q16 19 20 14" opacity=".55"/><path d="M5 11 Q9 6 12 8 Q15 10 19 6" opacity=".55"/></svg>Terreno (curvas de nivel)</button>
  <button class="secTgl" data-sm="dxg" title="Toca la curva DIRECTRIZ y después la GENERATRIZ: superficie de traslación (contorno barrido a lo largo de la generatriz)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3.5 7.5 Q12 2.5 20.5 7.5"/><path d="M3.5 17.5 Q12 12.5 20.5 17.5"/><path d="M7 5.7V15.7M17 5.7V15.7" opacity=".45" stroke-width="1.3"/></svg>Directriz × generatriz</button>
  <button class="secTgl" data-sm="rev" title="Toca el PERFIL y después la línea EJE: superficie de revolución (como el cuello o la roseta)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v18" stroke-dasharray="2 2.2"/><path d="M15 5 Q19 9 17 12 Q15 15 18 19"/><ellipse cx="12" cy="19" rx="6" ry="2" opacity=".45" stroke-width="1.3"/></svg>Revolución</button>
@@ -5409,7 +5409,7 @@ function surfToolStart(mode){
         mode==='subtract'?'⊟ Toca primero el CUERPO base; luego las piezas a restar':
         mode==='intersect'?'⊓ Toca 2 o más piezas (queda el volumen común)':
         mode==='face'?'▱ Toca un contorno CERRADO':
-        mode==='ribs'?'◠ Toca el contorno cerrado; luego sus líneas interiores':
+        mode==='ribs'?'◠ Parche · toca el contorno cerrado; luego sus curvas guía':
         mode==='terrain'?'⛰ Toca el contorno cerrado; luego varias curvas de nivel · ✓ Crear':
         mode==='blend'?'⇥ Toca la DIRECTRIZ; luego el perfil inicial y el final':
                       '▦ Toca la curva DIRECTRIZ');
@@ -5424,7 +5424,7 @@ function surfToolCancel(msg){
 // BARRA FLOTANTE «Crear superficie»: sustituye al «toca en vacío» de los modos
 // que dependían de ello (cara con línea interior · loft) y da un botón Crear /
 // Cancelar claro, con un resumen en vivo de lo seleccionado.
-const SURF_NAMES={face:'Cara de contorno',ribs:'Cara con línea interior',terrain:'Terreno (curvas de nivel)',dxg:'Directriz × generatriz',rev:'Revolución',coons:'Malla de 4 bordes',ext:'Extrusión',tube:'Tubo',ruled:'Reglada',loft:'Loft',sweep:'Sígueme',blend:'Barrido morphing',union:'Unir sólidos',subtract:'Restar sólidos',intersect:'Intersecar sólidos'};
+const SURF_NAMES={face:'Cara de contorno',ribs:'Parche (curvas guía)',terrain:'Terreno (curvas de nivel)',dxg:'Directriz × generatriz',rev:'Revolución',coons:'Malla de 4 bordes',ext:'Extrusión',tube:'Tubo',ruled:'Reglada',loft:'Loft',sweep:'Sígueme',blend:'Barrido morphing',union:'Unir sólidos',subtract:'Restar sólidos',intersect:'Intersecar sólidos'};
 const BOOL_OPS={union:'union',subtract:'subtract',intersect:'intersect'};
 const isBoolMode=m=>m==='union'||m==='subtract'||m==='intersect';
 function updateSurfPop(){
@@ -5443,7 +5443,7 @@ function updateSurfPop(){
     }
   } else if(T.mode==='ribs'){
     if(!T.contour)status='Toca el contorno cerrado';
-    else{status='Contorno ✓'+(T.inner.length?' · '+T.inner.length+' interior'+(T.inner.length>1?'es':''):' · líneas interiores (opcional)'); canBuild=true;}
+    else{status='Contorno ✓'+(T.inner.length?' · '+T.inner.length+' curva'+(T.inner.length>1?'s':'')+' guía':' · curvas guía (opcional)'); canBuild=true;}
   } else if(T.mode==='terrain'){
     if(!T.contour)status='Toca el contorno cerrado';
     else{status='Contorno ✓'+(T.inner.length?' · '+T.inner.length+' curva'+(T.inner.length>1?'s':'')+' de nivel':' · toca las curvas de nivel'); canBuild=true;}
@@ -5565,13 +5565,13 @@ function surfToolTap(e){
     if(!strokeClosed(st)){askClose('El contorno está abierto. ¿Cerrar contorno y seguir?',()=>closeContourAndBuildFace(st));return;}
     surfToolFinish(buildContourSurfaceFromPts(st.points,new THREE.Color(st.color||color).getHex()));
   } else if(T.mode==='ribs'||T.mode==='terrain'){
-    const isTer=T.mode==='terrain', gl=isTer?'⛰':'◠', innerLbl=isTer?'curva de nivel':'línea interior';
+    const isTer=T.mode==='terrain', gl=isTer?'⛰':'◠', innerLbl=isTer?'curva de nivel':'curva guía';
     if(!T.contour){
       if(!st){toast(gl+' Toca el contorno cerrado');return;}
       if(!strokeClosed(st)){askClose('El contorno está abierto. ¿Cerrar contorno y seguir?',()=>{
         const c=closeContourStroke(st); pushUndo('cerrar contorno',()=>c.apply(c.before),()=>c.apply(c.after)); redraw();
-        T.contour=st; toast(gl+' Contorno cerrado y fijado · toca las '+(isTer?'CURVAS DE NIVEL':'líneas INTERIORES')+' · ✓ Crear');});return;}
-      T.contour=st; toast(gl+' Contorno fijado · toca las '+(isTer?'CURVAS DE NIVEL':'líneas INTERIORES')+' · ✓ Crear');
+        T.contour=st; toast(gl+' Contorno cerrado y fijado · toca las '+(isTer?'CURVAS DE NIVEL':'CURVAS GUÍA')+' · ✓ Crear');});return;}
+      T.contour=st; toast(gl+' Contorno fijado · toca las '+(isTer?'CURVAS DE NIVEL':'CURVAS GUÍA')+' · ✓ Crear');
     } else if(st&&st!==T.contour&&!T.inner.includes(st)){
       T.inner.push(st); toast(gl+' '+innerLbl.charAt(0).toUpperCase()+innerLbl.slice(1)+' '+T.inner.length+' añadida · pulsa ✓ Crear superficie');
     } else if(!st){
