@@ -410,6 +410,76 @@ const secciones = {
     ok('terreno por curvas de nivel: crea rejilla sana (sin NaN ni picos)', rt.creada && rt.kind && rt.sano);
     ok('terreno: la superficie pasa por la cresta de nivel más alta', rt.cresta);
     ok('terreno: se guarda y recupera (kind terrain)', rt.serial);
+    // GRID FILL: contorno ALABEADO sin curvas guía → superficie mínima lisa (no abanico crudo)
+    const rgf = await page.evaluate(() => {
+      const D = window._dbg, out = {};
+      const Np = 40, R = 30, ring = [];
+      for (let i = 0; i < Np; i++) { const a = 2 * Math.PI * i / Np; ring.push([R*Math.cos(a), 200+R*Math.sin(a), 12*Math.sin(2*a)]); }
+      ring.push(ring[0].slice());
+      const nS = D.surfaces.length;
+      const S = D.buildContourSurfaceFromPts(ring, 0x2f7df0, 'silla face');
+      out.creada = D.surfaces.length === nS + 1;
+      const pos = S.mesh.geometry.attributes.position;
+      out.subdiv = pos.count > Np * 4;          // subdividido (no solo los ~40 del borde)
+      let finite = true; for (let i = 0; i < pos.count; i++) if (!isFinite(pos.getX(i))||!isFinite(pos.getY(i))||!isFinite(pos.getZ(i))) finite = false;
+      out.finite = finite;
+      // el borde exacto se conserva: cada punto del contorno tiene un vértice a ~0
+      let maxb = 0; for (const q of ring) { let bd = Infinity;
+        for (let i = 0; i < pos.count; i++) bd = Math.min(bd, Math.hypot(pos.getX(i)-q[0], pos.getY(i)-q[1], pos.getZ(i)-q[2]));
+        maxb = Math.max(maxb, bd); }
+      out.borde = maxb < 1e-3;
+      D.removeSurface(S, true);
+      return out;
+    });
+    ok('grid fill: contorno alabeado → superficie mínima subdividida y sana', rgf.creada && rgf.subdiv && rgf.finite);
+    ok('grid fill: el borde exacto del contorno se conserva', rgf.borde);
+    // SHRINKWRAP: drapear un trazo plano sobre el terreno (proyección por la normal)
+    const rw = await page.evaluate(() => {
+      const D = window._dbg, out = {};
+      const S = 45, box = [[-S,-S,300],[S,-S,300],[S,S,300],[-S,S,300],[-S,-S,300]];
+      // terreno plano a z=300 (una meseta) para comprobar el drapeado exacto
+      const lv = [[[-30,0,300],[30,0,300]]];
+      const Tr = D.buildTerrainFromContour(box, lv, 0x2ca24c, 'meseta');
+      // trazo plano MUY por encima (z=380) → debe caer a z≈300
+      const foot = []; for (let i = 0; i <= 8; i++) foot.push([-16 + 4*i, -10, 380]);
+      const draped = D.shrinkwrapStroke(foot, Tr.mesh);
+      out.creado = !!draped && draped.length === foot.length;
+      if (out.creado) {
+        let onSurf = true; for (const q of draped) if (Math.abs(q[2] - 300) > 0.5) onSurf = false;
+        out.onSurf = onSurf;                       // z bajó de 380 a ~300 (la meseta)
+        // xy se conserva (proyección vertical)
+        let xyOk = true; for (let i = 0; i < foot.length; i++) if (Math.hypot(draped[i][0]-foot[i][0], draped[i][1]-foot[i][1]) > 0.5) xyOk = false;
+        out.xy = xyOk;
+      }
+      // un trazo que NO cae sobre la superficie → null
+      const off = [[900,900,380],[905,905,380]];
+      out.miss = D.shrinkwrapStroke(off, Tr.mesh) === null;
+      D.removeSurface(Tr, true);
+      return out;
+    });
+    ok('shrinkwrap: el trazo se proyecta sobre la superficie (z a la meseta, xy intacto)', rw.creado && rw.onSurf && rw.xy);
+    ok('shrinkwrap: un trazo fuera de la superficie no proyecta (null)', rw.miss);
+    // ESCULPIR TERRENO: edición proporcional (sube/baja con caída suave) + persistencia
+    const rsc = await page.evaluate(() => {
+      const D = window._dbg, T = window.THREE, out = {};
+      const S = 45, box = [[-S,-S,500],[S,-S,500],[S,S,500],[-S,S,500],[-S,-S,500]];
+      const Tr = D.buildTerrainFromContour(box, [[[-30,0,500],[30,0,500]]], 0x2ca24c, 'meseta-esc');
+      const pos = Tr.mesh.geometry.attributes.position;
+      const zAt = (x,y) => { let bd=1e9,z=0; for (let i=0;i<pos.count;i++){const d=Math.hypot(pos.getX(i)-x,pos.getY(i)-y); if(d<bd){bd=d;z=pos.getZ(i);}} return z; };
+      const up = new T.Vector3(0,0,1);
+      const moved = D.sculptSurfaceAt(Tr.mesh, new T.Vector3(0,0,500), 26, 8, up);
+      out.moved = moved > 0;
+      out.subeCentro = zAt(0,0) > 504;              // el centro subió
+      out.bordeIntacto = Math.abs(zAt(43,0) - 500) < 0.5;   // el borde no se movió
+      // persistencia: marcado sculpted → export lleva verts (soup)
+      Tr.sculpted = true;
+      const sd = D.buildExport().superficies.find(s => s.name === 'meseta-esc');
+      out.serial = !!sd && sd.kind === 'terrain' && !!sd.verts && sd.verts.length >= 9;
+      D.removeSurface(Tr, true);
+      return out;
+    });
+    ok('esculpir: edición proporcional sube el centro y respeta el borde', rsc.moved && rsc.subeCentro && rsc.bordeIntacto);
+    ok('esculpir: terreno esculpido se guarda con su malla (verts)', rsc.serial);
     ok('tinta oscura → superficie clara · color elegido se respeta', r.tinta);
     ok('fila tipo pieza (ojo·candado·papelera) y candado bloquea borrar', r.fila && r.lockBorra);
   },
