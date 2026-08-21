@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.69 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.70 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -1116,6 +1116,18 @@ function glue(pts){
     if(hits.length)return liftOff(hits[0]).toArray();
     return q.toArray();});
 }
+// instantánea del estado geométrico de una forma (para deshacer de MOVIMIENTO rígido)
+function strokeState(s){return {s,points:s.points.map(p=>p.slice()),
+  regC:(s.reg&&s.reg.c)?s.reg.c.clone():null,
+  verts:s.poly?s.verts.map(p=>p.slice()):null,
+  arcMids:s.poly?Object.fromEntries(Object.entries(s.arcMids).map(([k,v])=>[k,v.slice()])):null,
+  guidePts:s.poly?Object.fromEntries(Object.entries(s.guidePts||{}).map(([k,g])=>[k,g.map(p=>p.slice())])):null};}
+function applyStrokeStates(arr){arr.forEach(t=>{const s=t.s; s.points=t.points.map(p=>p.slice());
+  if(t.regC&&s.reg&&s.reg.c)s.reg.c.copy(t.regC);
+  if(t.verts)s.verts=t.verts.map(p=>p.slice());
+  if(t.arcMids){s.arcMids={}; for(const k in t.arcMids)s.arcMids[k]=t.arcMids[k].slice();}
+  if(t.guidePts){s.guidePts={}; for(const k in t.guidePts)s.guidePts[k]=t.guidePts[k].map(p=>p.slice());}
+  s._dirty=true;}); redraw();}
 function snapPt(parr,exclude){
   // iman entre FORMAS: extremo nuevo cerca (<14 px) de un extremo existente -> se une
   const rct=renderer.domElement.getBoundingClientRect();
@@ -1985,6 +1997,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
         const depth=new THREE.Vector3(...c).sub(cam.position).dot(cam.getWorldDirection(new THREE.Vector3()));
         const list=effSel();
         selDrag={list,depth,start:planePoint(e,depth),
+                 before0:list.map(s=>strokeState(s)),   // instantánea para el deshacer del movimiento
                  orig:list.map(s=>s.points.map(p=>p.slice())),
                  origC:list.map(s=>(s.reg&&s.reg.c)?s.reg.c.clone():null),
                  origV:list.map(s=>s.poly?{v:s.verts.map(p=>p.slice()),
@@ -2178,7 +2191,7 @@ addEventListener('pointermove',e=>{
         s.verts=selDrag.origV[i].v.map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);
         s.arcMids={}; for(const k in selDrag.origV[i].m)s.arcMids[k]=[selDrag.origV[i].m[k][0]+d.x,selDrag.origV[i].m[k][1]+d.y,selDrag.origV[i].m[k][2]+d.z];
         s.guidePts={}; for(const k in selDrag.origV[i].g)s.guidePts[k]=selDrag.origV[i].g[k].map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);}
-      if((mag||s.magLock)&&s.sobre!=='aire'&&!axLock&&!s.poly&&!s.cont)s.points=glue(s.points);   // los contornos unidos se mueven RÍGIDOS
+      if(s.magLock&&s.sobre!=='aire'&&!axLock&&!s.poly&&!s.cont)s.points=glue(s.points);   // SÓLO el imán FIJO (magLock) re-drapea; el imán normal mueve RÍGIDO con OSNAP de referencia
     });
     document.getElementById('hud').textContent='Δ '+d.length().toFixed(1)+' mm · x '+
       d.x.toFixed(1)+' · y '+d.y.toFixed(1)+' · z '+d.z.toFixed(1)+
@@ -2255,7 +2268,7 @@ addEventListener('pointermove',e=>{
       if(handDrag.role==='centro'){reg.circ.cx=q[0];reg.circ.cy=q[1];}
       else reg.circ.r=Math.hypot(q[0]-reg.circ.cx,q[1]-reg.circ.cy);}
     s.points=genPoints(reg)||s.points;
-    if((mag||s.magLock)&&s.sobre!=='aire')s.points=glue(s.points);
+    if(s.magLock&&s.sobre!=='aire')s.points=glue(s.points);   // SÓLO imán fijo; el imán normal usa OSNAP exacto sin re-drapear
     // OSNAP EXACTO vs enderezado: si el extremo arrastrado está clavado a un OSNAP
     // (y no hay eje bloqueado), el OSNAP manda — el extremo queda EXACTO sobre él y
     // el marco se realinea, en vez de que postLine lo desplace al eje más próximo.
@@ -2579,7 +2592,14 @@ function endPointer(e){
         selDrag.list.forEach(st=>{st._dirty=true;st.points=st.points.map(p=>[p[0]+d.x,p[1]+d.y,p[2]+d.z]);
           if(st.reg&&st.reg.c)st.reg.c.add(d);});
         toast('extremo unido 🧲');break;}}}
-  if(selDrag)hideContact();
+  if(selDrag){
+    // DESHACER del MOVIMIENTO de forma(s), en orden estricto (aunque haya superficies)
+    const before=selDrag.before0;
+    const moved=before.some((t,i)=>{const now=selDrag.list[i].points;
+      return t.points.length!==now.length||t.points.some((p,k)=>Math.abs(p[0]-now[k][0])>1e-6||Math.abs(p[1]-now[k][1])>1e-6||Math.abs(p[2]-now[k][2])>1e-6);});
+    if(moved){const after=selDrag.list.map(s=>strokeState(s));
+      pushUndo('mover forma',()=>applyStrokeStates(before),()=>applyStrokeStates(after));}
+    hideContact();}
   if(gizDrag){
     if(gizDrag.t==='pieza'){computeIntersections();applySec();_silhFrame=-1;updateLasers();
       if(gizDrag.mesh&&gizDrag.pos0)pushPieceXform(gizDrag.mesh,gizDrag.pos0,gizDrag.quat0);}   // registra deshacer del giro/mov.

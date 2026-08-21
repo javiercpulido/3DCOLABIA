@@ -506,6 +506,38 @@ const secciones = {
     ok('candado por pieza bloquea mover y oculta gizmo', r.lock && r.gizmoOculto && r.moveBloq && r.unlock);
   },
 
+  async mover_forma_deshacer() {
+    const r = await page.evaluate(() => {
+      const D = window._dbg, T = window.THREE, out = {};
+      const mag0 = D.mag; if (mag0) document.getElementById('mag').click();   // imán OFF: traslación pura
+      const H = 100, sq = [[-H,-H,0],[H,-H,0],[H,H,0],[-H,H,0],[-H,-H,0]];
+      const st = { points: sq.map(q => q.slice()), color: '#d500f9', sobre: 'aire' };
+      D.strokes.push(st);
+      document.getElementById('mSel').click(); D.selectStroke(st); D.redraw();
+      const c = document.querySelector('canvas'), rct = c.getBoundingClientRect();
+      const v = new T.Vector3(0, -H, 0).project(D.cam);   // medio de la arista inferior (lejos de las esquinas/tiradores)
+      const sx = rct.left + (v.x*0.5+0.5)*rct.width, sy = rct.top + (-v.y*0.5+0.5)*rct.height;
+      const ev = (t,x,y) => c.dispatchEvent(new PointerEvent(t, { pointerId:5, pointerType:'pen', isPrimary:true, button:t==='pointermove'?-1:0, buttons:t==='pointerup'?0:1, clientX:x, clientY:y, pressure:0.6, bubbles:true }));
+      const u0 = D.undoActs.length;
+      ev('pointerdown', sx, sy); out.selDrag = !!D.selDrag && !D.handDrag;
+      ev('pointermove', sx+40, sy-24); ev('pointermove', sx+80, sy-48); ev('pointerup', sx+80, sy-48);
+      const d0 = [st.points[0][0]-sq[0][0], st.points[0][1]-sq[0][1], st.points[0][2]-sq[0][2]];
+      out.movido = Math.hypot(d0[0],d0[1],d0[2]) > 1;
+      out.rigido = st.points.every((q,i) => Math.abs((q[0]-sq[i][0])-d0[0])<1e-3 && Math.abs((q[1]-sq[i][1])-d0[1])<1e-3 && Math.abs((q[2]-sq[i][2])-d0[2])<1e-3);
+      out.undoReg = D.undoActs.length === u0+1 && D.undoActs[D.undoActs.length-1].label === 'mover forma';
+      document.getElementById('undo').click();   // deshacer → restaura el MOVIMIENTO (no otra cosa)
+      out.restaura = Math.abs(st.points[0][0]-sq[0][0])<1e-3 && Math.abs(st.points[0][1]-sq[0][1])<1e-3 && Math.abs(st.points[0][2]-sq[0][2])<1e-3;
+      // limpieza: quitar el trazo inyectado y su rastro
+      const ix = D.strokes.indexOf(st); if (ix>=0) D.strokes.splice(ix,1);
+      D.redoActs.length = 0; D.deselect();
+      if (D.mag !== mag0) document.getElementById('mag').click();
+      D.redraw();
+      return out;
+    });
+    ok('mover forma: traslación RÍGIDA (sin deformar ni pegarse a las piezas)', r.selDrag && r.movido && r.rigido);
+    ok('mover forma: el movimiento se registra en deshacer y lo restaura', r.undoReg && r.restaura);
+  },
+
   async gizmo_centro() {
     const r = await page.evaluate(async () => {
       const D = window._dbg, frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 15)));
