@@ -619,6 +619,13 @@ const secciones = {
       const st2 = D.currentStyle();
       out.grosor = Math.abs((st2.aristas.grosor || 0) - 3.5) < 0.01;
       out.bgcolor = st2.fondo.valor === '#123456' && D.validarEstilo(st2).ok;
+      // Fase A: sin aristas (aristas.ver) + ocultas discontinuas (ocultos.ver/patron)
+      D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-00000000000b', nombre:'z', familia:'presentacion',
+        caras:{ modo:'blanco' }, aristas:{ ver:false, color:{ fuente:'bn' } },
+        ocultos:{ ver:true, patron:'discontinuo' } });
+      const st3 = D.currentStyle();
+      out.sinAristas = st3.aristas.ver === false;
+      out.ocultos = !!st3.ocultos && st3.ocultos.ver === true && st3.ocultos.patron === 'discontinuo' && D.validarEstilo(st3).ok;
       // export: biblioteca de usuario + estilo vivo bajo sub-clave `estilo`, ambos válidos
       const e = D.buildExport();
       out.serial = Array.isArray(e.estilos) && !!e.estilo && D.validarEstilo(e.estilo).ok
@@ -640,6 +647,8 @@ const secciones = {
     ok('estilos: aplicar un estilo conforme cambia caras/aristas/familia', r.applied);
     ok('estilos: grosor de aristas (aristas.grosor) round-trip', r.grosor);
     ok('estilos: fondo de color (fondo.valor) round-trip y válido', r.bgcolor);
+    ok('estilos: sin aristas (aristas.ver=false) round-trip', r.sinAristas);
+    ok('estilos: ocultas discontinuas (ocultos.ver/patron) round-trip', r.ocultos);
     ok('estilos: export lleva biblioteca + estilo vivo (sub-clave), válidos', r.serial);
   },
 

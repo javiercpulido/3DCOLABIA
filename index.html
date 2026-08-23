@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.74 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.75 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -402,6 +402,12 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
    <button class="stgl on" data-ec="bn">B/N</button><button class="stgl" data-ec="material">Material</button></span></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Grosor aristas
   <input id="styleGrosor" type="range" min="0.5" max="6" step="0.25" value="1.6" style="flex:1;margin-left:auto;max-width:120px"></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Aristas visibles
+  <span style="margin-left:auto;display:flex;gap:3px">
+   <button class="stgl on" data-av="si">Sí</button><button class="stgl" data-av="no">No</button></span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Ocultas
+  <span style="margin-left:auto;display:flex;gap:3px">
+   <button class="stgl on" data-oc="no">No</button><button class="stgl" data-oc="punteado">Punteado</button><button class="stgl" data-oc="discontinuo">Discontinuo</button></span></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Opacidad
   <input id="styleOpac" type="range" min="6" max="100" step="1" value="100" style="flex:1;margin-left:auto;max-width:120px"></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Fondo
@@ -748,9 +754,12 @@ let viewMode='somb', baseOpacity=1, darkView=false;
 let styleEdgeColor='bn';   // aristas/ocultos: 'bn' (defecto, b/n) · 'material' (por color de la pieza) — código del contrato
 let styleFamily='presentacion';   // familia del estilo (estilo.schema.json): 'tecnico' | 'presentacion'
 let styleBg=null;   // fondo de color personalizado (hex) → estilo.fondo.valor · null = tema claro/oscuro
+let styleEdgesOff=false;   // 'sin aristas': fuerza aristas+silueta ocultas → estilo.aristas.ver=false
+let styleHidOn=false;      // mostrar líneas ocultas (discontinuas) → estilo.ocultos.ver
+let styleHidPat='punteado';// patrón de ocultas: 'punteado' | 'discontinuo' → estilo.ocultos.patron
 let invView=false, invAlpha=0.85;   // modo invertido: fondo oscuro + volúmenes claros translúcidos
 let meshOverlay=false;   // la malla (aristas de triángulos) es un overlay independiente del estilo
-function edgesWanted(){return viewMode!=='somb';}
+function edgesWanted(){return !styleEdgesOff && viewMode!=='somb';}
 function applyMode(){
   const dk=darkView;
   scene.background=new THREE.Color(dk?0x17191c:((viewMode==='tecnico'||viewMode==='oculto')?0xffffff:0xf4f5f7));
@@ -898,8 +907,12 @@ function currentStyle(){ const st={ v:1, id:_uuid(), nombre:'', familia:styleFam
     fuente_color:{modo:(styleEdgeColor==='material'?'material':'bn')},
     fondo:(styleBg?{modo:(darkView?'oscuro':'claro'),valor:styleBg}:{modo:(darkView?'oscuro':'claro')}),
     salidas:(styleFamily==='tecnico'?['vector_svg','vector_pdf']:['raster_png','imagen_ia']) };
-  if(viewMode==='oculto')st.ocultos={ver:true};
+  if(viewMode==='oculto'||styleHidOn)st.ocultos={ver:true,patron:styleHidPat};
   return st; }
+function applyHiddenPattern(){ const dp=(styleHidPat==='discontinuo')?{d:3.0,g:2.0}:{d:0.8,g:1.4};   // punteado vs discontinuo
+  for(const n in pieces){const ud=pieces[n].userData;
+    if(ud.edgesHid){ud.edgesHid.material.dashSize=dp.d; ud.edgesHid.material.gapSize=dp.g; ud.edgesHid.material.needsUpdate=true;}
+    if(ud.silh&&ud.silh.lineHid){ud.silh.lineHid.material.dashSize=dp.d; ud.silh.lineHid.material.gapSize=dp.g; ud.silh.lineHid.material.needsUpdate=true;}} }
 function applyStyle(st){ if(!st)return;
   if(st.familia==='tecnico'||st.familia==='presentacion')styleFamily=st.familia;
   if(st.caras&&st.caras.modo)viewMode=viewFromCarasModo(st.caras.modo);
@@ -908,6 +921,9 @@ function applyStyle(st){ if(!st)return;
   const ef=(st.aristas&&st.aristas.color&&st.aristas.color.fuente);
   styleEdgeColor=(ef==='material')?'material':'bn';   // 'fija' se representa como b/n en el visor (Fase A)
   styleBg=(st.fondo&&typeof st.fondo.valor==='string'&&/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(st.fondo.valor))?st.fondo.valor:null;
+  if(st.aristas&&typeof st.aristas.ver==='boolean')styleEdgesOff=(st.aristas.ver===false);
+  if(st.ocultos){styleHidOn=(st.ocultos.ver===true); if(st.ocultos.patron==='punteado'||st.ocultos.patron==='discontinuo')styleHidPat=st.ocultos.patron;} else styleHidOn=false;
+  applyHiddenPattern();
   if(st.aristas&&st.aristas.grosor!=null&&typeof setEdgePx==='function')setEdgePx(st.aristas.grosor);
   const wantDark=!!(st.fondo&&st.fondo.modo==='oscuro');
   if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode();
@@ -921,6 +937,8 @@ function syncStylePanel(){ syncStyleFamily();
   document.querySelectorAll('#stylepop .stgl[data-cm]').forEach(b=>b.classList.toggle('on',b.dataset.cm===viewMode));
   document.querySelectorAll('#stylepop .stgl[data-ec]').forEach(b=>b.classList.toggle('on',b.dataset.ec===styleEdgeColor));
   document.querySelectorAll('#stylepop .stgl[data-bg]').forEach(b=>b.classList.toggle('on',!styleBg&&b.dataset.bg===(darkView?'oscuro':'claro')));
+  document.querySelectorAll('#stylepop .stgl[data-av]').forEach(b=>b.classList.toggle('on',b.dataset.av===(styleEdgesOff?'no':'si')));
+  document.querySelectorAll('#stylepop .stgl[data-oc]').forEach(b=>b.classList.toggle('on',b.dataset.oc===(styleHidOn?styleHidPat:'no')));
   const o=document.getElementById('styleOpac'); if(o)o.value=Math.round(baseOpacity*100);
   const g=document.getElementById('styleGrosor'); if(g)g.value=edgePx;
   const bc=document.getElementById('styleBgCol'); if(bc&&styleBg)bc.value=styleBg; }
@@ -933,6 +951,8 @@ document.getElementById('stylepop').addEventListener('click',e=>{
   const b=e.target.closest('.stgl'); if(!b)return;
   if(b.dataset.fam){styleFamily=b.dataset.fam; renderSavedStyles(); syncStyleFamily();}
   else if(b.dataset.cm){viewMode=b.dataset.cm; applyMode(); syncStylePanel();}
+  else if(b.dataset.av){styleEdgesOff=(b.dataset.av==='no'); applyMode(); syncStylePanel();}
+  else if(b.dataset.oc){ if(b.dataset.oc==='no'){styleHidOn=false;} else {styleHidOn=true; styleHidPat=b.dataset.oc;} applyHiddenPattern(); syncStylePanel();}
   else if(b.dataset.ec){styleEdgeColor=b.dataset.ec; applyMode(); syncStylePanel();}
   else if(b.dataset.bg){styleBg=null; const wantDark=b.dataset.bg==='oscuro';
     if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode(); syncStylePanel();}});
@@ -6636,7 +6656,7 @@ function updateSilh(){
     if(sd.fat){sd.fat.setSegments(sd.pos,c); sd.fat.mat.uniforms.uColor.value.copy(sd.line.material.color);
       sd.fat.mesh.visible=true; sd.line.visible=false;}
     else sd.line.visible=true;
-    sd.lineHid.visible=(viewMode==='oculto');
+    sd.lineHid.visible=(viewMode==='oculto'||styleHidOn);
   }
 }
 // ================= MENÚS FLOTANTES / ACOPLABLES =================
@@ -6810,7 +6830,7 @@ applyMode();   // asegura la configuración del poché (stencil) tras crear las 
     if(P.userData.edgesFat){P.userData.edgesFat.mesh.visible=ew;   // aristas de característica GRUESAS
       P.userData.edgesFat.mat.uniforms.uColor.value.copy(P.userData.edges.material.color);}
     if(P.userData.edges)P.userData.edges.visible=false;            // la fina cede su sitio a la gruesa
-    if(P.userData.edgesHid)P.userData.edgesHid.visible=P.visible&&viewMode==='oculto';
+    if(P.userData.edgesHid)P.userData.edgesHid.visible=P.visible&&(viewMode==='oculto'||styleHidOn);
     if(P.userData.wire)P.userData.wire.visible=P.visible&&meshOverlay;}
   interPairs.forEach(ip=>{
     const on=interOn&&pieces[ip.a]&&pieces[ip.a].visible&&pieces[ip.b]&&pieces[ip.b].visible;
