@@ -637,6 +637,14 @@ const secciones = {
         caras:{ modo:'blanco' }, perfiles:{ ver:false, grosor:2.5 } });
       const st5 = D.currentStyle();
       out.perfiles = !!st5.perfiles && st5.perfiles.ver === false && Math.abs(st5.perfiles.grosor - 2.5) < 0.01 && D.validarEstilo(st5).ok;
+      // suelo.z (desplazamiento vertical) + gizmo de eje Z al seleccionar el suelo virtual
+      D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-00000000000e', nombre:'z2', familia:'presentacion',
+        suelo:{ ver:true, z:12.5 } });
+      const st6 = D.currentStyle();
+      out.sueloZ = Math.abs(st6.suelo.z - 12.5) < 0.01 && Math.abs(D.sueloZ - 12.5) < 0.01 && D.validarEstilo(st6).ok;
+      D.select('suelo', D.sueloMesh, 'Suelo virtual'); D.updateGizmo();
+      out.gizZ = D.gizmo.visible === true && D.gizMode === 'z';
+      D.deselect(); D.setSuelo(false);
       // export: biblioteca de usuario + estilo vivo bajo sub-clave `estilo`, ambos válidos
       const e = D.buildExport();
       out.serial = Array.isArray(e.estilos) && !!e.estilo && D.validarEstilo(e.estilo).ok
@@ -663,6 +671,8 @@ const secciones = {
     ok('estilos: suelo virtual (suelo.ver + suelo.color) round-trip', r.suelo);
     ok('estilos: texturas toggle (materiales.texturas) round-trip', r.texturas);
     ok('estilos: perfiles/silueta (perfiles.ver/grosor) round-trip', r.perfiles);
+    ok('estilos: suelo.z (desplazamiento vertical) round-trip', r.sueloZ);
+    ok('estilos: gizmo de eje Z al seleccionar el suelo virtual', r.gizZ);
     ok('estilos: export lleva biblioteca + estilo vivo (sub-clave), válidos', r.serial);
   },
 

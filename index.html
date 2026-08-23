@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.79 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.80 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -773,6 +773,8 @@ let stylePerfOn=true;      // perfiles/silueta visibles → estilo.perfiles.ver
 let stylePerfW=null;       // grosor propio del perfil (null = sigue al grosor de aristas) → estilo.perfiles.grosor
 let sueloColor='#e9ebee';  // color del SUELO VIRTUAL → estilo.suelo.color
 let sueloMesh=null;        // malla del suelo virtual (provisional; la sustituirá el terreno real BIM georreferenciado). Se crea tras conocer el bbox
+let sueloZ=0;              // desplazamiento vertical del suelo virtual → estilo.suelo.z (0 = posición base bajo el modelo)
+let sueloBaseZ=0;          // cota base (bbox.min.z-2); la posición real del plano es sueloBaseZ + sueloZ
 let invView=false, invAlpha=0.85;   // modo invertido: fondo oscuro + volúmenes claros translúcidos
 let meshOverlay=false;   // la malla (aristas de triángulos) es un overlay independiente del estilo
 function edgesWanted(){return !styleEdgesOff && viewMode!=='somb';}
@@ -917,6 +919,7 @@ function validarEstilo(st){ const e=[]; const I=_EST_ENUM;
   if(st.materiales&&st.materiales.texturas!=null&&typeof st.materiales.texturas!=='boolean')e.push('materiales.texturas');
   if(st.suelo){ if(st.suelo.ver!=null&&typeof st.suelo.ver!=='boolean')e.push('suelo.ver');
     if(st.suelo.recibe_sombra!=null&&typeof st.suelo.recibe_sombra!=='boolean')e.push('suelo.recibe_sombra');
+    if(st.suelo.z!=null&&typeof st.suelo.z!=='number')e.push('suelo.z');
     if(st.suelo.color!=null&&!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(st.suelo.color))e.push('suelo.color'); }
   if(st.fondo&&st.fondo.modo&&!I.fondo.includes(st.fondo.modo))e.push('fondo.modo');
   if(st.salidas)st.salidas.forEach(s=>{ if(!I.salidas.includes(s))e.push('salida:'+s); });
@@ -929,7 +932,7 @@ function currentStyle(){ const st={ v:1, id:_uuid(), nombre:'', familia:styleFam
     fuente_color:{modo:(styleEdgeColor==='material'?'material':'bn')},
     fondo:(styleBg?{modo:(darkView?'oscuro':'claro'),valor:styleBg}:{modo:(darkView?'oscuro':'claro')}),
     materiales:{texturas:!!styleTextures},
-    suelo:{ver:(typeof groundLaserOn!=='undefined'?!!groundLaserOn:false), color:sueloColor},   // suelo VIRTUAL de apoyo (no geometría real)
+    suelo:{ver:(typeof groundLaserOn!=='undefined'?!!groundLaserOn:false), color:sueloColor, z:+(+sueloZ).toFixed(3)},   // suelo VIRTUAL de apoyo (no geometría real)
     salidas:(styleFamily==='tecnico'?['vector_svg','vector_pdf']:['raster_png','imagen_ia']) };
   if(viewMode==='oculto'||styleHidOn)st.ocultos={ver:true,patron:styleHidPat};
   return st; }
@@ -954,7 +957,7 @@ function applyStyle(st){ if(!st)return;
   if(st.ocultos){styleHidOn=(st.ocultos.ver===true); if(st.ocultos.patron==='punteado'||st.ocultos.patron==='discontinuo')styleHidPat=st.ocultos.patron;} else styleHidOn=false;
   applyHiddenPattern();
   if(st.materiales&&typeof st.materiales.texturas==='boolean')styleTextures=st.materiales.texturas;
-  if(st.suelo){ if(typeof st.suelo.ver==='boolean')setSuelo(st.suelo.ver); if(st.suelo.color)setSueloColor(st.suelo.color); }
+  if(st.suelo){ if(typeof st.suelo.ver==='boolean')setSuelo(st.suelo.ver); if(st.suelo.color)setSueloColor(st.suelo.color); if(st.suelo.z!=null)setSueloZ(st.suelo.z); }
   if(st.perfiles){ if(typeof st.perfiles.ver==='boolean')stylePerfOn=st.perfiles.ver; stylePerfW=(st.perfiles.grosor!=null?st.perfiles.grosor:null); applyPerfiles(); }
   if(st.aristas&&st.aristas.grosor!=null&&typeof setEdgePx==='function')setEdgePx(st.aristas.grosor);
   const wantDark=!!(st.fondo&&st.fondo.modo==='oscuro');
@@ -2199,7 +2202,9 @@ renderer.domElement.addEventListener('pointerdown',e=>{
           _snapPts=mag?buildSnapPts(null,true):null;
           return;}}}}
     if(gizmo&&gizmo.visible){ // gizmo: flechas y anillos
-      const gp=(gizMode==='rot')?gizParts.filter(p=>p.userData.giz.type==='rot'):gizParts;
+      const gp=(gizMode==='rot')?gizParts.filter(p=>p.userData.giz.type==='rot')
+        :(gizMode==='z')?gizParts.filter(p=>p.userData.giz.type==='move'&&p.userData.giz.axis==='z')
+        :gizParts;
       const gh=ray.intersectObjects(gp,false);
       if(gh.length){startGizDrag(gh[0].object.userData.giz);return;}}
     // arrastrar la flecha de la sección YA seleccionada = mover el plano en su normal
@@ -2268,6 +2273,9 @@ renderer.domElement.addEventListener('pointerdown',e=>{
         else if(rec&&images.includes(rec)){select('imagen',rec,'imagen '+rec.name);return;}
         else if(o.name&&pieces[o.name]){select('pieza',o,o.name);return;}
       }}
+    // SUELO VIRTUAL: última prioridad (tras piezas/superficies/anotaciones) para poder cogerlo con el gizmo Z
+    if(sueloMesh&&sueloMesh.visible){const sh=ray.intersectObject(sueloMesh,false);
+      if(sh.length){select('suelo',sueloMesh,'Suelo virtual');return;}}
     // VACÍO: no deseleccionar aún; permitir órbita. Sólo se deselecciona en un TOQUE (sin arrastre).
     dragging=true; _tapDeselect={x:e.clientX,y:e.clientY,moved:false};
   } else if(em==='erase'&&e.button===0){
@@ -2842,6 +2850,8 @@ function endPointer(e){
       if(gizDrag.mesh&&gizDrag.pos0)pushPieceXform(gizDrag.mesh,gizDrag.pos0,gizDrag.quat0);}   // registra deshacer del giro/mov.
     if(gizDrag.t==='superficie'&&gizDrag.mesh&&gizDrag.pos0)      // deshacer del giro/mov. de superficie
       pushPieceXform(gizDrag.mesh,gizDrag.pos0,gizDrag.quat0,'mover superficie');
+    if(gizDrag.t==='suelo'&&gizDrag.mesh){                        // suelo virtual: fija sueloZ y registra deshacer
+      sueloZ=+(gizDrag.mesh.position.z-sueloBaseZ).toFixed(3); pushSueloXform(gizDrag.z0!=null?gizDrag.z0:sueloZ);}
     if(gizDrag.t==='laser'&&gizDrag.mesh&&
        (!gizDrag.pos0.equals(gizDrag.mesh.position)||!gizDrag.quat0.equals(gizDrag.mesh.quaternion))){
       const m=gizDrag.mesh,p0=gizDrag.pos0.clone(),q0=gizDrag.quat0.clone(),
@@ -3273,11 +3283,11 @@ let secRotate=null;   // sección cuyo giro está activo (icono órbita)
     const ln=new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),u]),
       new THREE.LineBasicMaterial({color:cols[a],transparent:true,opacity:.85,depthTest:false}));
-    ln.renderOrder=20; gizmo.add(ln); gizmo.userData.moveVis.push(ln);
+    ln.renderOrder=20; ln.userData.gaxis=a; gizmo.add(ln); gizmo.userData.moveVis.push(ln);
     const cone=new THREE.Mesh(new THREE.ConeGeometry(.04,.13,10),
       new THREE.MeshBasicMaterial({color:cols[a],transparent:true,opacity:.9,depthTest:false}));
     cone.position.copy(u); cone.quaternion.setFromUnitVectors(Y,u);
-    cone.renderOrder=20; gizmo.add(cone); gizmo.userData.moveVis.push(cone);
+    cone.renderOrder=20; cone.userData.gaxis=a; gizmo.add(cone); gizmo.userData.moveVis.push(cone);
     const rp=[];for(let i=0;i<=48;i++){const t=i/48*2*Math.PI;
       rp.push(new THREE.Vector3(Math.cos(t)*.72,Math.sin(t)*.72,0));}
     const ring=new THREE.Line(new THREE.BufferGeometry().setFromPoints(rp),
@@ -3302,11 +3312,16 @@ function gizTarget(){
   if(selSet.length||(selected&&selected.kind==='trazo'))return 'trazo';
   if(selected&&selected.kind==='pieza')return 'pieza';
   if(selected&&selected.kind==='superficie')return 'superficie';
+  if(selected&&selected.kind==='suelo')return 'suelo';
   if(selected&&selected.kind==='laser')return 'laser';
   if(selected&&selected.kind==='section')return 'section';
   return null;}
 function setGizMode(m){
   gizMode=m;
+  if(m==='z'){   // solo eje Z (suelo virtual): un único desplazamiento vertical
+    (gizmo.userData.moveVis||[]).forEach(o=>o.visible=(o.userData.gaxis==='z'));
+    (gizmo.userData.rotVis||[]).forEach(o=>o.visible=false);
+    return;}
   const rot=(m==='rot');
   (gizmo.userData.moveVis||[]).forEach(o=>o.visible=!rot);
   (gizmo.userData.rotVis||[]).forEach(o=>o.visible=true);
@@ -3320,7 +3335,9 @@ function updateGizmo(){
   if(t==='section'){
     if(selected.ref.locked||secRotate!==selected.ref){gizmo.visible=false;return;}   // bloqueado o giro no activo: sin gizmo
     setGizMode('rot');
-  } else setGizMode('full');
+  } else if(t==='suelo')setGizMode('z');
+  else setGizMode('full');
+  if(t==='suelo'&&(!sueloMesh||!sueloMesh.visible)){gizmo.visible=false;return;}   // suelo oculto: sin gizmo
   if(t==='laser'&&selected.ref.locked){gizmo.visible=false;return;}   // láser bloqueado: sin gizmo
   if(t==='pieza'&&selected.ref.userData.locked){gizmo.visible=false;return;}   // pieza bloqueada: sin gizmo
   if(t==='superficie'&&selected.surf&&selected.surf.locked){gizmo.visible=false;return;}   // superficie bloqueada: sin gizmo
@@ -3329,6 +3346,7 @@ function updateGizmo(){
     effSel().forEach(s=>s.points.forEach(p=>{bb.expandByPoint(new THREE.Vector3(p[0],p[1],p[2]));n++;}));
     if(!n){gizmo.visible=false;return;} bb.getCenter(c);}
   else if(t==='laser')c.copy(selected.ref.mesh.position);
+  else if(t==='suelo')c.copy(sueloMesh.position);
   else if(t==='section')c.copy(selected.ref.pt);
   else{const mm=selected.ref; mm.updateMatrixWorld();   // centro geométrico de la PIEZA:
     if(mm.geometry){mm.geometry.computeBoundingBox();   // sólo su malla (los buffers hijos
@@ -3381,6 +3399,7 @@ function startGizDrag(g){
   else{const m=(t==='laser')?selected.ref.mesh:selected.ref;
     gizDrag.mesh=m; gizDrag.pos0=m.position.clone(); gizDrag.quat0=m.quaternion.clone();
     if(t==='laser'&&g.type==='move')gizDrag.mag=buildLaserMag(u);}
+  if(t==='suelo')gizDrag.z0=sueloZ;   // para deshacer del desplazamiento vertical del suelo virtual
   if(g.type==='move')gizDrag.t0=axisParam(gizDrag.C,u);
   else{gizDrag.prevA=ringAngle(gizDrag.C,u);gizDrag.acc=0;}
 }
@@ -3953,13 +3972,18 @@ const GROUND_TRIS=(()=>{const zg=bbox.min.z-2,s=150;
   const sx=bbox.max.x-bbox.min.x, sy=bbox.max.y-bbox.min.y, s=Math.max(sx,sy,20)*3;
   const mat=new THREE.MeshStandardMaterial({color:new THREE.Color(sueloColor),roughness:.96,metalness:0,
     transparent:true,opacity:.9,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:3,polygonOffsetUnits:3});
+  sueloBaseZ=bbox.min.z-2;
   sueloMesh=new THREE.Mesh(new THREE.PlaneGeometry(s,s),mat);
-  sueloMesh.position.set(C.x,C.y,bbox.min.z-2);   // plano XY (horizontal, Z arriba)
+  sueloMesh.position.set(C.x,C.y,sueloBaseZ+sueloZ);   // plano XY (horizontal, Z arriba)
   sueloMesh.receiveShadow=true;                    // listo para recibir sombra en Fase B (suelo.recibe_sombra)
   sueloMesh.renderOrder=-1; sueloMesh.frustumCulled=false; sueloMesh.visible=false; scene.add(sueloMesh);
 })();
 function setSueloColor(hex){ if(!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(hex||''))return;
   sueloColor=hex; if(sueloMesh)sueloMesh.material.color.set(hex); }
+function setSueloZ(z){ sueloZ=(typeof z==='number'&&isFinite(z))?z:0; if(sueloMesh)sueloMesh.position.z=sueloBaseZ+sueloZ;
+  if(selected&&selected.kind==='suelo')updateGizmo(); }
+function pushSueloXform(z0){ const z1=sueloZ; if(Math.abs(z0-z1)<1e-6)return;
+  pushUndo('mover suelo virtual',()=>setSueloZ(z0),()=>setSueloZ(z1)); }
 function cutTris(tris,n,pt,out,M){
   const nx=n.x,ny=n.y,nz=n.z,d0=nx*pt.x+ny*pt.y+nz*pt.z,EPS=1e-6,q=[];
   for(const t of tris){
@@ -6507,7 +6531,7 @@ get rendererInfo(){return renderer.info.memory},updateLivePreview,nearestVertexO
 computeIntersections,snapPt,midByArc,get lineW(){return lineW},
 get faceRef(){return faceRef},get frame(){return {on:frameOn,Rface}},get pickables(){return pickables},
 datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes},
-updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},setSuelo,
+updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},setSuelo,setSueloZ,get sueloMesh(){return sueloMesh},get sueloZ(){return sueloZ},get gizMode(){return gizMode},
 get edgePx(){return edgePx},setEdgePx,fatLine,buildPlaneMag,get HAIRLINE(){return HAIRLINE},
 filletStart,filletStop,filletApplyAll,computeFilletCorners,applyFilletCorner,filletArc,setFilletR,get filletR(){return filletR},get filletMarkers(){return filletMarkers},
 uniteStrokes,decomposeStroke,faceGroupsOf,decomposePieceFaces,pickFaceLoopAt,pickStrokeAt,shrinkwrapStroke,avgNormalWorld,sculptSurfaceAt,soupOf,get selSet(){return selSet},set selSet(v){selSet=v},setLaserBlack,
