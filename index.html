@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.80 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.81 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -418,6 +418,11 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
   <span style="margin-left:auto;display:flex;gap:3px;align-items:center">
    <button class="stgl on" data-bg="claro">Claro</button><button class="stgl" data-bg="oscuro">Oscuro</button>
    <input id="styleBgCol" type="color" value="#eef1f4" title="Color de fondo personalizado" style="width:28px;height:24px;border:1px solid #ddd;border-radius:6px;padding:0;cursor:pointer"></span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Cielo degradado (SketchUp): color de cielo arriba → horizonte abajo. Es el telón, distinto del suelo 3D">Cielo
+  <span style="margin-left:auto;display:flex;gap:3px;align-items:center">
+   <button class="stgl on" data-sky="no">No</button><button class="stgl" data-sky="deg">Degradado</button>
+   <input id="styleCieloCol" type="color" value="#aacbff" title="Color del cielo (arriba)" style="width:24px;height:24px;border:1px solid #ddd;border-radius:6px;padding:0;cursor:pointer">
+   <input id="styleHorizCol" type="color" value="#eef3f8" title="Color del horizonte (abajo)" style="width:24px;height:24px;border:1px solid #ddd;border-radius:6px;padding:0;cursor:pointer"></span></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Plano de apoyo del visor: VIRTUAL y provisional, hasta cargar el terreno real BIM georreferenciado">Suelo virtual
   <span style="margin-left:auto;display:flex;gap:3px;align-items:center">
    <button class="stgl" data-su="si">Sí</button><button class="stgl on" data-su="no">No</button>
@@ -775,6 +780,17 @@ let sueloColor='#e9ebee';  // color del SUELO VIRTUAL → estilo.suelo.color
 let sueloMesh=null;        // malla del suelo virtual (provisional; la sustituirá el terreno real BIM georreferenciado). Se crea tras conocer el bbox
 let sueloZ=0;              // desplazamiento vertical del suelo virtual → estilo.suelo.z (0 = posición base bajo el modelo)
 let sueloBaseZ=0;          // cota base (bbox.min.z-2); la posición real del plano es sueloBaseZ + sueloZ
+let styleSky=false;        // fondo degradado (cielo→horizonte) → estilo.fondo.modo='degradado'
+let styleCielo='#aacbff';  // color superior del degradado → estilo.fondo.cielo
+let styleHorizonte='#eef3f8'; // color inferior/transición → estilo.fondo.horizonte
+let _skyTex=null,_skyKey='';
+function skyTexture(){ const key=styleCielo+'|'+styleHorizonte; if(_skyTex&&_skyKey===key)return _skyTex;
+  const cnv=document.createElement('canvas'); cnv.width=8; cnv.height=256; const ctx=cnv.getContext('2d');
+  const g=ctx.createLinearGradient(0,0,0,256); g.addColorStop(0,styleCielo); g.addColorStop(1,styleHorizonte);
+  ctx.fillStyle=g; ctx.fillRect(0,0,8,256);
+  if(_skyTex)_skyTex.dispose();
+  const tex=new THREE.CanvasTexture(cnv); if(THREE.sRGBEncoding!==undefined)tex.encoding=THREE.sRGBEncoding;
+  _skyTex=tex; _skyKey=key; return tex; }
 let invView=false, invAlpha=0.85;   // modo invertido: fondo oscuro + volúmenes claros translúcidos
 let meshOverlay=false;   // la malla (aristas de triángulos) es un overlay independiente del estilo
 function edgesWanted(){return !styleEdgesOff && viewMode!=='somb';}
@@ -818,6 +834,7 @@ function applyMode(){
     ud.edges.material.color.setHex(0x0a84ff);
     if(ud.silh)ud.silh.line.material.color.setHex(0x0a84ff);}
   if(styleBg&&!invView)scene.background=new THREE.Color(styleBg);   // fondo de color del estilo (prevalece sobre claro/oscuro)
+  if(styleSky&&!invView)scene.background=skyTexture();   // CIELO: degradado cielo→horizonte (prevalece sobre el color)
   _silhFrame=-1; // recalcular siluetas aunque la camara no se haya movido
   document.querySelectorAll('#vmodes button').forEach(b=>b.classList.toggle('on',b.dataset.m===viewMode));
 }
@@ -921,7 +938,9 @@ function validarEstilo(st){ const e=[]; const I=_EST_ENUM;
     if(st.suelo.recibe_sombra!=null&&typeof st.suelo.recibe_sombra!=='boolean')e.push('suelo.recibe_sombra');
     if(st.suelo.z!=null&&typeof st.suelo.z!=='number')e.push('suelo.z');
     if(st.suelo.color!=null&&!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(st.suelo.color))e.push('suelo.color'); }
-  if(st.fondo&&st.fondo.modo&&!I.fondo.includes(st.fondo.modo))e.push('fondo.modo');
+  if(st.fondo){ if(st.fondo.modo&&!I.fondo.includes(st.fondo.modo))e.push('fondo.modo');
+    if(st.fondo.cielo&&!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(st.fondo.cielo))e.push('fondo.cielo');
+    if(st.fondo.horizonte&&!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(st.fondo.horizonte))e.push('fondo.horizonte'); }
   if(st.salidas)st.salidas.forEach(s=>{ if(!I.salidas.includes(s))e.push('salida:'+s); });
   return {ok:e.length===0, errors:e}; }
 let savedStyles=[];
@@ -930,7 +949,8 @@ function currentStyle(){ const st={ v:1, id:_uuid(), nombre:'', familia:styleFam
     aristas:{ver:edgesWanted(), grosor:+edgePx.toFixed(2), color:{fuente:styleEdgeColor}},
     perfiles:{ver:!!stylePerfOn, grosor:+(stylePerfW!=null?stylePerfW:edgePx).toFixed(2)},
     fuente_color:{modo:(styleEdgeColor==='material'?'material':'bn')},
-    fondo:(styleBg?{modo:(darkView?'oscuro':'claro'),valor:styleBg}:{modo:(darkView?'oscuro':'claro')}),
+    fondo:(styleSky?{modo:'degradado',cielo:styleCielo,horizonte:styleHorizonte}
+      :(styleBg?{modo:(darkView?'oscuro':'claro'),valor:styleBg}:{modo:(darkView?'oscuro':'claro')})),
     materiales:{texturas:!!styleTextures},
     suelo:{ver:(typeof groundLaserOn!=='undefined'?!!groundLaserOn:false), color:sueloColor, z:+(+sueloZ).toFixed(3)},   // suelo VIRTUAL de apoyo (no geometría real)
     salidas:(styleFamily==='tecnico'?['vector_svg','vector_pdf']:['raster_png','imagen_ia']) };
@@ -953,6 +973,7 @@ function applyStyle(st){ if(!st)return;
   const ef=(st.aristas&&st.aristas.color&&st.aristas.color.fuente);
   styleEdgeColor=(ef==='material')?'material':'bn';   // 'fija' se representa como b/n en el visor (Fase A)
   styleBg=(st.fondo&&typeof st.fondo.valor==='string'&&/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(st.fondo.valor))?st.fondo.valor:null;
+  if(st.fondo&&st.fondo.modo==='degradado'){styleSky=true; if(st.fondo.cielo)styleCielo=st.fondo.cielo; if(st.fondo.horizonte)styleHorizonte=st.fondo.horizonte;} else styleSky=false;
   if(st.aristas&&typeof st.aristas.ver==='boolean')styleEdgesOff=(st.aristas.ver===false);
   if(st.ocultos){styleHidOn=(st.ocultos.ver===true); if(st.ocultos.patron==='punteado'||st.ocultos.patron==='discontinuo')styleHidPat=st.ocultos.patron;} else styleHidOn=false;
   applyHiddenPattern();
@@ -981,7 +1002,10 @@ function syncStylePanel(){ syncStyleFamily();
   document.querySelectorAll('#stylepop .stgl[data-tx]').forEach(b=>b.classList.toggle('on',b.dataset.tx===(styleTextures?'si':'no')));
   const o=document.getElementById('styleOpac'); if(o)o.value=Math.round(baseOpacity*100);
   const g=document.getElementById('styleGrosor'); if(g)g.value=edgePx;
-  const bc=document.getElementById('styleBgCol'); if(bc&&styleBg)bc.value=styleBg; }
+  const bc=document.getElementById('styleBgCol'); if(bc&&styleBg)bc.value=styleBg;
+  document.querySelectorAll('#stylepop .stgl[data-sky]').forEach(b=>b.classList.toggle('on',b.dataset.sky===(styleSky?'deg':'no')));
+  const cc=document.getElementById('styleCieloCol'); if(cc)cc.value=styleCielo;
+  const hc=document.getElementById('styleHorizCol'); if(hc)hc.value=styleHorizonte; }
 function persistStyles(){ try{localStorage.setItem('tectosStyles',JSON.stringify(savedStyles.filter(s=>!s.de_fabrica)));}catch(e){} }
 document.getElementById('stylePerso').onclick=()=>{
   document.getElementById('vmodes').style.display='none';
@@ -997,12 +1021,15 @@ document.getElementById('stylepop').addEventListener('click',e=>{
   else if(b.dataset.su){setSuelo(b.dataset.su==='si'); syncStylePanel();}
   else if(b.dataset.tx){styleTextures=(b.dataset.tx==='si'); syncStylePanel();}
   else if(b.dataset.ec){styleEdgeColor=b.dataset.ec; applyMode(); syncStylePanel();}
-  else if(b.dataset.bg){styleBg=null; const wantDark=b.dataset.bg==='oscuro';
-    if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode(); syncStylePanel();}});
+  else if(b.dataset.bg){styleBg=null; styleSky=false; const wantDark=b.dataset.bg==='oscuro';
+    if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode(); syncStylePanel();}
+  else if(b.dataset.sky){styleSky=(b.dataset.sky==='deg'); applyMode(); syncStylePanel();}});
 document.getElementById('styleOpac').oninput=function(){baseOpacity=Math.max(0.06,+this.value/100); applyMode();};
 document.getElementById('styleGrosor').oninput=function(){setEdgePx(+this.value); syncStylePanel();};
 document.getElementById('stylePerfGro').oninput=function(){stylePerfW=+this.value; applyPerfiles();};
 document.getElementById('styleSueloCol').oninput=function(){setSueloColor(this.value);};
+document.getElementById('styleCieloCol').oninput=function(){styleCielo=this.value; if(styleSky)applyMode();};
+document.getElementById('styleHorizCol').oninput=function(){styleHorizonte=this.value; if(styleSky)applyMode();};
 document.getElementById('styleBgCol').oninput=function(){styleBg=this.value; applyMode(); syncStylePanel();};
 document.getElementById('styleSave').onclick=()=>{
   const inp=document.getElementById('styleName');

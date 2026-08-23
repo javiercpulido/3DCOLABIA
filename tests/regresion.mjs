@@ -645,6 +645,12 @@ const secciones = {
       D.select('suelo', D.sueloMesh, 'Suelo virtual'); D.updateGizmo();
       out.gizZ = D.gizmo.visible === true && D.gizMode === 'z';
       D.deselect(); D.setSuelo(false);
+      // CIELO: fondo degradado cielo/horizonte (fondo.modo='degradado')
+      D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-00000000000f', nombre:'sky', familia:'presentacion',
+        fondo:{ modo:'degradado', cielo:'#88aaff', horizonte:'#ffffff' } });
+      const st7 = D.currentStyle();
+      out.cielo = st7.fondo.modo === 'degradado' && st7.fondo.cielo === '#88aaff'
+        && st7.fondo.horizonte === '#ffffff' && D.validarEstilo(st7).ok;
       // export: biblioteca de usuario + estilo vivo bajo sub-clave `estilo`, ambos válidos
       const e = D.buildExport();
       out.serial = Array.isArray(e.estilos) && !!e.estilo && D.validarEstilo(e.estilo).ok
@@ -673,6 +679,7 @@ const secciones = {
     ok('estilos: perfiles/silueta (perfiles.ver/grosor) round-trip', r.perfiles);
     ok('estilos: suelo.z (desplazamiento vertical) round-trip', r.sueloZ);
     ok('estilos: gizmo de eje Z al seleccionar el suelo virtual', r.gizZ);
+    ok('estilos: cielo (fondo degradado cielo/horizonte) round-trip', r.cielo);
     ok('estilos: export lleva biblioteca + estilo vivo (sub-clave), válidos', r.serial);
   },
 
