@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.77 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.78 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -511,6 +511,7 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <div style="margin-top:8px;color:var(--mut);font-size:11px">Secciones → arriba, junto a las vistas (icono de sección ⌀).</div>
  <label><input type="checkbox" id="axSnap" checked> Ajuste de líneas a ejes</label>
  <label><input type="checkbox" id="interChk" checked> Intersección de volúmenes</label>
+ <label><input type="checkbox" id="groundLaser" checked> Suelo base · capa de entorno (espejo de Estilos)</label>
  <div id="surfSec" style="margin-top:10px;display:none"><b>Superficies</b>
   <div id="surfList" style="margin-top:4px"></div></div>
  <div style="margin-top:10px"><b>Papelera</b>
@@ -3220,7 +3221,9 @@ document.getElementById('selMag').onclick=()=>{
   toast(activar?('imán fijo 🧲: pegado a '+(list[0].sobre==='aire'?'…apunta la cámara a una pieza':list[0].sobre))
                :'imán fijo quitado — el trazo vuelve a ser libre');};
 interChk.onchange=e=>{interOn=e.target.checked;};
-// El plano base (suelo de apoyo) se controla desde el editor de Estilos (Suelo base), no en la ventana derecha.
+// Suelo base = capa de entorno, en ESPEJO: mando a la derecha + editor de Estilos, sincronizados por setSuelo().
+document.getElementById('groundLaser').onchange=e=>{setSuelo(e.target.checked);
+  if(document.getElementById('stylepop').style.display!=='none')syncStylePanel();};
 // indicador de CONTACTO: sondeo corto en 6 direcciones desde extremos y centro
 let contactSpr=null;
 const probeRc=new THREE.Raycaster(); probeRc.far=1.6;
