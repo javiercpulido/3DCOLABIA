@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.73 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.74 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -394,14 +394,20 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Familia
   <span style="margin-left:auto;display:flex;gap:3px">
    <button class="stgl on" data-fam="presentacion">Presentación</button><button class="stgl" data-fam="tecnico">Técnico</button></span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Caras
+  <span style="margin-left:auto;display:flex;gap:3px">
+   <button class="stgl" data-cm="somb">Sombra</button><button class="stgl" data-cm="blanco">Blanco</button><button class="stgl" data-cm="wire">Alambre</button><button class="stgl" data-cm="xray">X-Ray</button></span></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Aristas
   <span style="margin-left:auto;display:flex;gap:3px">
    <button class="stgl on" data-ec="bn">B/N</button><button class="stgl" data-ec="material">Material</button></span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Grosor aristas
+  <input id="styleGrosor" type="range" min="0.5" max="6" step="0.25" value="1.6" style="flex:1;margin-left:auto;max-width:120px"></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Opacidad
   <input id="styleOpac" type="range" min="6" max="100" step="1" value="100" style="flex:1;margin-left:auto;max-width:120px"></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Fondo
-  <span style="margin-left:auto;display:flex;gap:3px">
-   <button class="stgl on" data-bg="claro">Claro</button><button class="stgl" data-bg="oscuro">Oscuro</button></span></label>
+  <span style="margin-left:auto;display:flex;gap:3px;align-items:center">
+   <button class="stgl on" data-bg="claro">Claro</button><button class="stgl" data-bg="oscuro">Oscuro</button>
+   <input id="styleBgCol" type="color" value="#eef1f4" title="Color de fondo personalizado" style="width:28px;height:24px;border:1px solid #ddd;border-radius:6px;padding:0;cursor:pointer"></span></label>
  <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
   <input id="styleName" placeholder="Nombre del estilo" style="flex:1;font-size:13px;padding:6px 8px;border:1px solid #ddd;border-radius:8px">
   <button id="styleSave" style="border:0;background:var(--acc);color:#fff;border-radius:8px;padding:7px 11px;font-weight:600;cursor:pointer">Guardar</button></div>
@@ -741,6 +747,7 @@ computeIntersections();
 let viewMode='somb', baseOpacity=1, darkView=false;
 let styleEdgeColor='bn';   // aristas/ocultos: 'bn' (defecto, b/n) · 'material' (por color de la pieza) — código del contrato
 let styleFamily='presentacion';   // familia del estilo (estilo.schema.json): 'tecnico' | 'presentacion'
+let styleBg=null;   // fondo de color personalizado (hex) → estilo.fondo.valor · null = tema claro/oscuro
 let invView=false, invAlpha=0.85;   // modo invertido: fondo oscuro + volúmenes claros translúcidos
 let meshOverlay=false;   // la malla (aristas de triángulos) es un overlay independiente del estilo
 function edgesWanted(){return viewMode!=='somb';}
@@ -783,6 +790,7 @@ function applyMode(){
   for(const n in pieces){const ud=pieces[n].userData; if(!ud.hi)continue;
     ud.edges.material.color.setHex(0x0a84ff);
     if(ud.silh)ud.silh.line.material.color.setHex(0x0a84ff);}
+  if(styleBg&&!invView)scene.background=new THREE.Color(styleBg);   // fondo de color del estilo (prevalece sobre claro/oscuro)
   _silhFrame=-1; // recalcular siluetas aunque la camara no se haya movido
   document.querySelectorAll('#vmodes button').forEach(b=>b.classList.toggle('on',b.dataset.m===viewMode));
 }
@@ -886,9 +894,9 @@ function validarEstilo(st){ const e=[]; const I=_EST_ENUM;
 let savedStyles=[];
 function currentStyle(){ const st={ v:1, id:_uuid(), nombre:'', familia:styleFamily,
     caras:{modo:carasModoFromView(viewMode), opacidad:+baseOpacity.toFixed(2)},
-    aristas:{ver:edgesWanted(), color:{fuente:styleEdgeColor}},
+    aristas:{ver:edgesWanted(), grosor:+edgePx.toFixed(2), color:{fuente:styleEdgeColor}},
     fuente_color:{modo:(styleEdgeColor==='material'?'material':'bn')},
-    fondo:{modo:darkView?'oscuro':'claro'},
+    fondo:(styleBg?{modo:(darkView?'oscuro':'claro'),valor:styleBg}:{modo:(darkView?'oscuro':'claro')}),
     salidas:(styleFamily==='tecnico'?['vector_svg','vector_pdf']:['raster_png','imagen_ia']) };
   if(viewMode==='oculto')st.ocultos={ver:true};
   return st; }
@@ -899,6 +907,8 @@ function applyStyle(st){ if(!st)return;
   if(st.caras&&st.caras.opacidad!=null)baseOpacity=st.caras.opacidad;
   const ef=(st.aristas&&st.aristas.color&&st.aristas.color.fuente);
   styleEdgeColor=(ef==='material')?'material':'bn';   // 'fija' se representa como b/n en el visor (Fase A)
+  styleBg=(st.fondo&&typeof st.fondo.valor==='string'&&/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(st.fondo.valor))?st.fondo.valor:null;
+  if(st.aristas&&st.aristas.grosor!=null&&typeof setEdgePx==='function')setEdgePx(st.aristas.grosor);
   const wantDark=!!(st.fondo&&st.fondo.modo==='oscuro');
   if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode();
   syncStyleFamily(); syncStylePanel(); }
@@ -908,9 +918,12 @@ function renderSavedStyles(){ const c=document.getElementById('vstyles'); if(!c)
     b.dataset.style=String(i); if(st.de_fabrica)b.dataset.fab='1'; b.title='Aplicar «'+styleLabel(st)+'»'; c.appendChild(b);}); }
 function syncStyleFamily(){ document.querySelectorAll('#stylepop .stgl[data-fam]').forEach(b=>b.classList.toggle('on',b.dataset.fam===styleFamily)); }
 function syncStylePanel(){ syncStyleFamily();
+  document.querySelectorAll('#stylepop .stgl[data-cm]').forEach(b=>b.classList.toggle('on',b.dataset.cm===viewMode));
   document.querySelectorAll('#stylepop .stgl[data-ec]').forEach(b=>b.classList.toggle('on',b.dataset.ec===styleEdgeColor));
-  document.querySelectorAll('#stylepop .stgl[data-bg]').forEach(b=>b.classList.toggle('on',b.dataset.bg===(darkView?'oscuro':'claro')));
-  const o=document.getElementById('styleOpac'); if(o)o.value=Math.round(baseOpacity*100); }
+  document.querySelectorAll('#stylepop .stgl[data-bg]').forEach(b=>b.classList.toggle('on',!styleBg&&b.dataset.bg===(darkView?'oscuro':'claro')));
+  const o=document.getElementById('styleOpac'); if(o)o.value=Math.round(baseOpacity*100);
+  const g=document.getElementById('styleGrosor'); if(g)g.value=edgePx;
+  const bc=document.getElementById('styleBgCol'); if(bc&&styleBg)bc.value=styleBg; }
 function persistStyles(){ try{localStorage.setItem('tectosStyles',JSON.stringify(savedStyles.filter(s=>!s.de_fabrica)));}catch(e){} }
 document.getElementById('stylePerso').onclick=()=>{
   document.getElementById('vmodes').style.display='none';
@@ -919,10 +932,13 @@ document.getElementById('styleClose').onclick=()=>{document.getElementById('styl
 document.getElementById('stylepop').addEventListener('click',e=>{
   const b=e.target.closest('.stgl'); if(!b)return;
   if(b.dataset.fam){styleFamily=b.dataset.fam; renderSavedStyles(); syncStyleFamily();}
+  else if(b.dataset.cm){viewMode=b.dataset.cm; applyMode(); syncStylePanel();}
   else if(b.dataset.ec){styleEdgeColor=b.dataset.ec; applyMode(); syncStylePanel();}
-  else if(b.dataset.bg){const wantDark=b.dataset.bg==='oscuro';
-    if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} syncStylePanel();}});
+  else if(b.dataset.bg){styleBg=null; const wantDark=b.dataset.bg==='oscuro';
+    if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode(); syncStylePanel();}});
 document.getElementById('styleOpac').oninput=function(){baseOpacity=Math.max(0.06,+this.value/100); applyMode();};
+document.getElementById('styleGrosor').oninput=function(){setEdgePx(+this.value); syncStylePanel();};
+document.getElementById('styleBgCol').oninput=function(){styleBg=this.value; applyMode(); syncStylePanel();};
 document.getElementById('styleSave').onclick=()=>{
   const inp=document.getElementById('styleName');
   const nUser=savedStyles.filter(s=>!s.de_fabrica).length;

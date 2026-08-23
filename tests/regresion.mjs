@@ -612,6 +612,13 @@ const secciones = {
       D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-000000000009', nombre:'x', familia:'tecnico',
         caras:{ modo:'blanco' }, aristas:{ ver:true, color:{ fuente:'bn' } }, fondo:{ modo:'claro' } });
       out.applied = D.styleEdgeColor === 'bn' && D.viewMode === 'blanco' && D.styleFamily === 'tecnico';
+      // nuevas opciones (SketchUp): grosor de aristas (aristas.grosor) y fondo de color (fondo.valor)
+      D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-00000000000a', nombre:'y', familia:'presentacion',
+        caras:{ modo:'consistente' }, aristas:{ ver:true, grosor:3.5, color:{ fuente:'bn' } },
+        fondo:{ modo:'claro', valor:'#123456' } });
+      const st2 = D.currentStyle();
+      out.grosor = Math.abs((st2.aristas.grosor || 0) - 3.5) < 0.01;
+      out.bgcolor = st2.fondo.valor === '#123456' && D.validarEstilo(st2).ok;
       // export: biblioteca de usuario + estilo vivo bajo sub-clave `estilo`, ambos válidos
       const e = D.buildExport();
       out.serial = Array.isArray(e.estilos) && !!e.estilo && D.validarEstilo(e.estilo).ok
@@ -631,6 +638,8 @@ const secciones = {
     ok('estilos: aristas B/N ↔ material desde el panel Personalizar', r.material);
     ok('estilos: guardar añade un estilo de usuario válido', r.saved);
     ok('estilos: aplicar un estilo conforme cambia caras/aristas/familia', r.applied);
+    ok('estilos: grosor de aristas (aristas.grosor) round-trip', r.grosor);
+    ok('estilos: fondo de color (fondo.valor) round-trip y válido', r.bgcolor);
     ok('estilos: export lleva biblioteca + estilo vivo (sub-clave), válidos', r.serial);
   },
 
