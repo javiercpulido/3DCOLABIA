@@ -90,6 +90,8 @@
  #dock.horiz #dock2{max-height:none;max-width:70vw}
  #vmodes button{width:auto;padding:0 12px;height:34px;border:0;background:transparent;border-radius:10px;
    font-size:12px;font-weight:600;color:var(--ink);cursor:pointer}
+ #stylepop .stgl{border:1px solid rgba(0,0,0,.14);background:transparent;border-radius:7px;padding:5px 9px;font-size:12px;cursor:pointer;color:var(--ink)}
+ #stylepop .stgl.on{background:var(--acc);color:#fff;border-color:transparent}
  .axbtn{width:30px!important}
  svg{pointer-events:none}
  #strokeOps,#xformOps,#laserOps,#secOps{display:none;align-items:center;gap:4px;flex-wrap:nowrap}
@@ -153,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.71 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.72 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -339,7 +341,7 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <button id="vPla" title="Planta (vista superior)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8.5" width="12" height="11" rx="1.6"/><polyline points="8.5 4.5 12 7 15.5 4.5"/></svg></button>
  <button id="vPlaInv" title="Planta invertida (vista inferior)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4.5" width="12" height="11" rx="1.6"/><polyline points="8.5 19.5 12 17 15.5 19.5"/></svg></button>
  <div class="vsep"></div>
- <button id="vEye" title="Estilo de visualización (sombreado)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17 6.4 6.4 0 0 0 0-17Z" fill="currentColor" stroke="none"/></svg></button>
+ <button id="vEye" title="Estilo de visualización (sombreado)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12 20 7.5v9L12 21Z" fill="currentColor" opacity=".55" stroke="none"/><path d="M4 7.5 12 12 4 16.5" fill="currentColor" opacity=".18" stroke="none"/><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="M12 12 20 7.5M12 12v9M12 12 4 7.5"/></svg></button>
  <button id="vDark" title="Modo oscuro (mejora el contraste del láser)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg></button>
  <button id="vInv" title="Modo invertido: fondo oscuro con volúmenes claros"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/></svg></button>
  <div class="vsep" id="secSep"></div>
@@ -383,6 +385,24 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
 </div>
 <div id="vmodes" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:row;padding:5px;gap:2px">
  <button data-m="somb" class="on">Sombra</button><button data-m="blanco">Blanco</button><button data-m="wire">Wire</button><button data-m="xray">X-Ray</button><button data-m="tecnico">Técnico</button><button data-m="oculto">Oculto</button>
+ <span id="vstyles" style="display:contents"></span>
+ <span style="width:1px;align-self:stretch;background:rgba(0,0,0,.12);margin:2px 1px"></span>
+ <button id="stylePerso" title="Personalizar el estilo y guardarlo">Personalizar…</button>
+</div>
+<div id="stylepop" class="pill" style="position:fixed;top:calc(120px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:16;display:none;flex-direction:column;gap:9px;padding:12px 14px;font-size:13px;min-width:230px;max-width:94vw">
+ <div style="display:flex;align-items:center;gap:8px"><b style="font-size:13px;flex:1">Personalizar estilo</b><button id="styleClose" style="border:0;background:rgba(0,0,0,.06);border-radius:8px;padding:4px 8px;cursor:pointer">✕</button></div>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Aristas
+  <span style="margin-left:auto;display:flex;gap:3px">
+   <button class="stgl on" data-ec="byn">B/N</button><button class="stgl" data-ec="material">Material</button></span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Opacidad
+  <input id="styleOpac" type="range" min="6" max="100" step="1" value="100" style="flex:1;margin-left:auto;max-width:120px"></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Fondo
+  <span style="margin-left:auto;display:flex;gap:3px">
+   <button class="stgl on" data-bg="claro">Claro</button><button class="stgl" data-bg="oscuro">Oscuro</button></span></label>
+ <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
+  <input id="styleName" placeholder="Nombre del estilo" style="flex:1;font-size:13px;padding:6px 8px;border:1px solid #ddd;border-radius:8px">
+  <button id="styleSave" style="border:0;background:var(--acc);color:#fff;border-radius:8px;padding:7px 11px;font-weight:600;cursor:pointer">Guardar</button></div>
+ <span style="font-size:11px;color:var(--mut)">Los cambios se ven en vivo. Guardar lo añade a los estilos de arriba.</span>
 </div>
 <div id="drawmenu" class="pill" style="position:fixed;top:76px;left:12px;z-index:11;display:none;flex-direction:column;padding:7px;gap:5px;width:186px;max-width:64vw;font-size:12.5px;color:var(--ink)">
  <b style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Modo de lápiz</b>
@@ -716,6 +736,7 @@ function computeIntersections(){
 computeIntersections();
 // ================= MODOS DE VISION y SECCION =================
 let viewMode='somb', baseOpacity=1, darkView=false;
+let styleEdgeColor='byn';   // aristas/ocultos: 'byn' (defecto, b/n) · 'material' (por color de la pieza)
 let invView=false, invAlpha=0.85;   // modo invertido: fondo oscuro + volúmenes claros translúcidos
 let meshOverlay=false;   // la malla (aristas de triángulos) es un overlay independiente del estilo
 function edgesWanted(){return viewMode!=='somb';}
@@ -725,8 +746,9 @@ function applyMode(){
   for(const n in pieces){const m=pieces[n],ud=m.userData;
     m.material=(viewMode==='tecnico'||viewMode==='oculto')?ud.matFlat:ud.matShaded;
     ud.matFlat.color.setHex(dk?0x24272b:0xffffff);
-    ud.edges.material.color.setHex(dk?0xd8dbdf:0x1c1c1e);
-    if(ud.silh)ud.silh.line.material.color.setHex(dk?0xd8dbdf:0x1c1c1e);
+    const ecol=(styleEdgeColor==='material')?ud.baseColor:(dk?0xd8dbdf:0x1c1c1e);   // aristas b/n o por material
+    ud.edges.material.color.setHex(ecol);
+    if(ud.silh)ud.silh.line.material.color.setHex(ecol);
     const ms=ud.matShaded;
     if(viewMode==='somb'){ms.color.setHex(ud.baseColor);
       if(dk)ms.color.multiplyScalar(0.55); ms.opacity=baseOpacity;}
@@ -781,7 +803,45 @@ vEye.onclick=()=>{const d=document.getElementById('vmodes');
   if(show)dropFromIcon(d,vEye); else d.style.display='none';};
 document.getElementById('vmodes').addEventListener('click',e=>{
   if(e.target.dataset.m){viewMode=e.target.dataset.m;applyMode();
+    document.getElementById('vmodes').style.display='none';}
+  else if(e.target.dataset.style!==undefined&&e.target.dataset.style!==''){
+    applyStyle(savedStyles[+e.target.dataset.style]);
     document.getElementById('vmodes').style.display='none';}});
+// ---- ESTILOS DE VISUALIZACIÓN: el estilo es DATO (descriptor), guardable y aplicable ----
+let savedStyles=[];
+function currentStyle(){return {family:'presentacion',caras:viewMode,aristasColor:styleEdgeColor,
+  opacidad:+baseOpacity.toFixed(2),fondo:darkView?'oscuro':'claro'};}
+function applyStyle(st){ if(!st)return;
+  viewMode=st.caras||'somb'; styleEdgeColor=st.aristasColor||'byn';
+  baseOpacity=(st.opacidad!=null?st.opacidad:1);
+  const wantDark=(st.fondo==='oscuro');
+  if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode();
+  syncStylePanel(); }
+function renderSavedStyles(){ const c=document.getElementById('vstyles'); if(!c)return; c.innerHTML='';
+  savedStyles.forEach((st,i)=>{const b=document.createElement('button'); b.textContent=st.nombre;
+    b.dataset.style=String(i); b.title='Aplicar «'+st.nombre+'»'; c.appendChild(b);}); }
+function syncStylePanel(){
+  document.querySelectorAll('#stylepop .stgl[data-ec]').forEach(b=>b.classList.toggle('on',b.dataset.ec===styleEdgeColor));
+  document.querySelectorAll('#stylepop .stgl[data-bg]').forEach(b=>b.classList.toggle('on',b.dataset.bg===(darkView?'oscuro':'claro')));
+  const o=document.getElementById('styleOpac'); if(o)o.value=Math.round(baseOpacity*100); }
+function persistStyles(){ try{localStorage.setItem('tectosStyles',JSON.stringify(savedStyles));}catch(e){} }
+document.getElementById('stylePerso').onclick=()=>{
+  document.getElementById('vmodes').style.display='none';
+  const p=document.getElementById('stylepop'); p.style.display='flex'; syncStylePanel(); };
+document.getElementById('styleClose').onclick=()=>{document.getElementById('stylepop').style.display='none';};
+document.getElementById('stylepop').addEventListener('click',e=>{
+  const b=e.target.closest('.stgl'); if(!b)return;
+  if(b.dataset.ec){styleEdgeColor=b.dataset.ec; applyMode(); syncStylePanel();}
+  else if(b.dataset.bg){const wantDark=b.dataset.bg==='oscuro';
+    if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} syncStylePanel();}});
+document.getElementById('styleOpac').oninput=function(){baseOpacity=Math.max(0.06,+this.value/100); applyMode();};
+document.getElementById('styleSave').onclick=()=>{
+  const inp=document.getElementById('styleName');
+  const nombre=(inp.value||'').trim()||('Estilo '+(savedStyles.length+1));
+  savedStyles.push(Object.assign({nombre},currentStyle()));
+  inp.value=''; renderSavedStyles(); persistStyles();
+  toast('Estilo «'+nombre+'» guardado'); };
+try{const s=localStorage.getItem('tectosStyles'); if(s){savedStyles=JSON.parse(s)||[]; renderSavedStyles();}}catch(e){}
 // ================= SECCIONES (estilo SketchUp: plano nombrado A-A, poché, flip) =================
 // El nombre se genera automaticamente como lo hace el arquitecto (A-A, B-B...) y es editable.
 // El sentido del corte es el de la flecha; ⇄ o tocar el cono lo invierte.
@@ -6244,10 +6304,11 @@ function buildExport(){
         verts:Array.from(S.mesh.geometry.attributes.position.array).map(x=>+x.toFixed(3))});
       return Object.assign(base,{d:S.dirPts,g:S.genPts});}),
     textos:texts,
+    estilos:savedStyles, estilo:currentStyle(),
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
-window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},get pointersDbg(){return [...pointers.values()].map(v=>v.t)},get capsDbg(){return _caps.size},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
+window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},get pointersDbg(){return [...pointers.values()].map(v=>v.t)},get capsDbg(){return _caps.size},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},set viewMode(v){viewMode=v},get styleEdgeColor(){return styleEdgeColor},get savedStyles(){return savedStyles},currentStyle,applyStyle,get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
 buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},set contJoin(v){contJoin=v},get drawLock(){return drawLock},set drawLock(v){drawLock=v; const b=document.getElementById('mCont'); if(b)b.classList.toggle('on',drawLock&&contJoin);},get trazoMode(){return trazoMode},get shapeMode(){return shapeMode},cancelShapeDraw,circleFrom3,genPoints,to3,
 buildContourSurfaceFromPts,buildTerrainFromContour,get axGhost(){return axGhost},selectStroke,surfToolStart,surfToolTap,get surfTool(){return surfTool},moveContPoint,askClose,closeContourStroke,strokeClosed,
 buildRevolveFromPts,buildCoonsFromPts,buildExtrudeFromPts,buildTubeFromPts,chain4,buildExport,
@@ -6356,6 +6417,8 @@ function applyImport(d){
         if(sd.vis===false)S.mesh.visible=false;
         if(sd.locked)S.locked=true;});
       renderSurfList();}
+    if(d.estilos){savedStyles=d.estilos; renderSavedStyles(); persistStyles();}
+    if(d.estilo)applyStyle(d.estilo);
     texts=d.textos||[];
     (d.imagenes||[]).forEach(im=>{if(!im.dataURL)return;
       new THREE.TextureLoader().load(im.dataURL,tex=>{

@@ -584,6 +584,38 @@ const secciones = {
     ok('superficie: la posición (mover/girar) se guarda y recupera', r.serial);
   },
 
+  async estilos_visualizacion() {
+    const r = await page.evaluate(() => {
+      const D = window._dbg, out = {};
+      const st0 = D.currentStyle();
+      out.descriptor = st0.family === 'presentacion' && 'caras' in st0 && 'aristasColor' in st0 && 'fondo' in st0;
+      document.getElementById('vEye').click(); document.getElementById('stylePerso').click();
+      document.querySelector('#stylepop .stgl[data-ec="material"]').click();
+      out.material = D.styleEdgeColor === 'material';
+      const n0 = D.savedStyles.length;
+      document.getElementById('styleName').value = 'Test estilo';
+      document.getElementById('styleSave').click();
+      out.saved = D.savedStyles.length === n0 + 1 && D.savedStyles[D.savedStyles.length-1].nombre === 'Test estilo';
+      out.menu = document.getElementById('vstyles').children.length === D.savedStyles.length;
+      D.applyStyle({ caras:'somb', aristasColor:'byn', opacidad:1, fondo:'claro' });
+      out.applied = D.styleEdgeColor === 'byn' && D.viewMode === 'somb';
+      const e = D.buildExport();
+      out.serial = Array.isArray(e.estilos) && e.estilos.length >= 1 && !!e.estilo && e.estilo.aristasColor === 'byn';
+      // limpieza
+      D.savedStyles.length = 0; document.getElementById('vstyles').innerHTML = '';
+      try { localStorage.removeItem('tectosStyles'); } catch(_) {}
+      D.applyStyle({ caras:'somb', aristasColor:'byn', opacidad:1, fondo:'claro' });
+      document.getElementById('stylepop').style.display = 'none';
+      document.getElementById('vmodes').style.display = 'none';
+      return out;
+    });
+    ok('estilos: el estilo es un descriptor DATO (familia/caras/aristas/fondo)', r.descriptor);
+    ok('estilos: aristas B/N ↔ material desde el panel Personalizar', r.material);
+    ok('estilos: guardar añade el estilo al menú', r.saved && r.menu);
+    ok('estilos: aplicar un estilo cambia caras y aristas', r.applied);
+    ok('estilos: se guardan y recuperan en el proyecto', r.serial);
+  },
+
   async gizmo_centro() {
     const r = await page.evaluate(async () => {
       const D = window._dbg, frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 15)));
