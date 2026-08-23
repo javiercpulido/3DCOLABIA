@@ -626,6 +626,12 @@ const secciones = {
       const st3 = D.currentStyle();
       out.sinAristas = st3.aristas.ver === false;
       out.ocultos = !!st3.ocultos && st3.ocultos.ver === true && st3.ocultos.patron === 'discontinuo' && D.validarEstilo(st3).ok;
+      // Fase A completa: suelo base de apoyo (suelo.ver ⇔ plano base) + texturas toggle (materiales.texturas)
+      D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-00000000000c', nombre:'w', familia:'presentacion',
+        caras:{ modo:'consistente' }, suelo:{ ver:false }, materiales:{ texturas:true } });
+      const st4 = D.currentStyle();
+      out.suelo = !!st4.suelo && st4.suelo.ver === false && D.groundLaserOn === false;
+      out.texturas = !!st4.materiales && st4.materiales.texturas === true && D.validarEstilo(st4).ok;
       // export: biblioteca de usuario + estilo vivo bajo sub-clave `estilo`, ambos válidos
       const e = D.buildExport();
       out.serial = Array.isArray(e.estilos) && !!e.estilo && D.validarEstilo(e.estilo).ok
@@ -649,6 +655,8 @@ const secciones = {
     ok('estilos: fondo de color (fondo.valor) round-trip y válido', r.bgcolor);
     ok('estilos: sin aristas (aristas.ver=false) round-trip', r.sinAristas);
     ok('estilos: ocultas discontinuas (ocultos.ver/patron) round-trip', r.ocultos);
+    ok('estilos: suelo base de apoyo (suelo.ver ⇔ plano base) round-trip', r.suelo);
+    ok('estilos: texturas toggle (materiales.texturas) round-trip', r.texturas);
     ok('estilos: export lleva biblioteca + estilo vivo (sub-clave), válidos', r.serial);
   },
 
@@ -951,7 +959,7 @@ const secciones = {
       out.fueraGeo = !D.pickables.includes(D.faceRef);
       // y no entra en la exportación
       const json = JSON.stringify(window.buildExport() || {});
-      out.fueraExport = !/faceref|cara de montaje|marco local|"suelo"|rejilla/i.test(json);
+      out.fueraExport = !/faceref|cara de montaje|marco local|rejilla/i.test(json);   // 'suelo' ya es campo legítimo del estilo (plano base de apoyo)
       return out;
     });
     ok('componente: origen local en (0,0,0), ejes ahí', r.origen0 && r.ejesEnOrigen);

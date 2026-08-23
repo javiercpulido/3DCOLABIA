@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.75 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.76 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -414,6 +414,12 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
   <span style="margin-left:auto;display:flex;gap:3px;align-items:center">
    <button class="stgl on" data-bg="claro">Claro</button><button class="stgl" data-bg="oscuro">Oscuro</button>
    <input id="styleBgCol" type="color" value="#eef1f4" title="Color de fondo personalizado" style="width:28px;height:24px;border:1px solid #ddd;border-radius:6px;padding:0;cursor:pointer"></span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Plano base de apoyo del visor (no es geometría real)">Suelo base
+  <span style="margin-left:auto;display:flex;gap:3px">
+   <button class="stgl" data-su="si">Sí</button><button class="stgl on" data-su="no">No</button></span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Texturas de material (render en Fase C)">Texturas
+  <span style="margin-left:auto;display:flex;gap:3px">
+   <button class="stgl" data-tx="si">Sí</button><button class="stgl on" data-tx="no">No</button></span></label>
  <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
   <input id="styleName" placeholder="Nombre del estilo" style="flex:1;font-size:13px;padding:6px 8px;border:1px solid #ddd;border-radius:8px">
   <button id="styleSave" style="border:0;background:var(--acc);color:#fff;border-radius:8px;padding:7px 11px;font-weight:600;cursor:pointer">Guardar</button></div>
@@ -757,6 +763,7 @@ let styleBg=null;   // fondo de color personalizado (hex) → estilo.fondo.valor
 let styleEdgesOff=false;   // 'sin aristas': fuerza aristas+silueta ocultas → estilo.aristas.ver=false
 let styleHidOn=false;      // mostrar líneas ocultas (discontinuas) → estilo.ocultos.ver
 let styleHidPat='punteado';// patrón de ocultas: 'punteado' | 'discontinuo' → estilo.ocultos.patron
+let styleTextures=false;   // texturas on/off → estilo.materiales.texturas (Fase A solo toggle; render en Fase C)
 let invView=false, invAlpha=0.85;   // modo invertido: fondo oscuro + volúmenes claros translúcidos
 let meshOverlay=false;   // la malla (aristas de triángulos) es un overlay independiente del estilo
 function edgesWanted(){return !styleEdgesOff && viewMode!=='somb';}
@@ -897,6 +904,10 @@ function validarEstilo(st){ const e=[]; const I=_EST_ENUM;
   if(st.seccion){ if(st.seccion.tapa&&!I.tapa.includes(st.seccion.tapa))e.push('seccion.tapa');
     if(st.seccion.poche&&!I.poche.includes(st.seccion.poche))e.push('seccion.poche'); }
   if(st.tramas&&!I.tramas.includes(st.tramas))e.push('tramas');
+  if(st.materiales&&st.materiales.texturas!=null&&typeof st.materiales.texturas!=='boolean')e.push('materiales.texturas');
+  if(st.suelo){ if(st.suelo.ver!=null&&typeof st.suelo.ver!=='boolean')e.push('suelo.ver');
+    if(st.suelo.recibe_sombra!=null&&typeof st.suelo.recibe_sombra!=='boolean')e.push('suelo.recibe_sombra');
+    if(st.suelo.color!=null&&!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(st.suelo.color))e.push('suelo.color'); }
   if(st.fondo&&st.fondo.modo&&!I.fondo.includes(st.fondo.modo))e.push('fondo.modo');
   if(st.salidas)st.salidas.forEach(s=>{ if(!I.salidas.includes(s))e.push('salida:'+s); });
   return {ok:e.length===0, errors:e}; }
@@ -906,9 +917,13 @@ function currentStyle(){ const st={ v:1, id:_uuid(), nombre:'', familia:styleFam
     aristas:{ver:edgesWanted(), grosor:+edgePx.toFixed(2), color:{fuente:styleEdgeColor}},
     fuente_color:{modo:(styleEdgeColor==='material'?'material':'bn')},
     fondo:(styleBg?{modo:(darkView?'oscuro':'claro'),valor:styleBg}:{modo:(darkView?'oscuro':'claro')}),
+    materiales:{texturas:!!styleTextures},
+    suelo:{ver:(typeof groundLaserOn!=='undefined'?!!groundLaserOn:false)},   // plano base de apoyo (no geometría real)
     salidas:(styleFamily==='tecnico'?['vector_svg','vector_pdf']:['raster_png','imagen_ia']) };
   if(viewMode==='oculto'||styleHidOn)st.ocultos={ver:true,patron:styleHidPat};
   return st; }
+function setSuelo(on){ groundLaserOn=!!on; const gl=document.getElementById('groundLaser'); if(gl)gl.checked=groundLaserOn;
+  if(typeof updateLasers==='function')updateLasers(); }
 function applyHiddenPattern(){ const dp=(styleHidPat==='discontinuo')?{d:3.0,g:2.0}:{d:0.8,g:1.4};   // punteado vs discontinuo
   for(const n in pieces){const ud=pieces[n].userData;
     if(ud.edgesHid){ud.edgesHid.material.dashSize=dp.d; ud.edgesHid.material.gapSize=dp.g; ud.edgesHid.material.needsUpdate=true;}
@@ -924,6 +939,8 @@ function applyStyle(st){ if(!st)return;
   if(st.aristas&&typeof st.aristas.ver==='boolean')styleEdgesOff=(st.aristas.ver===false);
   if(st.ocultos){styleHidOn=(st.ocultos.ver===true); if(st.ocultos.patron==='punteado'||st.ocultos.patron==='discontinuo')styleHidPat=st.ocultos.patron;} else styleHidOn=false;
   applyHiddenPattern();
+  if(st.materiales&&typeof st.materiales.texturas==='boolean')styleTextures=st.materiales.texturas;
+  if(st.suelo&&typeof st.suelo.ver==='boolean')setSuelo(st.suelo.ver);
   if(st.aristas&&st.aristas.grosor!=null&&typeof setEdgePx==='function')setEdgePx(st.aristas.grosor);
   const wantDark=!!(st.fondo&&st.fondo.modo==='oscuro');
   if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode();
@@ -939,6 +956,8 @@ function syncStylePanel(){ syncStyleFamily();
   document.querySelectorAll('#stylepop .stgl[data-bg]').forEach(b=>b.classList.toggle('on',!styleBg&&b.dataset.bg===(darkView?'oscuro':'claro')));
   document.querySelectorAll('#stylepop .stgl[data-av]').forEach(b=>b.classList.toggle('on',b.dataset.av===(styleEdgesOff?'no':'si')));
   document.querySelectorAll('#stylepop .stgl[data-oc]').forEach(b=>b.classList.toggle('on',b.dataset.oc===(styleHidOn?styleHidPat:'no')));
+  document.querySelectorAll('#stylepop .stgl[data-su]').forEach(b=>b.classList.toggle('on',b.dataset.su===((typeof groundLaserOn!=='undefined'&&groundLaserOn)?'si':'no')));
+  document.querySelectorAll('#stylepop .stgl[data-tx]').forEach(b=>b.classList.toggle('on',b.dataset.tx===(styleTextures?'si':'no')));
   const o=document.getElementById('styleOpac'); if(o)o.value=Math.round(baseOpacity*100);
   const g=document.getElementById('styleGrosor'); if(g)g.value=edgePx;
   const bc=document.getElementById('styleBgCol'); if(bc&&styleBg)bc.value=styleBg; }
@@ -953,6 +972,8 @@ document.getElementById('stylepop').addEventListener('click',e=>{
   else if(b.dataset.cm){viewMode=b.dataset.cm; applyMode(); syncStylePanel();}
   else if(b.dataset.av){styleEdgesOff=(b.dataset.av==='no'); applyMode(); syncStylePanel();}
   else if(b.dataset.oc){ if(b.dataset.oc==='no'){styleHidOn=false;} else {styleHidOn=true; styleHidPat=b.dataset.oc;} applyHiddenPattern(); syncStylePanel();}
+  else if(b.dataset.su){setSuelo(b.dataset.su==='si'); syncStylePanel();}
+  else if(b.dataset.tx){styleTextures=(b.dataset.tx==='si'); syncStylePanel();}
   else if(b.dataset.ec){styleEdgeColor=b.dataset.ec; applyMode(); syncStylePanel();}
   else if(b.dataset.bg){styleBg=null; const wantDark=b.dataset.bg==='oscuro';
     if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode(); syncStylePanel();}});
