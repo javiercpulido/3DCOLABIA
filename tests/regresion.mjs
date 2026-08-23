@@ -588,32 +588,50 @@ const secciones = {
     const r = await page.evaluate(() => {
       const D = window._dbg, out = {};
       const st0 = D.currentStyle();
-      out.descriptor = st0.family === 'presentacion' && 'caras' in st0 && 'aristasColor' in st0 && 'fondo' in st0;
+      out.descriptor = st0.v === 1 && /^[0-9a-fA-F-]{36}$/.test(st0.id) && st0.familia === 'presentacion'
+        && !!st0.caras && typeof st0.caras.modo === 'string'
+        && !!st0.aristas && !!st0.aristas.color && ('fuente' in st0.aristas.color)
+        && !!st0.fondo && ('modo' in st0.fondo) && !('family' in st0) && !('aristasColor' in st0);
+      out.valido = D.validarEstilo(st0).ok;
+      // los 3 preajustes de fábrica (estilos_ejemplo.json) cargados y válidos
+      const fab = D.savedStyles.filter(s => s.de_fabrica);
+      out.goldenN = fab.length === 3;
+      out.golden = fab.every(s => D.validarEstilo(s).ok);
+      // panel Personalizar: aristas B/N ↔ material
       document.getElementById('vEye').click(); document.getElementById('stylePerso').click();
       document.querySelector('#stylepop .stgl[data-ec="material"]').click();
       out.material = D.styleEdgeColor === 'material';
-      const n0 = D.savedStyles.length;
+      // guardar añade un estilo de usuario válido
+      const nUser0 = D.savedStyles.filter(s => !s.de_fabrica).length;
       document.getElementById('styleName').value = 'Test estilo';
       document.getElementById('styleSave').click();
-      out.saved = D.savedStyles.length === n0 + 1 && D.savedStyles[D.savedStyles.length-1].nombre === 'Test estilo';
-      out.menu = document.getElementById('vstyles').children.length === D.savedStyles.length;
-      D.applyStyle({ caras:'somb', aristasColor:'byn', opacidad:1, fondo:'claro' });
-      out.applied = D.styleEdgeColor === 'byn' && D.viewMode === 'somb';
+      const last = D.savedStyles[D.savedStyles.length - 1];
+      out.saved = D.savedStyles.filter(s => !s.de_fabrica).length === nUser0 + 1
+        && last.nombre === 'Test estilo' && last.de_fabrica === false && D.validarEstilo(last).ok;
+      // aplicar un estilo conforme cambia el estado interno (caras/aristas/familia)
+      D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-000000000009', nombre:'x', familia:'tecnico',
+        caras:{ modo:'blanco' }, aristas:{ ver:true, color:{ fuente:'bn' } }, fondo:{ modo:'claro' } });
+      out.applied = D.styleEdgeColor === 'bn' && D.viewMode === 'blanco' && D.styleFamily === 'tecnico';
+      // export: biblioteca de usuario + estilo vivo bajo sub-clave `estilo`, ambos válidos
       const e = D.buildExport();
-      out.serial = Array.isArray(e.estilos) && e.estilos.length >= 1 && !!e.estilo && e.estilo.aristasColor === 'byn';
-      // limpieza
-      D.savedStyles.length = 0; document.getElementById('vstyles').innerHTML = '';
+      out.serial = Array.isArray(e.estilos) && !!e.estilo && D.validarEstilo(e.estilo).ok
+        && e.estilo.aristas.color.fuente === 'bn';
+      // limpieza: quitar solo estilos de usuario, restaurar familia por defecto
+      for (let i = D.savedStyles.length - 1; i >= 0; i--) if (!D.savedStyles[i].de_fabrica) D.savedStyles.splice(i, 1);
       try { localStorage.removeItem('tectosStyles'); } catch(_) {}
-      D.applyStyle({ caras:'somb', aristasColor:'byn', opacidad:1, fondo:'claro' });
+      D.styleFamily = 'presentacion'; D.renderSavedStyles();
       document.getElementById('stylepop').style.display = 'none';
       document.getElementById('vmodes').style.display = 'none';
       return out;
     });
-    ok('estilos: el estilo es un descriptor DATO (familia/caras/aristas/fondo)', r.descriptor);
+    ok('estilos: descriptor conforme a estilo.schema.json v3 (v/id/familia/caras.modo/aristas.color.fuente/fondo.modo)', r.descriptor);
+    ok('estilos: currentStyle() valida contra el contrato', r.valido);
+    ok('estilos: 3 preajustes de fábrica cargados (estilos_ejemplo.json)', r.goldenN);
+    ok('estilos: los 3 golden validan contra el esquema', r.golden);
     ok('estilos: aristas B/N ↔ material desde el panel Personalizar', r.material);
-    ok('estilos: guardar añade el estilo al menú', r.saved && r.menu);
-    ok('estilos: aplicar un estilo cambia caras y aristas', r.applied);
-    ok('estilos: se guardan y recuperan en el proyecto', r.serial);
+    ok('estilos: guardar añade un estilo de usuario válido', r.saved);
+    ok('estilos: aplicar un estilo conforme cambia caras/aristas/familia', r.applied);
+    ok('estilos: export lleva biblioteca + estilo vivo (sub-clave), válidos', r.serial);
   },
 
   async gizmo_centro() {

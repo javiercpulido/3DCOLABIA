@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.72 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.73 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -391,9 +391,12 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
 </div>
 <div id="stylepop" class="pill" style="position:fixed;top:calc(120px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:16;display:none;flex-direction:column;gap:9px;padding:12px 14px;font-size:13px;min-width:230px;max-width:94vw">
  <div style="display:flex;align-items:center;gap:8px"><b style="font-size:13px;flex:1">Personalizar estilo</b><button id="styleClose" style="border:0;background:rgba(0,0,0,.06);border-radius:8px;padding:4px 8px;cursor:pointer">✕</button></div>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Familia
+  <span style="margin-left:auto;display:flex;gap:3px">
+   <button class="stgl on" data-fam="presentacion">Presentación</button><button class="stgl" data-fam="tecnico">Técnico</button></span></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Aristas
   <span style="margin-left:auto;display:flex;gap:3px">
-   <button class="stgl on" data-ec="byn">B/N</button><button class="stgl" data-ec="material">Material</button></span></label>
+   <button class="stgl on" data-ec="bn">B/N</button><button class="stgl" data-ec="material">Material</button></span></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Opacidad
   <input id="styleOpac" type="range" min="6" max="100" step="1" value="100" style="flex:1;margin-left:auto;max-width:120px"></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Fondo
@@ -736,7 +739,8 @@ function computeIntersections(){
 computeIntersections();
 // ================= MODOS DE VISION y SECCION =================
 let viewMode='somb', baseOpacity=1, darkView=false;
-let styleEdgeColor='byn';   // aristas/ocultos: 'byn' (defecto, b/n) · 'material' (por color de la pieza)
+let styleEdgeColor='bn';   // aristas/ocultos: 'bn' (defecto, b/n) · 'material' (por color de la pieza) — código del contrato
+let styleFamily='presentacion';   // familia del estilo (estilo.schema.json): 'tecnico' | 'presentacion'
 let invView=false, invAlpha=0.85;   // modo invertido: fondo oscuro + volúmenes claros translúcidos
 let meshOverlay=false;   // la malla (aristas de triángulos) es un overlay independiente del estilo
 function edgesWanted(){return viewMode!=='somb';}
@@ -807,41 +811,129 @@ document.getElementById('vmodes').addEventListener('click',e=>{
   else if(e.target.dataset.style!==undefined&&e.target.dataset.style!==''){
     applyStyle(savedStyles[+e.target.dataset.style]);
     document.getElementById('vmodes').style.display='none';}});
-// ---- ESTILOS DE VISUALIZACIÓN: el estilo es DATO (descriptor), guardable y aplicable ----
+// ---- ESTILOS DE VISUALIZACIÓN: el estilo es DATO conforme a estilo.schema.json v3 (ES) ----
+// Contrato normativo: claves y valores-código en ESPAÑOL (capa dominio/canvas). El prototipo
+// público NO habla con Supabase ni next-intl: conforma la FORMA y persiste local (localStorage
+// + export) bajo la sub-clave `estilo`, para caer tal cual en configuracion.estilo en F1.5.
+function _uuid(){ try{ if(crypto&&crypto.randomUUID)return crypto.randomUUID(); }catch(e){}
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);}); }
+// viewMode (estado de UI) ↔ caras.modo (contrato). Mapeo en la frontera, siempre dentro del enum.
+function carasModoFromView(vm){ return ({somb:'consistente',blanco:'blanco',wire:'alambre',xray:'xray',tecnico:'blanco',oculto:'blanco'})[vm]||'consistente'; }
+function viewFromCarasModo(m){ return ({alambre:'wire',plano:'somb',consistente:'somb',blanco:'blanco',realista:'somb',xray:'xray',fantasma:'xray'})[m]||'somb'; }
+// Preajustes de fábrica = instancias de estilos_ejemplo.json (de_fabrica:true). nombre = clave i18n.
+const FACTORY_STYLES=[
+  {v:1,id:'5a1e0000-0000-4000-8000-000000000001',nombre:'estilo.pen',familia:'tecnico',uso:'plano',de_fabrica:true,
+   caras:{modo:'blanco'},aristas:{ver:true,grosor:1.0,color:{fuente:'fija',valor:'#000000'}},
+   perfiles:{ver:true,grosor:2.0},ocultos:{ver:false},fuente_color:{modo:'bn'},
+   fondo:{modo:'claro',valor:'#ffffff'},salidas:['vector_svg','vector_pdf']},
+  {v:1,id:'5a1e0000-0000-4000-8000-000000000002',nombre:'estilo.plano_demolicion',familia:'tecnico',uso:'plano',de_fabrica:true,
+   origen_nl:'plano de demolición en b/n, lo que se derriba en rojo discontinuo, lo existente en gris tenue, la obra nueva oculta',
+   escala:'1:50',caras:{modo:'blanco'},ocultos:{ver:true,color:{fuente:'bn'},patron:'punteado'},
+   seccion:{activa:true,tapa:'negro',poche:'por_capa'},tramas:'canon',
+   fuente_color:{modo:'faceta_bim',criterio:'estado'},
+   filtro_estado:{activo:true,reglas:{
+     existente:{visibilidad:'mostrar',override:{color:'#9aa0a6',opacidad:0.6}},
+     a_demoler:{visibilidad:'mostrar',override:{color:'#d62728',patron:'discontinuo'}},
+     a_conservar:{visibilidad:'mostrar',override:{color:'#9aa0a6',opacidad:0.6}},
+     nuevo:{visibilidad:'ocultar'}, temporal:{visibilidad:'fantasma'}}},
+   fondo:{modo:'claro',valor:'#ffffff'},salidas:['vector_svg','vector_pdf']},
+  {v:1,id:'5a1e0000-0000-4000-8000-000000000003',nombre:'estilo.boceto',familia:'presentacion',uso:'boceto',de_fabrica:true,
+   origen_nl:'un boceto suelto a mano alzada, blanco, con sombras suaves',
+   caras:{modo:'plano'},aristas:{ver:true,grosor:1.5,color:{fuente:'bn'}},perfiles:{ver:true,grosor:3.0},
+   lineas_mano:{activo:true,jitter:35,extension:6},iluminacion:{sol:40,ambiental:70,dureza_sombra:20},
+   sombra_arrojada:{activo:true,azimut:135,altitud:45},oclusion_ambiental:{activo:false},
+   fuente_color:{modo:'bn'},fondo:{modo:'claro',valor:'#fbfbf7'},salidas:['raster_png','imagen_ia']}
+];
+// Catálogo i18n mínimo embebido (es) — código≠etiqueta. En backend, next-intl (TEC-62).
+const STYLE_LABELS_ES={'estilo.pen':'Pen (blanco / línea negra)','estilo.plano_demolicion':'Plano de demolición','estilo.boceto':'Boceto a mano'};
+function styleLabel(st){ return (st.de_fabrica&&STYLE_LABELS_ES[st.nombre])||st.nombre||'Estilo'; }
+// Validación ligera contra estilo.schema.json v3 (oráculo de tests + guardarraíl runtime).
+const _EST_ENUM={familia:['tecnico','presentacion'],uso:['boceto','bim','plano','presentacion'],
+  caras:['alambre','plano','consistente','blanco','realista','xray','fantasma'],
+  aristas:['bn','material','fija'],ocultos_f:['bn','material'],ocultos_p:['solido','punteado','discontinuo'],
+  fc:['bn','material','por_capa','faceta_bim','fija'],crit:['estado','clase','clasificacion','material'],
+  estado:['existente','a_demoler','nuevo','temporal','a_conservar','a_intervenir','desconocido'],
+  vis:['mostrar','ocultar','fantasma'],fep:['solido','punteado','discontinuo','rayado'],
+  fondo:['claro','oscuro','degradado','imagen'],tapa:['color_material','negro','fija'],
+  poche:['por_capa','solido','ninguno'],tramas:['canon','ninguna'],
+  escala:['1:5','1:10','1:20','1:50','1:100','1:200'],salidas:['vector_svg','vector_pdf','raster_png','imagen_ia']};
+const _UUID_RE=/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+function validarEstilo(st){ const e=[]; const I=_EST_ENUM;
+  if(!st||typeof st!=='object')return {ok:false,errors:['no es objeto']};
+  if(st.v!==1)e.push('v');
+  if(!_UUID_RE.test(st.id||''))e.push('id');
+  if(typeof st.nombre!=='string')e.push('nombre');
+  if(!I.familia.includes(st.familia))e.push('familia');
+  if(st.uso&&!I.uso.includes(st.uso))e.push('uso');
+  if(st.escala&&!I.escala.includes(st.escala))e.push('escala');
+  if(st.caras){ if(st.caras.modo&&!I.caras.includes(st.caras.modo))e.push('caras.modo');
+    if(st.caras.opacidad!=null&&(st.caras.opacidad<0||st.caras.opacidad>1))e.push('caras.opacidad'); }
+  if(st.aristas&&st.aristas.color&&st.aristas.color.fuente&&!I.aristas.includes(st.aristas.color.fuente))e.push('aristas.color.fuente');
+  if(st.ocultos){ if(st.ocultos.color&&st.ocultos.color.fuente&&!I.ocultos_f.includes(st.ocultos.color.fuente))e.push('ocultos.color.fuente');
+    if(st.ocultos.patron&&!I.ocultos_p.includes(st.ocultos.patron))e.push('ocultos.patron'); }
+  if(st.fuente_color){ if(!I.fc.includes(st.fuente_color.modo))e.push('fuente_color.modo');
+    if(st.fuente_color.criterio&&!I.crit.includes(st.fuente_color.criterio))e.push('fuente_color.criterio'); }
+  if(st.filtro_estado&&st.filtro_estado.reglas){ for(const k in st.filtro_estado.reglas){ const rg=st.filtro_estado.reglas[k];
+    if(!I.estado.includes(k))e.push('estado:'+k);
+    if(rg.visibilidad&&!I.vis.includes(rg.visibilidad))e.push('visibilidad');
+    if(rg.override&&rg.override.patron&&!I.fep.includes(rg.override.patron))e.push('override.patron'); } }
+  if(st.seccion){ if(st.seccion.tapa&&!I.tapa.includes(st.seccion.tapa))e.push('seccion.tapa');
+    if(st.seccion.poche&&!I.poche.includes(st.seccion.poche))e.push('seccion.poche'); }
+  if(st.tramas&&!I.tramas.includes(st.tramas))e.push('tramas');
+  if(st.fondo&&st.fondo.modo&&!I.fondo.includes(st.fondo.modo))e.push('fondo.modo');
+  if(st.salidas)st.salidas.forEach(s=>{ if(!I.salidas.includes(s))e.push('salida:'+s); });
+  return {ok:e.length===0, errors:e}; }
 let savedStyles=[];
-function currentStyle(){return {family:'presentacion',caras:viewMode,aristasColor:styleEdgeColor,
-  opacidad:+baseOpacity.toFixed(2),fondo:darkView?'oscuro':'claro'};}
+function currentStyle(){ const st={ v:1, id:_uuid(), nombre:'', familia:styleFamily,
+    caras:{modo:carasModoFromView(viewMode), opacidad:+baseOpacity.toFixed(2)},
+    aristas:{ver:edgesWanted(), color:{fuente:styleEdgeColor}},
+    fuente_color:{modo:(styleEdgeColor==='material'?'material':'bn')},
+    fondo:{modo:darkView?'oscuro':'claro'},
+    salidas:(styleFamily==='tecnico'?['vector_svg','vector_pdf']:['raster_png','imagen_ia']) };
+  if(viewMode==='oculto')st.ocultos={ver:true};
+  return st; }
 function applyStyle(st){ if(!st)return;
-  viewMode=st.caras||'somb'; styleEdgeColor=st.aristasColor||'byn';
-  baseOpacity=(st.opacidad!=null?st.opacidad:1);
-  const wantDark=(st.fondo==='oscuro');
+  if(st.familia==='tecnico'||st.familia==='presentacion')styleFamily=st.familia;
+  if(st.caras&&st.caras.modo)viewMode=viewFromCarasModo(st.caras.modo);
+  if(st.ocultos&&st.ocultos.ver===true)viewMode='oculto';
+  if(st.caras&&st.caras.opacidad!=null)baseOpacity=st.caras.opacidad;
+  const ef=(st.aristas&&st.aristas.color&&st.aristas.color.fuente);
+  styleEdgeColor=(ef==='material')?'material':'bn';   // 'fija' se representa como b/n en el visor (Fase A)
+  const wantDark=!!(st.fondo&&st.fondo.modo==='oscuro');
   if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode();
-  syncStylePanel(); }
+  syncStyleFamily(); syncStylePanel(); }
 function renderSavedStyles(){ const c=document.getElementById('vstyles'); if(!c)return; c.innerHTML='';
-  savedStyles.forEach((st,i)=>{const b=document.createElement('button'); b.textContent=st.nombre;
-    b.dataset.style=String(i); b.title='Aplicar «'+st.nombre+'»'; c.appendChild(b);}); }
-function syncStylePanel(){
+  savedStyles.forEach((st,i)=>{ if(st.familia&&st.familia!==styleFamily)return;
+    const b=document.createElement('button'); b.textContent=styleLabel(st);
+    b.dataset.style=String(i); if(st.de_fabrica)b.dataset.fab='1'; b.title='Aplicar «'+styleLabel(st)+'»'; c.appendChild(b);}); }
+function syncStyleFamily(){ document.querySelectorAll('#stylepop .stgl[data-fam]').forEach(b=>b.classList.toggle('on',b.dataset.fam===styleFamily)); }
+function syncStylePanel(){ syncStyleFamily();
   document.querySelectorAll('#stylepop .stgl[data-ec]').forEach(b=>b.classList.toggle('on',b.dataset.ec===styleEdgeColor));
   document.querySelectorAll('#stylepop .stgl[data-bg]').forEach(b=>b.classList.toggle('on',b.dataset.bg===(darkView?'oscuro':'claro')));
   const o=document.getElementById('styleOpac'); if(o)o.value=Math.round(baseOpacity*100); }
-function persistStyles(){ try{localStorage.setItem('tectosStyles',JSON.stringify(savedStyles));}catch(e){} }
+function persistStyles(){ try{localStorage.setItem('tectosStyles',JSON.stringify(savedStyles.filter(s=>!s.de_fabrica)));}catch(e){} }
 document.getElementById('stylePerso').onclick=()=>{
   document.getElementById('vmodes').style.display='none';
   const p=document.getElementById('stylepop'); p.style.display='flex'; syncStylePanel(); };
 document.getElementById('styleClose').onclick=()=>{document.getElementById('stylepop').style.display='none';};
 document.getElementById('stylepop').addEventListener('click',e=>{
   const b=e.target.closest('.stgl'); if(!b)return;
-  if(b.dataset.ec){styleEdgeColor=b.dataset.ec; applyMode(); syncStylePanel();}
+  if(b.dataset.fam){styleFamily=b.dataset.fam; renderSavedStyles(); syncStyleFamily();}
+  else if(b.dataset.ec){styleEdgeColor=b.dataset.ec; applyMode(); syncStylePanel();}
   else if(b.dataset.bg){const wantDark=b.dataset.bg==='oscuro';
     if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} syncStylePanel();}});
 document.getElementById('styleOpac').oninput=function(){baseOpacity=Math.max(0.06,+this.value/100); applyMode();};
 document.getElementById('styleSave').onclick=()=>{
   const inp=document.getElementById('styleName');
-  const nombre=(inp.value||'').trim()||('Estilo '+(savedStyles.length+1));
-  savedStyles.push(Object.assign({nombre},currentStyle()));
-  inp.value=''; renderSavedStyles(); persistStyles();
+  const nUser=savedStyles.filter(s=>!s.de_fabrica).length;
+  const nombre=(inp.value||'').trim()||('Estilo '+(nUser+1));
+  const st=currentStyle(); st.nombre=nombre; st.de_fabrica=false;
+  savedStyles.push(st); inp.value=''; renderSavedStyles(); persistStyles();
   toast('Estilo «'+nombre+'» guardado'); };
-try{const s=localStorage.getItem('tectosStyles'); if(s){savedStyles=JSON.parse(s)||[]; renderSavedStyles();}}catch(e){}
+function loadStyles(){ savedStyles=FACTORY_STYLES.map(s=>JSON.parse(JSON.stringify(s)));
+  try{const s=localStorage.getItem('tectosStyles'); if(s){(JSON.parse(s)||[]).forEach(x=>{if(x&&!x.de_fabrica)savedStyles.push(x);});}}catch(e){}
+  renderSavedStyles(); }
+loadStyles();
 // ================= SECCIONES (estilo SketchUp: plano nombrado A-A, poché, flip) =================
 // El nombre se genera automaticamente como lo hace el arquitecto (A-A, B-B...) y es editable.
 // El sentido del corte es el de la flecha; ⇄ o tocar el cono lo invierte.
@@ -6304,11 +6396,11 @@ function buildExport(){
         verts:Array.from(S.mesh.geometry.attributes.position.array).map(x=>+x.toFixed(3))});
       return Object.assign(base,{d:S.dirPts,g:S.genPts});}),
     textos:texts,
-    estilos:savedStyles, estilo:currentStyle(),
+    estilos:savedStyles.filter(s=>!s.de_fabrica), estilo:currentStyle(),
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
-window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},get pointersDbg(){return [...pointers.values()].map(v=>v.t)},get capsDbg(){return _caps.size},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},set viewMode(v){viewMode=v},get styleEdgeColor(){return styleEdgeColor},get savedStyles(){return savedStyles},currentStyle,applyStyle,get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
+window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},get pointersDbg(){return [...pointers.values()].map(v=>v.t)},get capsDbg(){return _caps.size},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},set viewMode(v){viewMode=v},get styleEdgeColor(){return styleEdgeColor},get savedStyles(){return savedStyles},currentStyle,applyStyle,validarEstilo,renderSavedStyles,get styleFamily(){return styleFamily},set styleFamily(v){styleFamily=v},get FACTORY_STYLES(){return FACTORY_STYLES},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
 buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},set contJoin(v){contJoin=v},get drawLock(){return drawLock},set drawLock(v){drawLock=v; const b=document.getElementById('mCont'); if(b)b.classList.toggle('on',drawLock&&contJoin);},get trazoMode(){return trazoMode},get shapeMode(){return shapeMode},cancelShapeDraw,circleFrom3,genPoints,to3,
 buildContourSurfaceFromPts,buildTerrainFromContour,get axGhost(){return axGhost},selectStroke,surfToolStart,surfToolTap,get surfTool(){return surfTool},moveContPoint,askClose,closeContourStroke,strokeClosed,
 buildRevolveFromPts,buildCoonsFromPts,buildExtrudeFromPts,buildTubeFromPts,chain4,buildExport,
@@ -6417,7 +6509,7 @@ function applyImport(d){
         if(sd.vis===false)S.mesh.visible=false;
         if(sd.locked)S.locked=true;});
       renderSurfList();}
-    if(d.estilos){savedStyles=d.estilos; renderSavedStyles(); persistStyles();}
+    if(d.estilos){savedStyles=FACTORY_STYLES.map(s=>JSON.parse(JSON.stringify(s))).concat((d.estilos||[]).filter(x=>x&&!x.de_fabrica)); renderSavedStyles(); persistStyles();}
     if(d.estilo)applyStyle(d.estilo);
     texts=d.textos||[];
     (d.imagenes||[]).forEach(im=>{if(!im.dataURL)return;
