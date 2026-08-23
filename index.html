@@ -153,7 +153,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.70 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.71 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -1613,6 +1613,8 @@ function deselect(){
     ud.hi=false;
     if(ud.matShaded&&ud.matShaded.emissive)ud.matShaded.emissive.setHex(0x000000);
     applyMode();}   // devuelve aristas y siluetas a su color
+  if(selected&&selected.kind==='superficie'){const m=selected.ref;   // superficie: quitar resaltado
+    if(m.material&&m.material.emissive)m.material.emissive.setHex(m.userData._emiss||0x000000);}
   selected=null;selSet=[];hideContact();
   if(secRotate){secRotate=null;if(typeof renderSecList==='function')renderSecList();}
   document.getElementById('selbar').style.display='none';redraw();
@@ -1622,6 +1624,8 @@ function select(kind,ref,label){
   if(kind==='pieza'){const ud=ref.userData; ud.hi=true;   // resaltado en TODOS los modos de visión
     if(ud.matShaded&&ud.matShaded.emissive)ud.matShaded.emissive.setHex(0x0a84ff);
     applyMode();}   // en Wire/Técnico/Oculto el acento va a aristas y siluetas
+  if(kind==='superficie'){selected.surf=surfaces.find(s=>s.mesh===ref)||null;   // resaltado azul de la superficie
+    const mat=ref.material; if(mat&&mat.emissive){if(ref.userData._emiss==null)ref.userData._emiss=mat.emissive.getHex(); mat.emissive.setHex(0x0a84ff);}}
   document.getElementById('selname').textContent=label;
   const li=document.getElementById('selLen'),lu=document.getElementById('selLenU');
   const isLin=kind==='trazo'&&ref.reg&&ref.reg.tipo==='linea';
@@ -1633,7 +1637,7 @@ function select(kind,ref,label){
   else if(isCirc)li.value=ref.reg.circ.r.toFixed(1);
   showOpsFor(kind);
   if(kind==='laser')syncLaserOps(ref);
-  updOpsBar();
+  updOpsBar(); updateGizmo();
   document.getElementById('selbar').style.display='flex';redraw();
 }
 function selectStroke(st){
@@ -2019,10 +2023,13 @@ renderer.domElement.addEventListener('pointerdown',e=>{
             return;}
           window._secTap={s:s3,t:now};
           select('section',s3,s3.name);return;}}}}
-    // anotaciones / piezas
-    {let hits=ray.intersectObjects([...annGroup.children,...pickables.filter(p=>p.visible)],false);
+    // anotaciones / piezas / superficies
+    {const surfMeshes=surfaces.filter(s=>s.mesh&&s.mesh.visible).map(s=>s.mesh);
+     let hits=ray.intersectObjects([...annGroup.children,...pickables.filter(p=>p.visible),...surfMeshes],false);
       if(hits.length){
         const o=hits[0].object, rec=o.userData.rec;
+        const Sm=surfaces.find(s=>s.mesh===o);
+        if(Sm){select('superficie',Sm.mesh,Sm.name);return;}   // tocar una superficie la selecciona (mover/girar con el gizmo)
         if(rec&&texts.includes(rec)){
           if(selected&&selected.kind==='texto'&&selected.ref===rec){ // ya seleccionada → arrastrar el cuadro (el ancla queda fija)
             const depth=new THREE.Vector3(...rec.pos).sub(cam.position).dot(cam.getWorldDirection(new THREE.Vector3()));
@@ -2603,6 +2610,8 @@ function endPointer(e){
   if(gizDrag){
     if(gizDrag.t==='pieza'){computeIntersections();applySec();_silhFrame=-1;updateLasers();
       if(gizDrag.mesh&&gizDrag.pos0)pushPieceXform(gizDrag.mesh,gizDrag.pos0,gizDrag.quat0);}   // registra deshacer del giro/mov.
+    if(gizDrag.t==='superficie'&&gizDrag.mesh&&gizDrag.pos0)      // deshacer del giro/mov. de superficie
+      pushPieceXform(gizDrag.mesh,gizDrag.pos0,gizDrag.quat0,'mover superficie');
     if(gizDrag.t==='laser'&&gizDrag.mesh&&
        (!gizDrag.pos0.equals(gizDrag.mesh.position)||!gizDrag.quat0.equals(gizDrag.mesh.quaternion))){
       const m=gizDrag.mesh,p0=gizDrag.pos0.clone(),q0=gizDrag.quat0.clone(),
@@ -3060,6 +3069,7 @@ let secRotate=null;   // sección cuyo giro está activo (icono órbita)
 function gizTarget(){
   if(selSet.length||(selected&&selected.kind==='trazo'))return 'trazo';
   if(selected&&selected.kind==='pieza')return 'pieza';
+  if(selected&&selected.kind==='superficie')return 'superficie';
   if(selected&&selected.kind==='laser')return 'laser';
   if(selected&&selected.kind==='section')return 'section';
   return null;}
@@ -3081,6 +3091,7 @@ function updateGizmo(){
   } else setGizMode('full');
   if(t==='laser'&&selected.ref.locked){gizmo.visible=false;return;}   // láser bloqueado: sin gizmo
   if(t==='pieza'&&selected.ref.userData.locked){gizmo.visible=false;return;}   // pieza bloqueada: sin gizmo
+  if(t==='superficie'&&selected.surf&&selected.surf.locked){gizmo.visible=false;return;}   // superficie bloqueada: sin gizmo
   const c=new THREE.Vector3();
   if(t==='trazo'){const bb=new THREE.Box3(); let n=0;   // centro GEOMÉTRICO (caja), no media de muestras
     effSel().forEach(s=>s.points.forEach(p=>{bb.expandByPoint(new THREE.Vector3(p[0],p[1],p[2]));n++;}));
@@ -6148,7 +6159,7 @@ function showOpsFor(kind){
   const $=id=>document.getElementById(id);
   $('strokeOps').style.display=(kind==='trazo')?'flex':'none';
   $('decompOps').style.display=(kind==='trazo'||kind==='pieza')?'flex':'none';   // Descomponer: formas y piezas
-  $('xformOps').style.display=(kind==='trazo'||kind==='pieza'||kind==='laser'||kind==='section')?'flex':'none';
+  $('xformOps').style.display=(kind==='trazo'||kind==='pieza'||kind==='superficie'||kind==='laser'||kind==='section')?'flex':'none';
   $('laserOps').style.display=(kind==='laser')?'flex':'none';
   $('secOps').style.display=(kind==='section')?'flex':'none';
 }
@@ -6214,7 +6225,9 @@ function buildExport(){
     lasers:lasers.map(L=>({name:L.name,pos:L.mesh.position.toArray(),quat:L.mesh.quaternion.toArray(),
       h:L.on.h,v:L.on.v,v2:L.on.v2,n:L.n,sp:L.sp,off:L.off||undefined,locked:L.locked||undefined,black:L.black||undefined})),
     superficies:surfaces.map(S=>{
-      const base={name:S.name,col:S.colorHex,vis:S.mesh.visible,locked:S.locked||undefined};
+      const _m=S.mesh, _moved=_m&&(_m.position.lengthSq()>1e-9||Math.abs(_m.quaternion.w-1)>1e-9);
+      const base={name:S.name,col:S.colorHex,vis:S.mesh.visible,locked:S.locked||undefined,
+        pos:_moved?_m.position.toArray():undefined, quat:_moved?_m.quaternion.toArray():undefined};
       if(S.kind==='cont')return Object.assign(base,{kind:'cont',pts:S.pts,inner:(S.inner&&S.inner.length)?S.inner:undefined,verts:S.sculpted?soupOf(S.mesh):undefined});
       if(S.kind==='terrain')return Object.assign(base,{kind:'terrain',pts:S.pts,inner:(S.inner&&S.inner.length)?S.inner:undefined,verts:S.sculpted?soupOf(S.mesh):undefined});
       if(S.kind==='rev')return Object.assign(base,{kind:'rev',prof:S.prof,ax:S.ax,ang:S.ang});
@@ -6239,7 +6252,7 @@ buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get cont
 buildContourSurfaceFromPts,buildTerrainFromContour,get axGhost(){return axGhost},selectStroke,surfToolStart,surfToolTap,get surfTool(){return surfTool},moveContPoint,askClose,closeContourStroke,strokeClosed,
 buildRevolveFromPts,buildCoonsFromPts,buildExtrudeFromPts,buildTubeFromPts,chain4,buildExport,
 buildRuledFromPts,buildLoftFromPts,buildSweepFromPts,buildBlendSweepFromPts,
-get selDrag(){return selDrag},get gizDrag(){return gizDrag},get axLock(){return axLock},get drawing(){return drawing},set drawing(v){drawing=v},get laserDrag(){return laserDrag},
+get selDrag(){return selDrag},get gizDrag(){return gizDrag},get gizParts(){return gizParts},get axLock(){return axLock},get drawing(){return drawing},set drawing(v){drawing=v},get laserDrag(){return laserDrag},
 _polyStart(p){polyDraw={verts:[p.slice()],segTypes:[],arcMids:{},guidePts:{},nextType:'L',arcPending:null,dragging:false,prov:null};showPolyChips();redraw();},
 _polyVert(p){if(!polyDraw)return;polyDraw.prov=p.slice();polyDraw.dragging=true;commitPolyTap();},
 get applyImport(){return applyImport},get autosave(){return autosave},
@@ -6334,6 +6347,8 @@ function applyImport(d){
               return (sd.verts&&sd.verts.length>=9)?registerSurface(geo,cl,sd.name,{kind:'cara',src:sd.src}):null;})()
           :buildSurfaceFromPts(sd.d,sd.g,cl,sd.name);
         if(!S)return;
+        if(sd.pos&&S.mesh)S.mesh.position.fromArray(sd.pos);          // restaura mover/girar de la superficie
+        if(sd.quat&&S.mesh)S.mesh.quaternion.fromArray(sd.quat);
         if((sd.kind==='terrain'||sd.kind==='cont')&&sd.verts&&sd.verts.length>=9){   // terreno/parche ESCULPIDO: malla guardada
           const geo=new THREE.BufferGeometry();
           geo.setAttribute('position',new THREE.Float32BufferAttribute(sd.verts,3)); geo.computeVertexNormals(); geo.computeBoundingSphere();

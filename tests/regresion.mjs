@@ -538,6 +538,52 @@ const secciones = {
     ok('mover forma: el movimiento se registra en deshacer y lo restaura', r.undoReg && r.restaura);
   },
 
+  async superficie_seleccionar_mover() {
+    const r = await page.evaluate(() => {
+      const D = window._dbg, T = window.THREE, out = {};
+      const sq = [[-25,-25,0],[25,-25,0],[25,25,0],[-25,25,0],[-25,-25,0]];
+      const S = D.buildContourSurfaceFromPts(sq, 0x2f7df0, 'cara-sel');
+      const visBak = {}; Object.keys(D.pieces).forEach(n => { visBak[n] = D.pieces[n].visible; D.pieces[n].visible = false; });  // sin piezas delante
+      document.getElementById('mSel').click(); D.deselect(); D.redraw();
+      const canvas = document.querySelector('canvas'), rct = canvas.getBoundingClientRect();
+      const ev = (t,x,y) => canvas.dispatchEvent(new PointerEvent(t, { pointerId:3, pointerType:'pen', isPrimary:true, button:0, buttons:t==='pointerup'?0:1, clientX:x, clientY:y, pressure:0.5, bubbles:true }));
+      // 1) TAP sobre la superficie la selecciona (antes: imposible)
+      S.mesh.geometry.computeBoundingBox();
+      const c = S.mesh.geometry.boundingBox.getCenter(new T.Vector3()), v = c.clone().project(D.cam);
+      const sx = rct.left + (v.x*0.5+0.5)*rct.width, sy = rct.top + (-v.y*0.5+0.5)*rct.height;
+      ev('pointerdown', sx, sy); ev('pointerup', sx, sy);
+      out.tapSelecciona = !!(D.selected && D.selected.kind === 'superficie' && D.selected.ref === S.mesh);
+      out.gizmo = D.gizmoVisible;
+      out.xform = document.getElementById('xformOps').style.display === 'flex';
+      // 2) MOVER con el gizmo (arrastrar la flecha X) → deshacer 'mover superficie' y restaurar
+      D.select('superficie', S.mesh, 'cara-sel'); D.updateGizmo();
+      const arrow = (D.gizParts||[]).find(pt => pt.userData.giz && pt.userData.giz.type==='move' && pt.userData.giz.axis==='x');
+      let moveUndo = false, restaura = false;
+      if (arrow) {
+        arrow.updateWorldMatrix(true,true); const wp = new T.Vector3(); arrow.getWorldPosition(wp);
+        const av = wp.clone().project(D.cam);
+        const ax = rct.left + (av.x*0.5+0.5)*rct.width, ay = rct.top + (-av.y*0.5+0.5)*rct.height;
+        const u0 = D.undoActs.length;
+        ev('pointerdown', ax, ay); ev('pointermove', ax+70, ay); ev('pointermove', ax+140, ay); ev('pointerup', ax+140, ay);
+        moveUndo = D.undoActs.length === u0+1 && D.undoActs[D.undoActs.length-1].label === 'mover superficie';
+        document.getElementById('undo').click();
+        restaura = S.mesh.position.length() < 1e-3;   // vuelve al origen
+      }
+      out.moveUndo = moveUndo; out.restaura = restaura;
+      // 3) PERSISTENCIA: la posición se exporta
+      S.mesh.position.set(30,0,0);
+      const sd = D.buildExport().superficies.find(s => s.name === 'cara-sel');
+      out.serial = !!sd && !!sd.pos && Math.abs(sd.pos[0]-30) < 1e-6;
+      D.removeSurface(S, true); D.redoActs.length = 0; D.deselect();
+      Object.keys(visBak).forEach(n => { D.pieces[n].visible = visBak[n]; });   // restaura visibilidad
+      D.redraw();
+      return out;
+    });
+    ok('superficie: se SELECCIONA al tocarla (con gizmo y barra de transformación)', r.tapSelecciona && r.gizmo && r.xform);
+    ok('superficie: mover con el gizmo registra deshacer y lo restaura', r.moveUndo && r.restaura);
+    ok('superficie: la posición (mover/girar) se guarda y recupera', r.serial);
+  },
+
   async gizmo_centro() {
     const r = await page.evaluate(async () => {
       const D = window._dbg, frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 15)));
