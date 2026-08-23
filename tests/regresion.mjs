@@ -625,12 +625,13 @@ const secciones = {
       const st3 = D.currentStyle();
       out.sinAristas = st3.aristas.ver === false;
       out.ocultos = !!st3.ocultos && st3.ocultos.ver === true && st3.ocultos.patron === 'discontinuo' && D.validarEstilo(st3).ok;
-      // Fase A completa: suelo base de apoyo (suelo.ver ⇔ plano base) + texturas toggle (materiales.texturas)
+      // Fase A: suelo VIRTUAL de apoyo (ver + color) + texturas toggle (materiales.texturas)
       D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-00000000000c', nombre:'w', familia:'presentacion',
-        caras:{ modo:'consistente' }, suelo:{ ver:false }, materiales:{ texturas:true } });
+        caras:{ modo:'consistente' }, suelo:{ ver:true, color:'#334455' }, materiales:{ texturas:true } });
       const st4 = D.currentStyle();
-      out.suelo = !!st4.suelo && st4.suelo.ver === false && D.groundLaserOn === false;
+      out.suelo = !!st4.suelo && st4.suelo.ver === true && D.groundLaserOn === true && st4.suelo.color === '#334455';
       out.texturas = !!st4.materiales && st4.materiales.texturas === true && D.validarEstilo(st4).ok;
+      D.setSuelo(false);
       // perfiles/silueta: ver + grosor propio (perfiles.ver/grosor)
       D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-00000000000d', nombre:'v', familia:'presentacion',
         caras:{ modo:'blanco' }, perfiles:{ ver:false, grosor:2.5 } });
@@ -659,7 +660,7 @@ const secciones = {
     ok('estilos: fondo de color (fondo.valor) round-trip y válido', r.bgcolor);
     ok('estilos: sin aristas (aristas.ver=false) round-trip', r.sinAristas);
     ok('estilos: ocultas discontinuas (ocultos.ver/patron) round-trip', r.ocultos);
-    ok('estilos: suelo base de apoyo (suelo.ver ⇔ plano base) round-trip', r.suelo);
+    ok('estilos: suelo virtual (suelo.ver + suelo.color) round-trip', r.suelo);
     ok('estilos: texturas toggle (materiales.texturas) round-trip', r.texturas);
     ok('estilos: perfiles/silueta (perfiles.ver/grosor) round-trip', r.perfiles);
     ok('estilos: export lleva biblioteca + estilo vivo (sub-clave), válidos', r.serial);

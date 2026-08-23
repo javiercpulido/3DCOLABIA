@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.78 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.79 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -418,9 +418,10 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
   <span style="margin-left:auto;display:flex;gap:3px;align-items:center">
    <button class="stgl on" data-bg="claro">Claro</button><button class="stgl" data-bg="oscuro">Oscuro</button>
    <input id="styleBgCol" type="color" value="#eef1f4" title="Color de fondo personalizado" style="width:28px;height:24px;border:1px solid #ddd;border-radius:6px;padding:0;cursor:pointer"></span></label>
- <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Plano base de apoyo del visor (no es geometría real)">Suelo base
-  <span style="margin-left:auto;display:flex;gap:3px">
-   <button class="stgl" data-su="si">Sí</button><button class="stgl on" data-su="no">No</button></span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Plano de apoyo del visor: VIRTUAL y provisional, hasta cargar el terreno real BIM georreferenciado">Suelo virtual
+  <span style="margin-left:auto;display:flex;gap:3px;align-items:center">
+   <button class="stgl" data-su="si">Sí</button><button class="stgl on" data-su="no">No</button>
+   <input id="styleSueloCol" type="color" value="#e9ebee" title="Color del suelo virtual" style="width:28px;height:24px;border:1px solid #ddd;border-radius:6px;padding:0;cursor:pointer"></span></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Texturas de material (render en Fase C)">Texturas
   <span style="margin-left:auto;display:flex;gap:3px">
    <button class="stgl" data-tx="si">Sí</button><button class="stgl on" data-tx="no">No</button></span></label>
@@ -511,7 +512,7 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <div style="margin-top:8px;color:var(--mut);font-size:11px">Secciones → arriba, junto a las vistas (icono de sección ⌀).</div>
  <label><input type="checkbox" id="axSnap" checked> Ajuste de líneas a ejes</label>
  <label><input type="checkbox" id="interChk" checked> Intersección de volúmenes</label>
- <label><input type="checkbox" id="groundLaser" checked> Suelo base · capa de entorno (espejo de Estilos)</label>
+ <label><input type="checkbox" id="groundLaser"> Suelo virtual · capa de entorno (espejo de Estilos)</label>
  <div id="surfSec" style="margin-top:10px;display:none"><b>Superficies</b>
   <div id="surfList" style="margin-top:4px"></div></div>
  <div style="margin-top:10px"><b>Papelera</b>
@@ -770,6 +771,8 @@ let styleHidPat='punteado';// patrón de ocultas: 'punteado' | 'discontinuo' →
 let styleTextures=false;   // texturas on/off → estilo.materiales.texturas (Fase A solo toggle; render en Fase C)
 let stylePerfOn=true;      // perfiles/silueta visibles → estilo.perfiles.ver
 let stylePerfW=null;       // grosor propio del perfil (null = sigue al grosor de aristas) → estilo.perfiles.grosor
+let sueloColor='#e9ebee';  // color del SUELO VIRTUAL → estilo.suelo.color
+let sueloMesh=null;        // malla del suelo virtual (provisional; la sustituirá el terreno real BIM georreferenciado). Se crea tras conocer el bbox
 let invView=false, invAlpha=0.85;   // modo invertido: fondo oscuro + volúmenes claros translúcidos
 let meshOverlay=false;   // la malla (aristas de triángulos) es un overlay independiente del estilo
 function edgesWanted(){return !styleEdgesOff && viewMode!=='somb';}
@@ -926,11 +929,12 @@ function currentStyle(){ const st={ v:1, id:_uuid(), nombre:'', familia:styleFam
     fuente_color:{modo:(styleEdgeColor==='material'?'material':'bn')},
     fondo:(styleBg?{modo:(darkView?'oscuro':'claro'),valor:styleBg}:{modo:(darkView?'oscuro':'claro')}),
     materiales:{texturas:!!styleTextures},
-    suelo:{ver:(typeof groundLaserOn!=='undefined'?!!groundLaserOn:false)},   // plano base de apoyo (no geometría real)
+    suelo:{ver:(typeof groundLaserOn!=='undefined'?!!groundLaserOn:false), color:sueloColor},   // suelo VIRTUAL de apoyo (no geometría real)
     salidas:(styleFamily==='tecnico'?['vector_svg','vector_pdf']:['raster_png','imagen_ia']) };
   if(viewMode==='oculto'||styleHidOn)st.ocultos={ver:true,patron:styleHidPat};
   return st; }
 function setSuelo(on){ groundLaserOn=!!on; const gl=document.getElementById('groundLaser'); if(gl)gl.checked=groundLaserOn;
+  if(sueloMesh)sueloMesh.visible=groundLaserOn;   // el suelo virtual visible acompaña al toggle
   if(typeof updateLasers==='function')updateLasers(); }
 function applyPerfiles(){ for(const n in pieces){const ud=pieces[n].userData;   // grosor propio del perfil (silueta)
   if(ud.silh&&ud.silh.fat)ud.silh.fat.mat.uniforms.uPx.value=(stylePerfW!=null?stylePerfW:edgePx);} }
@@ -950,7 +954,7 @@ function applyStyle(st){ if(!st)return;
   if(st.ocultos){styleHidOn=(st.ocultos.ver===true); if(st.ocultos.patron==='punteado'||st.ocultos.patron==='discontinuo')styleHidPat=st.ocultos.patron;} else styleHidOn=false;
   applyHiddenPattern();
   if(st.materiales&&typeof st.materiales.texturas==='boolean')styleTextures=st.materiales.texturas;
-  if(st.suelo&&typeof st.suelo.ver==='boolean')setSuelo(st.suelo.ver);
+  if(st.suelo){ if(typeof st.suelo.ver==='boolean')setSuelo(st.suelo.ver); if(st.suelo.color)setSueloColor(st.suelo.color); }
   if(st.perfiles){ if(typeof st.perfiles.ver==='boolean')stylePerfOn=st.perfiles.ver; stylePerfW=(st.perfiles.grosor!=null?st.perfiles.grosor:null); applyPerfiles(); }
   if(st.aristas&&st.aristas.grosor!=null&&typeof setEdgePx==='function')setEdgePx(st.aristas.grosor);
   const wantDark=!!(st.fondo&&st.fondo.modo==='oscuro');
@@ -970,6 +974,7 @@ function syncStylePanel(){ syncStyleFamily();
   document.querySelectorAll('#stylepop .stgl[data-pf]').forEach(b=>b.classList.toggle('on',b.dataset.pf===(stylePerfOn?'si':'no')));
   const pg=document.getElementById('stylePerfGro'); if(pg)pg.value=(stylePerfW!=null?stylePerfW:edgePx);
   document.querySelectorAll('#stylepop .stgl[data-su]').forEach(b=>b.classList.toggle('on',b.dataset.su===((typeof groundLaserOn!=='undefined'&&groundLaserOn)?'si':'no')));
+  const sc=document.getElementById('styleSueloCol'); if(sc&&sueloColor)sc.value=sueloColor;
   document.querySelectorAll('#stylepop .stgl[data-tx]').forEach(b=>b.classList.toggle('on',b.dataset.tx===(styleTextures?'si':'no')));
   const o=document.getElementById('styleOpac'); if(o)o.value=Math.round(baseOpacity*100);
   const g=document.getElementById('styleGrosor'); if(g)g.value=edgePx;
@@ -994,6 +999,7 @@ document.getElementById('stylepop').addEventListener('click',e=>{
 document.getElementById('styleOpac').oninput=function(){baseOpacity=Math.max(0.06,+this.value/100); applyMode();};
 document.getElementById('styleGrosor').oninput=function(){setEdgePx(+this.value); syncStylePanel();};
 document.getElementById('stylePerfGro').oninput=function(){stylePerfW=+this.value; applyPerfiles();};
+document.getElementById('styleSueloCol').oninput=function(){setSueloColor(this.value);};
 document.getElementById('styleBgCol').oninput=function(){styleBg=this.value; applyMode(); syncStylePanel();};
 document.getElementById('styleSave').onclick=()=>{
   const inp=document.getElementById('styleName');
@@ -3937,10 +3943,23 @@ function updatePoche(){
 // PLANO BASE del láser: un plano de fondo (solo visual) sobre el que el láser
 // también proyecta su línea. Desactivable — a veces interesa verla proyectada
 // en el fondo y a veces no. No es geometría (no afecta a cálculos ni export).
-let groundLaserOn=true;
+let groundLaserOn=false;   // SUELO VIRTUAL apagado por defecto (apoyo opcional; provisional hasta el terreno real BIM)
 const GROUND_TRIS=(()=>{const zg=bbox.min.z-2,s=150;
   const a=[C.x-s,C.y-s,zg],b2=[C.x+s,C.y-s,zg],c2=[C.x+s,C.y+s,zg],d2=[C.x-s,C.y+s,zg];
   return [new Float64Array([...a,...b2,...c2]),new Float64Array([...a,...c2,...d2])];})();
+// SUELO VIRTUAL visible: plano de apoyo horizontal bajo el modelo (misma cota que la proyección del láser).
+// NO es geometría real — fuera de pickables/bbox/export. Cuando cargue el terreno real BIM georreferenciado, cede.
+(function buildSueloVirtual(){
+  const sx=bbox.max.x-bbox.min.x, sy=bbox.max.y-bbox.min.y, s=Math.max(sx,sy,20)*3;
+  const mat=new THREE.MeshStandardMaterial({color:new THREE.Color(sueloColor),roughness:.96,metalness:0,
+    transparent:true,opacity:.9,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:3,polygonOffsetUnits:3});
+  sueloMesh=new THREE.Mesh(new THREE.PlaneGeometry(s,s),mat);
+  sueloMesh.position.set(C.x,C.y,bbox.min.z-2);   // plano XY (horizontal, Z arriba)
+  sueloMesh.receiveShadow=true;                    // listo para recibir sombra en Fase B (suelo.recibe_sombra)
+  sueloMesh.renderOrder=-1; sueloMesh.frustumCulled=false; sueloMesh.visible=false; scene.add(sueloMesh);
+})();
+function setSueloColor(hex){ if(!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(hex||''))return;
+  sueloColor=hex; if(sueloMesh)sueloMesh.material.color.set(hex); }
 function cutTris(tris,n,pt,out,M){
   const nx=n.x,ny=n.y,nz=n.z,d0=nx*pt.x+ny*pt.y+nz*pt.z,EPS=1e-6,q=[];
   for(const t of tris){
