@@ -207,14 +207,13 @@ const secciones = {
       // otra herramienta cierra el menú de láseres
       document.getElementById('mSel').click(); await frame();
       out.menuCerrado = document.getElementById('lasermenu').style.display === 'none';
-      // PLANO BASE del láser: proyección de fondo desactivable
-      const gl = document.getElementById('groundLaser');
-      gl.checked = true; gl.dispatchEvent(new Event('change', { bubbles: true })); await frame();
+      // PLANO BASE (suelo de apoyo): proyección de fondo desactivable — ahora se controla desde Estilos (Suelo base)
+      D.setSuelo(true); await frame();
       const nOn = L.geo.attributes.position.count;
-      gl.checked = false; gl.dispatchEvent(new Event('change', { bubbles: true })); await frame();
+      D.setSuelo(false); await frame();
       const nOff = L.geo.attributes.position.count;
       out.planoBase = D.groundLaserOn === false && nOff < nOn && nOff > 0;   // quita la proyección de fondo, mantiene la de piezas
-      gl.checked = true; gl.dispatchEvent(new Event('change', { bubbles: true }));
+      D.setSuelo(true);
       // SECCIÓN NEGRA: la línea del láser pasa a negro (línea técnica) y oculta el aparato
       D.setLaserBlack(L, true);
       out.negro = L.black === true && L.matA.color.getHex() === 0x1c1c1e && L.mesh.visible === false && L.matB.opacity === 0;
@@ -632,6 +631,11 @@ const secciones = {
       const st4 = D.currentStyle();
       out.suelo = !!st4.suelo && st4.suelo.ver === false && D.groundLaserOn === false;
       out.texturas = !!st4.materiales && st4.materiales.texturas === true && D.validarEstilo(st4).ok;
+      // perfiles/silueta: ver + grosor propio (perfiles.ver/grosor)
+      D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-00000000000d', nombre:'v', familia:'presentacion',
+        caras:{ modo:'blanco' }, perfiles:{ ver:false, grosor:2.5 } });
+      const st5 = D.currentStyle();
+      out.perfiles = !!st5.perfiles && st5.perfiles.ver === false && Math.abs(st5.perfiles.grosor - 2.5) < 0.01 && D.validarEstilo(st5).ok;
       // export: biblioteca de usuario + estilo vivo bajo sub-clave `estilo`, ambos válidos
       const e = D.buildExport();
       out.serial = Array.isArray(e.estilos) && !!e.estilo && D.validarEstilo(e.estilo).ok
@@ -657,6 +661,7 @@ const secciones = {
     ok('estilos: ocultas discontinuas (ocultos.ver/patron) round-trip', r.ocultos);
     ok('estilos: suelo base de apoyo (suelo.ver ⇔ plano base) round-trip', r.suelo);
     ok('estilos: texturas toggle (materiales.texturas) round-trip', r.texturas);
+    ok('estilos: perfiles/silueta (perfiles.ver/grosor) round-trip', r.perfiles);
     ok('estilos: export lleva biblioteca + estilo vivo (sub-clave), válidos', r.serial);
   },
 

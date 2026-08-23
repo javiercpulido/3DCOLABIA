@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.76 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.77 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -405,6 +405,10 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Aristas visibles
   <span style="margin-left:auto;display:flex;gap:3px">
    <button class="stgl on" data-av="si">Sí</button><button class="stgl" data-av="no">No</button></span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Perfiles/silueta del contorno (independiente de las aristas)">Perfiles
+  <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
+   <button class="stgl on" data-pf="si">Sí</button><button class="stgl" data-pf="no">No</button>
+   <input id="stylePerfGro" type="range" min="0.5" max="8" step="0.25" value="2" title="Grosor del perfil" style="width:64px"></span></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Ocultas
   <span style="margin-left:auto;display:flex;gap:3px">
    <button class="stgl on" data-oc="no">No</button><button class="stgl" data-oc="punteado">Punteado</button><button class="stgl" data-oc="discontinuo">Discontinuo</button></span></label>
@@ -507,7 +511,6 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <div style="margin-top:8px;color:var(--mut);font-size:11px">Secciones → arriba, junto a las vistas (icono de sección ⌀).</div>
  <label><input type="checkbox" id="axSnap" checked> Ajuste de líneas a ejes</label>
  <label><input type="checkbox" id="interChk" checked> Intersección de volúmenes</label>
- <label><input type="checkbox" id="groundLaser" checked> Plano base del láser (proyección de fondo)</label>
  <div id="surfSec" style="margin-top:10px;display:none"><b>Superficies</b>
   <div id="surfList" style="margin-top:4px"></div></div>
  <div style="margin-top:10px"><b>Papelera</b>
@@ -764,6 +767,8 @@ let styleEdgesOff=false;   // 'sin aristas': fuerza aristas+silueta ocultas → 
 let styleHidOn=false;      // mostrar líneas ocultas (discontinuas) → estilo.ocultos.ver
 let styleHidPat='punteado';// patrón de ocultas: 'punteado' | 'discontinuo' → estilo.ocultos.patron
 let styleTextures=false;   // texturas on/off → estilo.materiales.texturas (Fase A solo toggle; render en Fase C)
+let stylePerfOn=true;      // perfiles/silueta visibles → estilo.perfiles.ver
+let stylePerfW=null;       // grosor propio del perfil (null = sigue al grosor de aristas) → estilo.perfiles.grosor
 let invView=false, invAlpha=0.85;   // modo invertido: fondo oscuro + volúmenes claros translúcidos
 let meshOverlay=false;   // la malla (aristas de triángulos) es un overlay independiente del estilo
 function edgesWanted(){return !styleEdgesOff && viewMode!=='somb';}
@@ -904,6 +909,7 @@ function validarEstilo(st){ const e=[]; const I=_EST_ENUM;
   if(st.seccion){ if(st.seccion.tapa&&!I.tapa.includes(st.seccion.tapa))e.push('seccion.tapa');
     if(st.seccion.poche&&!I.poche.includes(st.seccion.poche))e.push('seccion.poche'); }
   if(st.tramas&&!I.tramas.includes(st.tramas))e.push('tramas');
+  if(st.perfiles&&st.perfiles.ver!=null&&typeof st.perfiles.ver!=='boolean')e.push('perfiles.ver');
   if(st.materiales&&st.materiales.texturas!=null&&typeof st.materiales.texturas!=='boolean')e.push('materiales.texturas');
   if(st.suelo){ if(st.suelo.ver!=null&&typeof st.suelo.ver!=='boolean')e.push('suelo.ver');
     if(st.suelo.recibe_sombra!=null&&typeof st.suelo.recibe_sombra!=='boolean')e.push('suelo.recibe_sombra');
@@ -915,6 +921,7 @@ let savedStyles=[];
 function currentStyle(){ const st={ v:1, id:_uuid(), nombre:'', familia:styleFamily,
     caras:{modo:carasModoFromView(viewMode), opacidad:+baseOpacity.toFixed(2)},
     aristas:{ver:edgesWanted(), grosor:+edgePx.toFixed(2), color:{fuente:styleEdgeColor}},
+    perfiles:{ver:!!stylePerfOn, grosor:+(stylePerfW!=null?stylePerfW:edgePx).toFixed(2)},
     fuente_color:{modo:(styleEdgeColor==='material'?'material':'bn')},
     fondo:(styleBg?{modo:(darkView?'oscuro':'claro'),valor:styleBg}:{modo:(darkView?'oscuro':'claro')}),
     materiales:{texturas:!!styleTextures},
@@ -924,6 +931,8 @@ function currentStyle(){ const st={ v:1, id:_uuid(), nombre:'', familia:styleFam
   return st; }
 function setSuelo(on){ groundLaserOn=!!on; const gl=document.getElementById('groundLaser'); if(gl)gl.checked=groundLaserOn;
   if(typeof updateLasers==='function')updateLasers(); }
+function applyPerfiles(){ for(const n in pieces){const ud=pieces[n].userData;   // grosor propio del perfil (silueta)
+  if(ud.silh&&ud.silh.fat)ud.silh.fat.mat.uniforms.uPx.value=(stylePerfW!=null?stylePerfW:edgePx);} }
 function applyHiddenPattern(){ const dp=(styleHidPat==='discontinuo')?{d:3.0,g:2.0}:{d:0.8,g:1.4};   // punteado vs discontinuo
   for(const n in pieces){const ud=pieces[n].userData;
     if(ud.edgesHid){ud.edgesHid.material.dashSize=dp.d; ud.edgesHid.material.gapSize=dp.g; ud.edgesHid.material.needsUpdate=true;}
@@ -941,6 +950,7 @@ function applyStyle(st){ if(!st)return;
   applyHiddenPattern();
   if(st.materiales&&typeof st.materiales.texturas==='boolean')styleTextures=st.materiales.texturas;
   if(st.suelo&&typeof st.suelo.ver==='boolean')setSuelo(st.suelo.ver);
+  if(st.perfiles){ if(typeof st.perfiles.ver==='boolean')stylePerfOn=st.perfiles.ver; stylePerfW=(st.perfiles.grosor!=null?st.perfiles.grosor:null); applyPerfiles(); }
   if(st.aristas&&st.aristas.grosor!=null&&typeof setEdgePx==='function')setEdgePx(st.aristas.grosor);
   const wantDark=!!(st.fondo&&st.fondo.modo==='oscuro');
   if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode();
@@ -956,6 +966,8 @@ function syncStylePanel(){ syncStyleFamily();
   document.querySelectorAll('#stylepop .stgl[data-bg]').forEach(b=>b.classList.toggle('on',!styleBg&&b.dataset.bg===(darkView?'oscuro':'claro')));
   document.querySelectorAll('#stylepop .stgl[data-av]').forEach(b=>b.classList.toggle('on',b.dataset.av===(styleEdgesOff?'no':'si')));
   document.querySelectorAll('#stylepop .stgl[data-oc]').forEach(b=>b.classList.toggle('on',b.dataset.oc===(styleHidOn?styleHidPat:'no')));
+  document.querySelectorAll('#stylepop .stgl[data-pf]').forEach(b=>b.classList.toggle('on',b.dataset.pf===(stylePerfOn?'si':'no')));
+  const pg=document.getElementById('stylePerfGro'); if(pg)pg.value=(stylePerfW!=null?stylePerfW:edgePx);
   document.querySelectorAll('#stylepop .stgl[data-su]').forEach(b=>b.classList.toggle('on',b.dataset.su===((typeof groundLaserOn!=='undefined'&&groundLaserOn)?'si':'no')));
   document.querySelectorAll('#stylepop .stgl[data-tx]').forEach(b=>b.classList.toggle('on',b.dataset.tx===(styleTextures?'si':'no')));
   const o=document.getElementById('styleOpac'); if(o)o.value=Math.round(baseOpacity*100);
@@ -972,6 +984,7 @@ document.getElementById('stylepop').addEventListener('click',e=>{
   else if(b.dataset.cm){viewMode=b.dataset.cm; applyMode(); syncStylePanel();}
   else if(b.dataset.av){styleEdgesOff=(b.dataset.av==='no'); applyMode(); syncStylePanel();}
   else if(b.dataset.oc){ if(b.dataset.oc==='no'){styleHidOn=false;} else {styleHidOn=true; styleHidPat=b.dataset.oc;} applyHiddenPattern(); syncStylePanel();}
+  else if(b.dataset.pf){stylePerfOn=(b.dataset.pf==='si'); syncStylePanel();}
   else if(b.dataset.su){setSuelo(b.dataset.su==='si'); syncStylePanel();}
   else if(b.dataset.tx){styleTextures=(b.dataset.tx==='si'); syncStylePanel();}
   else if(b.dataset.ec){styleEdgeColor=b.dataset.ec; applyMode(); syncStylePanel();}
@@ -979,6 +992,7 @@ document.getElementById('stylepop').addEventListener('click',e=>{
     if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode(); syncStylePanel();}});
 document.getElementById('styleOpac').oninput=function(){baseOpacity=Math.max(0.06,+this.value/100); applyMode();};
 document.getElementById('styleGrosor').oninput=function(){setEdgePx(+this.value); syncStylePanel();};
+document.getElementById('stylePerfGro').oninput=function(){stylePerfW=+this.value; applyPerfiles();};
 document.getElementById('styleBgCol').oninput=function(){styleBg=this.value; applyMode(); syncStylePanel();};
 document.getElementById('styleSave').onclick=()=>{
   const inp=document.getElementById('styleName');
@@ -3206,7 +3220,7 @@ document.getElementById('selMag').onclick=()=>{
   toast(activar?('imán fijo 🧲: pegado a '+(list[0].sobre==='aire'?'…apunta la cámara a una pieza':list[0].sobre))
                :'imán fijo quitado — el trazo vuelve a ser libre');};
 interChk.onchange=e=>{interOn=e.target.checked;};
-document.getElementById('groundLaser').onchange=e=>{groundLaserOn=e.target.checked; updateLasers();};
+// El plano base (suelo de apoyo) se controla desde el editor de Estilos (Suelo base), no en la ventana derecha.
 // indicador de CONTACTO: sondeo corto en 6 direcciones desde extremos y centro
 let contactSpr=null;
 const probeRc=new THREE.Raycaster(); probeRc.far=1.6;
@@ -6386,6 +6400,7 @@ document.getElementById('lwDn').onclick=()=>setLineW(lineW-0.05);
 function setEdgePx(v){edgePx=Math.max(0.5,Math.min(6,Math.round(v*4)/4));
   const n=document.getElementById('edgeNum'); if(n)n.value=edgePx.toFixed(2);
   for(const m of _pieceEdgeMats)m.uniforms.uPx.value=edgePx;   // aristas de piezas: en TIEMPO REAL
+  if(typeof applyPerfiles==='function')applyPerfiles();   // el perfil conserva su grosor propio si lo tiene
   strokes.forEach(s=>s._dirty=true); redraw();}
 document.getElementById('edgeUp').onclick=()=>setEdgePx(edgePx+0.25);
 document.getElementById('edgeDn').onclick=()=>setEdgePx(edgePx-0.25);
@@ -6470,7 +6485,7 @@ get rendererInfo(){return renderer.info.memory},updateLivePreview,nearestVertexO
 computeIntersections,snapPt,midByArc,get lineW(){return lineW},
 get faceRef(){return faceRef},get frame(){return {on:frameOn,Rface}},get pickables(){return pickables},
 datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes},
-updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},
+updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},setSuelo,
 get edgePx(){return edgePx},setEdgePx,fatLine,buildPlaneMag,get HAIRLINE(){return HAIRLINE},
 filletStart,filletStop,filletApplyAll,computeFilletCorners,applyFilletCorner,filletArc,setFilletR,get filletR(){return filletR},get filletMarkers(){return filletMarkers},
 uniteStrokes,decomposeStroke,faceGroupsOf,decomposePieceFaces,pickFaceLoopAt,pickStrokeAt,shrinkwrapStroke,avgNormalWorld,sculptSurfaceAt,soupOf,get selSet(){return selSet},set selSet(v){selSet=v},setLaserBlack,
@@ -6675,8 +6690,8 @@ function updateSilh(){
     sd.geo.attributes.lineDistance.needsUpdate=true;
     // SILUETA GRUESA (responde a edgePx); la fina se oculta y hace de fuente de datos
     if(sd.fat){sd.fat.setSegments(sd.pos,c); sd.fat.mat.uniforms.uColor.value.copy(sd.line.material.color);
-      sd.fat.mesh.visible=true; sd.line.visible=false;}
-    else sd.line.visible=true;
+      sd.fat.mesh.visible=stylePerfOn; sd.line.visible=false;}
+    else sd.line.visible=stylePerfOn;
     sd.lineHid.visible=(viewMode==='oculto'||styleHidOn);
   }
 }
