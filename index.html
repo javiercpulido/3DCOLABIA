@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.98 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.99 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -608,16 +608,27 @@ function angleNormals(posArr, idxArr, deg){
     e1.subVectors(B,A); e2.subVectors(Cc,A); faceN[f]=new THREE.Vector3().crossVectors(e1,e2).normalize(); }
   const inc=new Map();   // vértice original → caras incidentes
   for(let f=0;f<nf;f++)for(let k=0;k<3;k++){ const vi=idxArr[f*3+k]; let a=inc.get(vi); if(!a){a=[];inc.set(vi,a);} a.push(f); }
-  const newPos=[], newNorm=[], newIdx=new Array(idxArr.length), keyMap=new Map(), acc=new THREE.Vector3();
-  for(let f=0;f<nf;f++){ const nfv=faceN[f];
-    for(let k=0;k<3;k++){ const vi=idxArr[f*3+k]; acc.set(0,0,0);
-      const faces=inc.get(vi);
-      for(let q=0;q<faces.length;q++){ if(faceN[faces[q]].dot(nfv)>=cosT) acc.add(faceN[faces[q]]); }
-      if(acc.lengthSq()<1e-12)acc.copy(nfv); acc.normalize();
-      const nk=vi+'|'+Math.round(acc.x*100)+'_'+Math.round(acc.y*100)+'_'+Math.round(acc.z*100);
-      let ni=keyMap.get(nk);
-      if(ni===undefined){ ni=newPos.length/3; keyMap.set(nk,ni); const p=gv(vi); newPos.push(p[0],p[1],p[2]); newNorm.push(acc.x,acc.y,acc.z); }
-      newIdx[f*3+k]=ni; } }
+  // GRUPOS DE SUAVIZADO (union-find): dos caras incidentes a un vértice se unen si comparten ARISTA (2 vértices)
+  // y su ángulo < umbral. Cada grupo → una normal: el cilindro entero cae en UN grupo (suave, con degradado),
+  // las aristas vivas parten en grupos distintos (caras planas). Correcto en curvas Y en planas.
+  const faceGroup=new Map();   // 'vi_f' → id de grupo
+  inc.forEach((faces,vi)=>{ const n=faces.length, parent=[];
+    for(let i=0;i<n;i++)parent[i]=i;
+    const find=x=>{while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x];}return x;};
+    for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){ const fi=faces[i], fj=faces[j];
+      if(faceN[fi].dot(faceN[fj])<cosT)continue;
+      let shared=0; for(let a=0;a<3;a++){const va=idxArr[fi*3+a]; if(va===idxArr[fj*3]||va===idxArr[fj*3+1]||va===idxArr[fj*3+2])shared++;}
+      if(shared>=2)parent[find(i)]=find(j); }
+    for(let i=0;i<n;i++)faceGroup.set(vi+'_'+faces[i], find(i)); });
+  const groupN=new Map();   // 'vi_g' → normal acumulada del grupo
+  inc.forEach((faces,vi)=>{ for(let q=0;q<faces.length;q++){ const f=faces[q], key=vi+'_'+faceGroup.get(vi+'_'+f);
+    let a=groupN.get(key); if(!a){a=new THREE.Vector3();groupN.set(key,a);} a.add(faceN[f]); } });
+  groupN.forEach(v=>{ if(v.lengthSq()>1e-12)v.normalize(); });
+  const newPos=[], newNorm=[], newIdx=new Array(idxArr.length), keyMap=new Map();
+  for(let f=0;f<nf;f++)for(let k=0;k<3;k++){ const vi=idxArr[f*3+k], nk=vi+'_'+faceGroup.get(vi+'_'+f);
+    let ni=keyMap.get(nk);
+    if(ni===undefined){ ni=newPos.length/3; keyMap.set(nk,ni); const p=gv(vi); newPos.push(p[0],p[1],p[2]); const nr=groupN.get(nk); newNorm.push(nr.x,nr.y,nr.z); }
+    newIdx[f*3+k]=ni; }
   const g=new THREE.BufferGeometry();
   g.setAttribute('position',new THREE.Float32BufferAttribute(newPos,3));
   g.setAttribute('normal',new THREE.Float32BufferAttribute(newNorm,3));
