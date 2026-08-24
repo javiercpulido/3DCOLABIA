@@ -704,6 +704,16 @@ const secciones = {
       const radHard = D.sol.shadow.radius;
       out.dureza = radSoft > radHard && durSoft === 10 && D.currentStyle().iluminacion.dureza_sombra === 95
         && D.validarEstilo(D.currentStyle()).ok;
+      // B3 · AO (SSAO): activar construye el pase y hace round-trip; desactivar vuelve a render directo
+      D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-000000000019', nombre:'ao', familia:'presentacion',
+        caras:{ modo:'consistente' }, oclusion_ambiental:{ activo:true, intensidad:70, radio:40 } });
+      const stao = D.currentStyle();
+      out.aoDesc = D.aoOn === true && !!stao.oclusion_ambiental && stao.oclusion_ambiental.activo === true
+        && stao.oclusion_ambiental.intensidad === 70 && stao.oclusion_ambiental.radio === 40 && D.validarEstilo(stao).ok;
+      D.renderAO();
+      out.aoReady = D.renderer.capabilities.isWebGL2 ? (D.aoReady === true) : true;
+      D.setAO(false);
+      out.aoOff = D.aoOn === false;
       D.setSombra(false);
       out.sombraOff = D.sol.visible === false && D.renderer.shadowMap.autoUpdate === false;
       out.sombraOrbit = Math.abs(D.sph.r - r0s) < 1e-9 && D.target.distanceTo(t0s) < 1e-9;
@@ -757,6 +767,7 @@ const secciones = {
     ok('estilos: mover azimut/altitud reorienta el sol', r.sunMove);
     ok('estilos: modo geo (fecha/hora/lugar → az/alt) válido y en rango', r.geo);
     ok('estilos: dureza de sombra → penumbra (suave > radio que dura) + round-trip', r.dureza);
+    ok('estilos: oclusión ambiental (AO) round-trip + activa el pase SSAO', r.aoDesc && r.aoReady && r.aoOff);
     ok('estilos: apagar la sombra restaura (sol off, autoUpdate off)', r.sombraOff);
     ok('estilos: la sombra del sol no altera orbit/zoom-fit ni pivote', r.sombraOrbit);
     ok('estilos: malla independiente de la sombra (visibilidad + gris manual)', r.gridIndepSombra);

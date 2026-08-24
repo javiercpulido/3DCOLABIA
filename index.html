@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.92 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.93 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -446,6 +446,10 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Dureza del borde de la sombra: izquierda = suave (penumbra) · derecha = dura (nítida)">Dureza sombra
   <span style="margin-left:auto;display:flex;gap:6px;align-items:center;font-size:11px;color:var(--mut)">suave
    <input id="sunDur" type="range" min="0" max="100" step="1" value="55" title="Suave ↔ Dura" style="width:96px">dura</span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Oclusión ambiental: oscurece rincones y uniones (contacto). Look tipo Rhino Arctic / Blender">Oclusión AO
+  <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
+   <button class="stgl" data-ao="si">Sí</button><button class="stgl on" data-ao="no">No</button>
+   <input id="aoInt" type="range" min="0" max="100" step="1" value="60" title="Intensidad del AO" style="width:70px"></span></label>
  <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
   <input id="styleName" placeholder="Nombre del estilo" style="flex:1;font-size:13px;padding:6px 8px;border:1px solid #ddd;border-radius:8px">
   <button id="styleSave" style="border:0;background:var(--acc);color:#fff;border-radius:8px;padding:7px 11px;font-weight:600;cursor:pointer">Guardar</button></div>
@@ -825,6 +829,9 @@ let sunFecha='2026-06-21', sunHora='12:00';   // modo geo: fecha/hora
 let sunLat=40.4168, sunLon=-3.7038;           // modo geo: lugar por defecto (Madrid) hasta que exista el ancla de sitio del Geovisor (F1.5)
 let ilumSol=80, ilumAmb=55;  // iluminacion.sol / iluminacion.ambiental (0–100) — gobiernan la intensidad en modo sol
 let sunDureza=55;            // iluminacion.dureza_sombra (0 suave … 100 dura) → penumbra (VSM shadow.radius). Más suave de fábrica.
+// ── Fase B3 · Oclusión ambiental (AO) — SSAO propio (sin EffectComposer). Ruta OPT-IN: solo se usa si aoOn (lo demás sigue por render directo).
+let aoOn=false, aoIntensidad=60, aoRadio=50;   // oclusion_ambiental.activo / intensidad / radio (0–100)
+let _ao=null;                // {beauty, mat, scene, cam, quad, w, h, kernel, noiseTex}
 let _skyTex=null,_skyKey='';
 function skyTexture(){ const key=styleCielo+'|'+styleHorizonte; if(_skyTex&&_skyKey===key)return _skyTex;
   const cnv=document.createElement('canvas'); cnv.width=8; cnv.height=256; const ctx=cnv.getContext('2d');
@@ -1012,6 +1019,7 @@ function currentStyle(){ const st={ v:1, id:_uuid(), nombre:'', familia:styleFam
     iluminacion:{sol:Math.round(ilumSol), ambiental:Math.round(ilumAmb), dureza_sombra:Math.round(sunDureza)},
     sombra_arrojada:(function(){ const S={activo:!!sombraOn, modo:sombraModo, azimut:Math.round(sunAz), altitud:Math.round(sunAlt)};
       if(sombraModo==='geo'){ S.fecha=sunFecha; S.hora=sunHora; S.lugar={lat:+sunLat, lon:+sunLon}; } return S; })(),
+    oclusion_ambiental:{activo:!!aoOn, intensidad:Math.round(aoIntensidad), radio:Math.round(aoRadio)},   // Fase B3 (AO)
     suelo:{ver:(typeof groundLaserOn!=='undefined'?!!groundLaserOn:false), color:sueloColor, z:+(+sueloZ).toFixed(3),
       malla:(function(){const m={ver:!!gridOn,auto:!!gridAuto};   // retícula del suelo → estilo.suelo.malla (esquema v3.3)
         if(!gridAuto){const v=Math.round(Math.max(0,Math.min(1,gridManual))*255); m.color='#'+((1<<24)+(v<<16)+(v<<8)+v).toString(16).slice(1);} return m;})()},   // suelo VIRTUAL de apoyo (no geometría real)
@@ -1055,6 +1063,9 @@ function applyStyle(st){ if(!st)return;
     if(S.fecha)sunFecha=S.fecha; if(S.hora)sunHora=S.hora;
     if(S.lugar){ if(typeof S.lugar.lat==='number')sunLat=S.lugar.lat; if(typeof S.lugar.lon==='number')sunLon=S.lugar.lon; }
     if(typeof S.activo==='boolean')sombraOn=S.activo; }
+  if(st.oclusion_ambiental){ const O=st.oclusion_ambiental;   // Fase B3 (AO)
+    if(O.intensidad!=null)aoIntensidad=O.intensidad; if(O.radio!=null)aoRadio=O.radio;
+    if(typeof O.activo==='boolean')aoOn=O.activo; }
   applySombra();
   const wantDark=!!(st.fondo&&st.fondo.modo==='oscuro');
   if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode();
@@ -1083,6 +1094,8 @@ function syncStylePanel(){ syncStyleFamily();
   const saz=document.getElementById('sunAz'); if(saz)saz.value=Math.round(sunAz);
   const sal=document.getElementById('sunAlt'); if(sal)sal.value=Math.round(Math.max(1,sunAlt));
   const sdu=document.getElementById('sunDur'); if(sdu)sdu.value=Math.round(sunDureza);
+  document.querySelectorAll('#stylepop .stgl[data-ao]').forEach(b=>b.classList.toggle('on',b.dataset.ao===(aoOn?'si':'no')));
+  const aoi=document.getElementById('aoInt'); if(aoi)aoi.value=Math.round(aoIntensidad);
   const o=document.getElementById('styleOpac'); if(o)o.value=Math.round(baseOpacity*100);
   const g=document.getElementById('styleGrosor'); if(g)g.value=edgePx;
   const bc=document.getElementById('styleBgCol'); if(bc&&styleBg)bc.value=styleBg;
@@ -1106,6 +1119,7 @@ document.getElementById('stylepop').addEventListener('click',e=>{
   else if(b.dataset.tx){styleTextures=(b.dataset.tx==='si'); syncStylePanel();}
   else if(b.dataset.sombra){setSombra(b.dataset.sombra==='si'); syncStylePanel();}
   else if(b.dataset.smodo){setSombraModo(b.dataset.smodo); syncStylePanel();}
+  else if(b.dataset.ao){setAO(b.dataset.ao==='si'); syncStylePanel();}
   else if(b.dataset.ec){styleEdgeColor=b.dataset.ec; applyMode(); syncStylePanel();}
   else if(b.dataset.bg){styleBg=null; styleSky=false; const wantDark=b.dataset.bg==='oscuro';
     if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode(); syncStylePanel();}
@@ -1122,6 +1136,7 @@ document.getElementById('styleBgCol').oninput=function(){styleBg=this.value; app
 document.getElementById('sunAz').oninput=function(){setSunAz(+this.value);};
 document.getElementById('sunAlt').oninput=function(){setSunAlt(+this.value);};
 document.getElementById('sunDur').oninput=function(){setDureza(+this.value);};
+document.getElementById('aoInt').oninput=function(){setAOIntensidad(+this.value);};
 document.getElementById('styleSave').onclick=()=>{
   const inp=document.getElementById('styleName');
   const nUser=savedStyles.filter(s=>!s.de_fabrica).length;
@@ -4186,6 +4201,66 @@ function applySombra(){ if(!sol)return;
   renderer.shadowMap.autoUpdate=sombraOn; renderer.shadowMap.needsUpdate=true; }
 function setSombra(on){ sombraOn=!!on; applySombra(); }
 function setDureza(v){ sunDureza=_clamp(+v,0,100); if(sombraOn)applySombra(); }
+// ── Fase B3 · SSAO ─────────────────────────────────────────────────────────────
+function ensureAO(){
+  if(!renderer.capabilities||!renderer.capabilities.isWebGL2)return false;   // muestreo de DepthTexture requiere WebGL2
+  const db=renderer.getDrawingBufferSize(new THREE.Vector2());
+  const w=Math.max(2,Math.floor(db.x)), h=Math.max(2,Math.floor(db.y));
+  if(_ao&&_ao.w===w&&_ao.h===h)return true;
+  let kernel,noiseTex,mat,quad,aoScene,aoCam;
+  if(_ao){ kernel=_ao.kernel; noiseTex=_ao.noiseTex; mat=_ao.mat; quad=_ao.quad; aoScene=_ao.scene; aoCam=_ao.cam; if(_ao.beauty)_ao.beauty.dispose(); }
+  else{
+    kernel=[]; for(let i=0;i<16;i++){ const s=new THREE.Vector3(Math.random()*2-1,Math.random()*2-1,Math.random()); s.normalize(); let sc=i/16; sc=0.1+0.9*sc*sc; kernel.push(s.multiplyScalar(sc)); }
+    const nn=[]; for(let i=0;i<16;i++)nn.push(Math.random()*2-1,Math.random()*2-1,0,0);
+    noiseTex=new THREE.DataTexture(new Float32Array(nn),4,4,THREE.RGBAFormat,THREE.FloatType);
+    noiseTex.wrapS=noiseTex.wrapT=THREE.RepeatWrapping; noiseTex.minFilter=noiseTex.magFilter=THREE.NearestFilter; noiseTex.needsUpdate=true;
+    mat=new THREE.ShaderMaterial({ extensions:{derivatives:true},
+      uniforms:{ tColor:{value:null}, tDepth:{value:null}, tNoise:{value:noiseTex},
+        uProj:{value:new THREE.Matrix4()}, uInvProj:{value:new THREE.Matrix4()}, uKernel:{value:kernel},
+        uRes:{value:new THREE.Vector2()}, uRadius:{value:5.0}, uIntensity:{value:0.8}, uBias:{value:0.15} },
+      vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position,1.0); }`,
+      fragmentShader:`precision highp float; varying vec2 vUv;
+        uniform sampler2D tColor,tDepth,tNoise; uniform mat4 uProj,uInvProj; uniform vec3 uKernel[16];
+        uniform vec2 uRes; uniform float uRadius,uIntensity,uBias;
+        vec3 vpos(vec2 uv,float d){ vec4 c=vec4(uv*2.0-1.0, d*2.0-1.0, 1.0); vec4 v=uInvProj*c; return v.xyz/v.w; }
+        void main(){ float d=texture2D(tDepth,vUv).x; vec3 col=texture2D(tColor,vUv).rgb;
+          if(d>=1.0){ gl_FragColor=vec4(col,1.0); return; }
+          vec3 p=vpos(vUv,d); vec3 n=normalize(cross(dFdx(p),dFdy(p)));
+          vec3 rv=texture2D(tNoise, vUv*(uRes/4.0)).xyz;
+          vec3 t=normalize(rv-n*dot(rv,n)); vec3 b=cross(n,t); mat3 TBN=mat3(t,b,n);
+          float occ=0.0;
+          for(int i=0;i<16;i++){ vec3 sp=p+(TBN*uKernel[i])*uRadius;
+            vec4 o=uProj*vec4(sp,1.0); o.xyz/=o.w; vec2 su=o.xy*0.5+0.5;
+            if(su.x<0.0||su.x>1.0||su.y<0.0||su.y>1.0)continue;
+            float sd=texture2D(tDepth,su).x; vec3 spos=vpos(su,sd);
+            float rc=smoothstep(0.0,1.0, uRadius/max(0.0001,abs(p.z-spos.z)));
+            occ += (spos.z >= sp.z+uBias ? 1.0 : 0.0)*rc; }
+          occ=1.0-(occ/16.0)*uIntensity;
+          gl_FragColor=vec4(col*clamp(occ,0.0,1.0),1.0); }`
+    });
+    aoScene=new THREE.Scene(); aoCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+    quad=new THREE.Mesh(new THREE.PlaneGeometry(2,2),mat); quad.frustumCulled=false; aoScene.add(quad);
+  }
+  const depth=new THREE.DepthTexture(w,h); depth.type=THREE.UnsignedIntType;
+  const beauty=new THREE.WebGLRenderTarget(w,h,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthTexture:depth,depthBuffer:true,stencilBuffer:false});
+  _ao={beauty,mat,scene:aoScene,cam:aoCam,quad,w,h,kernel,noiseTex};
+  return true;
+}
+function renderAO(){
+  if(!ensureAO()){ renderer.render(scene,cam); return; }
+  renderer.setRenderTarget(_ao.beauty); renderer.render(scene,cam); renderer.setRenderTarget(null);
+  const u=_ao.mat.uniforms;
+  u.tColor.value=_ao.beauty.texture; u.tDepth.value=_ao.beauty.depthTexture;
+  u.uProj.value.copy(cam.projectionMatrix); u.uInvProj.value.copy(cam.projectionMatrix).invert();
+  u.uRes.value.set(_ao.w,_ao.h);
+  u.uRadius.value=(0.02+0.09*_clamp(aoRadio,0,100)/100)*Math.max(R,1);
+  u.uIntensity.value=_clamp(aoIntensidad,0,100)/100*1.5;
+  u.uBias.value=u.uRadius.value*0.03;
+  renderer.render(_ao.scene,_ao.cam);
+}
+function setAO(on){ aoOn=!!on; }
+function setAOIntensidad(v){ aoIntensidad=_clamp(+v,0,100); }
+function setAORadio(v){ aoRadio=_clamp(+v,0,100); }
 function setSunAz(a){ sunAz=((+a%360)+360)%360; if(sombraModo!=='geo')applySombra(); }
 function setSunAlt(a){ sunAlt=_clamp(+a,0,90); if(sombraModo!=='geo')applySombra(); }
 function setSombraModo(m){ sombraModo=(m==='geo')?'geo':'manual'; applySombra(); }
@@ -6738,6 +6813,7 @@ get faceRef(){return faceRef},get frame(){return {on:frameOn,Rface}},get pickabl
 datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes},
 updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},setSuelo,setSueloZ,get sueloMesh(){return sueloMesh},get sueloZ(){return sueloZ},get gizMode(){return gizMode},get sph(){return sph},get target(){return target},updCam,setView,setGrid,get gridOn(){return gridOn},get gridMesh(){return gridMesh},
 setSombra,setSunAz,setSunAlt,setSombraModo,setDureza,applySombra,solarAzAlt,duraToRadius,get sombraOn(){return sombraOn},get sombraModo(){return sombraModo},get sunAz(){return sunAz},get sunAlt(){return sunAlt},get sunDureza(){return sunDureza},get sol(){return sol},get renderer(){return renderer},
+setAO,setAOIntensidad,setAORadio,renderAO,ensureAO,get aoOn(){return aoOn},get aoIntensidad(){return aoIntensidad},get aoRadio(){return aoRadio},get aoReady(){return !!_ao},
 get edgePx(){return edgePx},setEdgePx,fatLine,buildPlaneMag,get HAIRLINE(){return HAIRLINE},
 filletStart,filletStop,filletApplyAll,computeFilletCorners,applyFilletCorner,filletArc,setFilletR,get filletR(){return filletR},get filletMarkers(){return filletMarkers},
 uniteStrokes,decomposeStroke,faceGroupsOf,decomposePieceFaces,pickFaceLoopAt,pickStrokeAt,shrinkwrapStroke,avgNormalWorld,sculptSurfaceAt,soupOf,get selSet(){return selSet},set selSet(v){selSet=v},setLaserBlack,
@@ -7128,7 +7204,7 @@ applySombra();   // Fase B1: estado inicial de la sombra (apagada → coste 0)
   updateSilh(); updateSecMarkers(); updateNoteScales(); updateSnapGlyphs(); updateDatumLabelScale(); _fatRes.value.set(W,H); updateFilletMarkScales();
   if(gridMesh&&gridMesh.visible&&gridMesh.material.uniforms){ gridMesh.material.uniforms.uFadeNear.value=sph.r*3.0; gridMesh.material.uniforms.uFadeFar.value=sph.r*8.0; }   // el fade de la rejilla sigue al zoom (horizonte)
   if(polyDraw)positionPolyChips();
-  renderer.render(scene,cam);})();
+  if(aoOn)renderAO(); else renderer.render(scene,cam);})();   // Fase B3: AO opt-in (SSAO) o render directo
 </script>
 </body>
 </html>
