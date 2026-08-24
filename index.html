@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.00 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.01 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -593,6 +593,10 @@ let amb=new THREE.AmbientLight(0xffffff,.30); scene.add(amb);
 let hemi=new THREE.HemisphereLight(0xffffff,0x8b9096,.55); hemi.position.set(0,0,1); scene.add(hemi);   // luz de entorno (cielo↑/suelo↓): da degradado a las caras en sombra (forma legible)
 let dl=new THREE.DirectionalLight(0xffffff,.55); dl.position.set(1,-1.2,1.6); scene.add(dl);
 let dl2=new THREE.DirectionalLight(0xffffff,.22); dl2.position.set(-1,1,-.5); scene.add(dl2);
+// RELLENO DE CÁMARA: luz tenue que acompaña a la vista (arriba-izquierda), sin sombra. Hace que la cara
+// que mira a cámara revele su curvatura (degradado) en vez de quedar plana/oscura cuando el sol está detrás.
+let camFill=new THREE.DirectionalLight(0xffffff,.25); scene.add(camFill); scene.add(camFill.target);
+const _cfW=new THREE.Vector3(),_cfR=new THREE.Vector3(),_cfU=new THREE.Vector3(),_cfZ=new THREE.Vector3(0,0,1);
 let sol=null;   // Fase B1 · luz SOL con sombra arrojada (se crea tras conocer el bbox/centro)
 
 // ---- modelo ----
@@ -4262,12 +4266,19 @@ function applySombra(){ if(!sol)return;
   sol.shadow.radius=duraToRadius(sunDureza);   // penumbra (VSM); en PCFSoft ajusta el desenfoque del muestreo
   const soft=(100-_clamp(sunDureza,0,100))/100;   // 0 dura … 1 suave: a más suave, relleno un pelín mayor (sombra propia menos dura)
   if(sombraOn){ sol.visible=true; sol.castShadow=true;
-    sol.intensity=0.45+0.006*_clamp(ilumSol,0,100);   // el sol pasa a luz CLAVE (lado iluminado claro)
-    hemi.intensity=0.35+0.004*_clamp(ilumAmb,0,100)+0.10*soft;   // HEMISFERIO = ambiente direccional: las caras en sombra revelan la forma (cielo↑ claro, suelo↓ oscuro)
-    amb.intensity=0.10; dl.intensity=0.10; dl2.intensity=0.06;   // relleno plano mínimo (nada queda negro puro)
+    sol.intensity=0.35+0.005*_clamp(ilumSol,0,100);   // el sol = luz CLAVE (lado iluminado); algo menos dominante para que el relleno lea
+    hemi.intensity=0.35+0.004*_clamp(ilumAmb,0,100)+0.10*soft;   // HEMISFERIO = ambiente direccional (cielo↑ claro, suelo↓ oscuro)
+    amb.intensity=0.08; dl.intensity=0.08; dl2.intensity=0.05; camFill.intensity=0.42;   // relleno de cámara: revela la curvatura de la cara frontal
   } else { sol.visible=false; sol.castShadow=false; sol.intensity=0;
-    amb.intensity=.30; hemi.intensity=.55; dl.intensity=.55; dl2.intensity=.22; }   // iluminación base restaurada (con hemisferio)
+    amb.intensity=.28; hemi.intensity=.55; dl.intensity=.5; dl2.intensity=.2; camFill.intensity=.25; }   // base (con hemisferio + relleno de cámara suave)
   renderer.shadowMap.autoUpdate=sombraOn; renderer.shadowMap.needsUpdate=true; }
+function updateCamFill(){ if(!camFill)return;   // relleno que acompaña a la vista, offset arriba-izquierda → degradado en la cara frontal
+  cam.getWorldDirection(_cfW);                                  // hacia el modelo (dentro de pantalla)
+  _cfR.crossVectors(_cfW,_cfZ); if(_cfR.lengthSq()<1e-8)_cfR.set(1,0,0); _cfR.normalize();
+  _cfU.crossVectors(_cfR,_cfW).normalize();
+  const d=Math.max(R*4,50);
+  camFill.position.copy(C).addScaledVector(_cfW,-d).addScaledVector(_cfU,d*0.45).addScaledVector(_cfR,-d*0.4);
+  camFill.target.position.copy(C); camFill.target.updateMatrixWorld(); }
 function setSombra(on){ sombraOn=!!on; applySombra(); }
 function setDureza(v){ sunDureza=_clamp(+v,0,100); if(sombraOn)applySombra(); }
 // ── Fase B3 · SSAO ─────────────────────────────────────────────────────────────
@@ -7291,6 +7302,7 @@ applyMode();   // asegura la configuración del poché (stencil) tras crear las 
 applySombra();   // Fase B1: estado inicial de la sombra (apagada → coste 0)
 
 (function loop(){requestAnimationFrame(loop);checkHold();
+  updateCamFill();   // relleno de cámara sigue a la vista (cara frontal legible)
   for(const n in pieces){const P=pieces[n];
     const ew=P.visible&&edgesWanted();
     if(P.userData.edgesFat){P.userData.edgesFat.mesh.visible=ew;   // aristas de característica GRUESAS
