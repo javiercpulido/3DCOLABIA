@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.86 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.87 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -902,7 +902,8 @@ const FACTORY_STYLES=[
    caras:{modo:'plano'},aristas:{ver:true,grosor:1.5,color:{fuente:'bn'}},perfiles:{ver:true,grosor:3.0},
    lineas_mano:{activo:true,jitter:35,extension:6},iluminacion:{sol:40,ambiental:70,dureza_sombra:20},
    sombra_arrojada:{activo:true,azimut:135,altitud:45},oclusion_ambiental:{activo:false},
-   fuente_color:{modo:'bn'},fondo:{modo:'claro',valor:'#fbfbf7'},salidas:['raster_png','imagen_ia']}
+   fuente_color:{modo:'bn'},fondo:{modo:'claro',valor:'#fbfbf7'},
+   suelo:{ver:true,color:'#eaecee',malla:{ver:true,auto:true}},salidas:['raster_png','imagen_ia']}
 ];
 // Catálogo i18n mínimo embebido (es) — código≠etiqueta. En backend, next-intl (TEC-62).
 const STYLE_LABELS_ES={'estilo.pen':'Pen (blanco / línea negra)','estilo.plano_demolicion':'Plano de demolición','estilo.boceto':'Boceto a mano'};
@@ -945,7 +946,13 @@ function validarEstilo(st){ const e=[]; const I=_EST_ENUM;
   if(st.suelo){ if(st.suelo.ver!=null&&typeof st.suelo.ver!=='boolean')e.push('suelo.ver');
     if(st.suelo.recibe_sombra!=null&&typeof st.suelo.recibe_sombra!=='boolean')e.push('suelo.recibe_sombra');
     if(st.suelo.z!=null&&typeof st.suelo.z!=='number')e.push('suelo.z');
-    if(st.suelo.color!=null&&!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(st.suelo.color))e.push('suelo.color'); }
+    if(st.suelo.solido!=null&&typeof st.suelo.solido!=='boolean')e.push('suelo.solido');
+    if(st.suelo.profundidad!=null&&typeof st.suelo.profundidad!=='number')e.push('suelo.profundidad');
+    if(st.suelo.color!=null&&!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(st.suelo.color))e.push('suelo.color');
+    if(st.suelo.malla){ const M=st.suelo.malla;   // esquema v3.3: suelo.malla{ver,auto,color}
+      if(M.ver!=null&&typeof M.ver!=='boolean')e.push('suelo.malla.ver');
+      if(M.auto!=null&&typeof M.auto!=='boolean')e.push('suelo.malla.auto');
+      if(M.color!=null&&!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(M.color))e.push('suelo.malla.color'); } }
   if(st.fondo){ if(st.fondo.modo&&!I.fondo.includes(st.fondo.modo))e.push('fondo.modo');
     if(st.fondo.cielo&&!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(st.fondo.cielo))e.push('fondo.cielo');
     if(st.fondo.horizonte&&!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(st.fondo.horizonte))e.push('fondo.horizonte'); }
@@ -960,7 +967,9 @@ function currentStyle(){ const st={ v:1, id:_uuid(), nombre:'', familia:styleFam
     fondo:(styleSky?{modo:'degradado',cielo:styleCielo,horizonte:styleHorizonte}
       :(styleBg?{modo:(darkView?'oscuro':'claro'),valor:styleBg}:{modo:(darkView?'oscuro':'claro')})),
     materiales:{texturas:!!styleTextures},
-    suelo:{ver:(typeof groundLaserOn!=='undefined'?!!groundLaserOn:false), color:sueloColor, z:+(+sueloZ).toFixed(3)},   // suelo VIRTUAL de apoyo (no geometría real)
+    suelo:{ver:(typeof groundLaserOn!=='undefined'?!!groundLaserOn:false), color:sueloColor, z:+(+sueloZ).toFixed(3),
+      malla:(function(){const m={ver:!!gridOn,auto:!!gridAuto};   // retícula del suelo → estilo.suelo.malla (esquema v3.3)
+        if(!gridAuto){const v=Math.round(Math.max(0,Math.min(1,gridManual))*255); m.color='#'+((1<<24)+(v<<16)+(v<<8)+v).toString(16).slice(1);} return m;})()},   // suelo VIRTUAL de apoyo (no geometría real)
     salidas:(styleFamily==='tecnico'?['vector_svg','vector_pdf']:['raster_png','imagen_ia']) };
   if(viewMode==='oculto'||styleHidOn)st.ocultos={ver:true,patron:styleHidPat};
   return st; }
@@ -987,7 +996,11 @@ function applyStyle(st){ if(!st)return;
   if(st.ocultos){styleHidOn=(st.ocultos.ver===true); if(st.ocultos.patron==='punteado'||st.ocultos.patron==='discontinuo')styleHidPat=st.ocultos.patron;} else styleHidOn=false;
   applyHiddenPattern();
   if(st.materiales&&typeof st.materiales.texturas==='boolean')styleTextures=st.materiales.texturas;
-  if(st.suelo){ if(typeof st.suelo.ver==='boolean')setSuelo(st.suelo.ver); if(st.suelo.color)setSueloColor(st.suelo.color); if(st.suelo.z!=null)setSueloZ(st.suelo.z); }
+  if(st.suelo){ if(typeof st.suelo.ver==='boolean')setSuelo(st.suelo.ver); if(st.suelo.color)setSueloColor(st.suelo.color); if(st.suelo.z!=null)setSueloZ(st.suelo.z);
+    if(st.suelo.malla){ const M=st.suelo.malla;   // retícula del suelo (esquema v3.3)
+      if(typeof M.auto==='boolean')gridAuto=M.auto;
+      if(M.color&&/^#([0-9a-fA-F]{6})$/.test(M.color)){gridManual=parseInt(M.color.slice(1,3),16)/255; gridAuto=false;}
+      if(typeof M.ver==='boolean')setGrid(M.ver); updateGridColor(); persistGrid(); } }
   if(st.perfiles){ if(typeof st.perfiles.ver==='boolean')stylePerfOn=st.perfiles.ver; stylePerfW=(st.perfiles.grosor!=null?st.perfiles.grosor:null); applyPerfiles(); }
   if(st.aristas&&st.aristas.grosor!=null&&typeof setEdgePx==='function')setEdgePx(st.aristas.grosor);
   const wantDark=!!(st.fondo&&st.fondo.modo==='oscuro');

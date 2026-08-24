@@ -665,6 +665,18 @@ const secciones = {
       out.gridVis = D.gridMesh.visible === true && !D.pickables.includes(D.gridMesh);
       D.setGrid(false); out.gridHid = D.gridMesh.visible === false;
       D.setSuelo(false);
+      // suelo.malla en el descriptor (esquema v3.3): round-trip manual (color) y auto (sin color)
+      D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-000000000013', nombre:'gm', familia:'presentacion',
+        suelo:{ ver:true, malla:{ ver:true, auto:false, color:'#333333' } } });
+      const st8 = D.currentStyle();
+      out.mallaManual = !!st8.suelo.malla && st8.suelo.malla.ver === true && st8.suelo.malla.auto === false
+        && st8.suelo.malla.color === '#333333' && D.validarEstilo(st8).ok;
+      D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-000000000014', nombre:'gma', familia:'presentacion',
+        suelo:{ ver:true, malla:{ ver:false, auto:true } } });
+      const st8b = D.currentStyle();
+      out.mallaAuto = st8b.suelo.malla.auto === true && st8b.suelo.malla.ver === false
+        && !('color' in st8b.suelo.malla) && D.validarEstilo(st8b).ok;
+      D.setSuelo(false); D.setGrid(true);
       // export: biblioteca de usuario + estilo vivo bajo sub-clave `estilo`, ambos válidos
       const e = D.buildExport();
       out.serial = Array.isArray(e.estilos) && !!e.estilo && D.validarEstilo(e.estilo).ok
@@ -697,6 +709,8 @@ const secciones = {
     ok('estilos: suelo virtual "infinito" no altera orbit/zoom-fit ni pivote (fuera de pickables)', r.orbit);
     ok('estilos: modo Sombra con aristas vistas por defecto (aristas.ver=true)', r.sombraEdges);
     ok('estilos: malla/retícula del suelo activable/desactivable (fuera de pickables)', r.gridVis && r.gridHid);
+    ok('estilos: suelo.malla en el descriptor (manual con color) round-trip', r.mallaManual);
+    ok('estilos: suelo.malla auto (sin color) round-trip', r.mallaAuto);
     ok('estilos: export lleva biblioteca + estilo vivo (sub-clave), válidos', r.serial);
   },
 
