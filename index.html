@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.97 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.98 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -974,25 +974,35 @@ const FACTORY_STYLES=[
    fuente_color:{modo:'bn'},fondo:{modo:'claro',valor:'#fbfbf7'},
    suelo:{ver:true,color:'#eaecee',malla:{ver:true,auto:true}},salidas:['raster_png','imagen_ia']},
   {v:1,id:'5a1e0000-0000-4000-8000-000000000004',nombre:'estilo.maqueta_blanca',familia:'presentacion',uso:'presentacion',de_fabrica:true,
-   origen_nl:'maqueta blanca realista, tipo clay/yeso, sin texturas ni aristas, con oclusión ambiental y sombras suaves',
-   caras:{modo:'blanco'},aristas:{ver:false,color:{fuente:'bn'}},perfiles:{ver:false},
+   origen_nl:'maqueta blanca tipo clay, sin aristas, con sombra suave y oclusión ambiental (look Rhino Arctic)',
+   caras:{modo:'blanco'},aristas:{ver:false},
    iluminacion:{sol:75,ambiental:58,dureza_sombra:45},
    sombra_arrojada:{activo:true,modo:'manual',azimut:220,altitud:48},
    oclusion_ambiental:{activo:true,intensidad:72,radio:45},
-   materiales:{texturas:false},fuente_color:{modo:'bn'},fondo:{modo:'claro',valor:'#eef1f4'},
-   suelo:{ver:true,color:'#e9ecee',malla:{ver:false,auto:true}},salidas:['raster_png','imagen_ia']},
+   fuente_color:{modo:'bn'},fondo:{modo:'claro',valor:'#f4f4f2'},
+   suelo:{ver:true,color:'#eeeeee',malla:{ver:true,auto:true}},salidas:['raster_png','imagen_ia']},
   {v:1,id:'5a1e0000-0000-4000-8000-000000000005',nombre:'estilo.maqueta_blanca_aristas',familia:'presentacion',uso:'presentacion',de_fabrica:true,
-   origen_nl:'maqueta blanca con aristas: como la maqueta blanca pero con las aristas dibujadas',
+   origen_nl:'maqueta blanca con aristas finas y perfil, sombra suave y oclusión ambiental',
    caras:{modo:'blanco'},aristas:{ver:true,grosor:1.0,color:{fuente:'bn'}},perfiles:{ver:true,grosor:1.5},
    iluminacion:{sol:75,ambiental:58,dureza_sombra:45},
    sombra_arrojada:{activo:true,modo:'manual',azimut:220,altitud:48},
    oclusion_ambiental:{activo:true,intensidad:72,radio:45},
-   materiales:{texturas:false},fuente_color:{modo:'bn'},fondo:{modo:'claro',valor:'#eef1f4'},
-   suelo:{ver:true,color:'#e9ecee',malla:{ver:false,auto:true}},salidas:['raster_png','imagen_ia']}
+   fuente_color:{modo:'bn'},fondo:{modo:'claro',valor:'#f4f4f2'},
+   suelo:{ver:true,color:'#eeeeee',malla:{ver:true,auto:true}},salidas:['raster_png','imagen_ia']},
+  {v:1,id:'5a1e0000-0000-4000-8000-000000000006',nombre:'estilo.tecnico_bn',familia:'tecnico',uso:'plano',de_fabrica:true,
+   origen_nl:'técnico en blanco y negro, aristas negras finas, sin ocultas',
+   caras:{modo:'blanco'},aristas:{ver:true,grosor:0.5,color:{fuente:'bn'}},ocultos:{ver:false},
+   fuente_color:{modo:'bn'},fondo:{modo:'claro',valor:'#ffffff'},salidas:['vector_svg','vector_pdf']},
+  {v:1,id:'5a1e0000-0000-4000-8000-000000000007',nombre:'estilo.oculto_bn',familia:'tecnico',uso:'plano',de_fabrica:true,
+   origen_nl:'técnico en blanco y negro con líneas ocultas discontinuas',
+   caras:{modo:'blanco'},aristas:{ver:true,grosor:0.5,color:{fuente:'bn'}},
+   ocultos:{ver:true,color:{fuente:'bn'},patron:'discontinuo'},
+   fuente_color:{modo:'bn'},fondo:{modo:'claro',valor:'#ffffff'},salidas:['vector_svg','vector_pdf']}
 ];
 // Catálogo i18n mínimo embebido (es) — código≠etiqueta. En backend, next-intl (TEC-62).
 const STYLE_LABELS_ES={'estilo.pen':'Pen (blanco / línea negra)','estilo.plano_demolicion':'Plano de demolición','estilo.boceto':'Boceto a mano',
-  'estilo.maqueta_blanca':'Maqueta blanca','estilo.maqueta_blanca_aristas':'Maqueta blanca con aristas'};
+  'estilo.maqueta_blanca':'Maqueta blanca','estilo.maqueta_blanca_aristas':'Maqueta blanca con aristas',
+  'estilo.tecnico_bn':'Técnico B&N','estilo.oculto_bn':'Oculto B&N'};
 function styleLabel(st){ return (st.de_fabrica&&STYLE_LABELS_ES[st.nombre])||st.nombre||'Estilo'; }
 // Validación ligera contra estilo.schema.json v3 (oráculo de tests + guardarraíl runtime).
 const _EST_ENUM={familia:['tecnico','presentacion'],uso:['boceto','bim','plano','presentacion'],
@@ -1028,7 +1038,8 @@ function validarEstilo(st){ const e=[]; const I=_EST_ENUM;
     if(st.seccion.poche&&!I.poche.includes(st.seccion.poche))e.push('seccion.poche'); }
   if(st.tramas&&!I.tramas.includes(st.tramas))e.push('tramas');
   if(st.perfiles&&st.perfiles.ver!=null&&typeof st.perfiles.ver!=='boolean')e.push('perfiles.ver');
-  if(st.materiales&&st.materiales.texturas!=null&&typeof st.materiales.texturas!=='boolean')e.push('materiales.texturas');
+  if(st.materiales){ if(st.materiales.texturas!=null&&typeof st.materiales.texturas!=='boolean')e.push('materiales.texturas');
+    if(st.materiales.saturacion!=null&&(typeof st.materiales.saturacion!=='number'||st.materiales.saturacion<0||st.materiales.saturacion>100))e.push('materiales.saturacion'); }   // v3.6
   if(st.iluminacion){ ['sol','ambiental','dureza_sombra'].forEach(k=>{ const v=st.iluminacion[k]; if(v!=null&&(typeof v!=='number'||v<0||v>100))e.push('iluminacion.'+k); }); }
   if(st.sombra_arrojada){ const S=st.sombra_arrojada;   // Fase B (v3.4)
     if(S.activo!=null&&typeof S.activo!=='boolean')e.push('sombra_arrojada.activo');
@@ -1041,6 +1052,8 @@ function validarEstilo(st){ const e=[]; const I=_EST_ENUM;
   if(st.suelo){ if(st.suelo.ver!=null&&typeof st.suelo.ver!=='boolean')e.push('suelo.ver');
     if(st.suelo.recibe_sombra!=null&&typeof st.suelo.recibe_sombra!=='boolean')e.push('suelo.recibe_sombra');
     if(st.suelo.z!=null&&typeof st.suelo.z!=='number')e.push('suelo.z');
+    if(st.suelo.solido!=null&&typeof st.suelo.solido!=='boolean')e.push('suelo.solido');   // v3.7 reintroducido
+    if(st.suelo.profundidad!=null&&typeof st.suelo.profundidad!=='number')e.push('suelo.profundidad');   // v3.7
     if(st.suelo.color!=null&&!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(st.suelo.color))e.push('suelo.color');
     if(st.suelo.malla){ const M=st.suelo.malla;   // esquema v3.3: suelo.malla{ver,auto,color}
       if(M.ver!=null&&typeof M.ver!=='boolean')e.push('suelo.malla.ver');
