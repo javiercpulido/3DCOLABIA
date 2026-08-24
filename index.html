@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.85 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.86 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -1122,21 +1122,25 @@ let axes=new THREE.AxesHelper(40); scene.add(axes);
 // las coordenadas internas del modelo; es sólo la referencia visible.
 function datumOrigin(){return new THREE.Vector3(0,0,0);}
 let _axesOn=true;
+// PUNTO DE INSERCIÓN: marcador rojo limpio (tipo BIM) en el origen local, en vez del texto "0".
+// F1.5-HOOK: cuando la manilla sea un elemento BIM anidado, ESTE punto = su punto de inserción
+// respecto al marco de la puerta (reubicable → autoría/spine, NO estilo). No construir data/gizmo aquí.
 let datumLbl=(function(){
-  const f='700 32px -apple-system,system-ui,sans-serif';
-  const cv=document.createElement('canvas'); let g=cv.getContext('2d'); g.font=f;
-  const t='0', w=Math.ceil(g.measureText(t).width); cv.width=w+8; cv.height=40;
-  g=cv.getContext('2d'); g.font=f; g.textBaseline='middle'; g.fillStyle='#e5433c'; g.fillText(t,4,22);
+  const N=48, cv=document.createElement('canvas'); cv.width=cv.height=N; const g=cv.getContext('2d');
+  const cx=N/2, cy=N/2;
+  g.beginPath(); g.arc(cx,cy,13,0,Math.PI*2); g.fillStyle='rgba(255,255,255,0.82)'; g.fill();   // halo para legibilidad en cualquier fondo
+  g.beginPath(); g.arc(cx,cy,9,0,Math.PI*2); g.fillStyle='#e5433c'; g.fill();                    // punto de inserción
+  g.beginPath(); g.arc(cx,cy,9,0,Math.PI*2); g.lineWidth=1.5; g.strokeStyle='rgba(150,22,18,0.9)'; g.stroke();
   const tex=new THREE.CanvasTexture(cv); tex.minFilter=THREE.LinearFilter;
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));
-  sp.userData.aspect=cv.width/cv.height; sp.renderOrder=13; scene.add(sp); return sp;
+  sp.userData.aspect=1; sp.renderOrder=13; scene.add(sp); return sp;
 })();
 function applyDatum(){
   const o=datumOrigin();
   axes.position.copy(o); axes.visible=_axesOn;
-  datumLbl.position.copy(o).add(new THREE.Vector3(-2,-2,0)); datumLbl.visible=_axesOn&&frameOn;
+  datumLbl.position.copy(o); datumLbl.visible=_axesOn&&frameOn;   // el punto se sitúa EXACTO en el origen (0,0,0)
 }
-function updateDatumLabelScale(){const s=32*wppAt(datumLbl.position); datumLbl.scale.set(s*datumLbl.userData.aspect,s,1);}
+function updateDatumLabelScale(){const s=26*wppAt(datumLbl.position); datumLbl.scale.set(s*datumLbl.userData.aspect,s,1);}   // marcador de inserción pequeño (px constantes)
 // lectura viva de coordenadas LOCALES al pasar el puntero (relativas al origen del
 // componente; Y = profundidad desde la cara de montaje, el eje del cuadradillo)
 function updateCoordHud(e){
