@@ -698,6 +698,16 @@ const secciones = {
       D.setSombra(false);
       out.sombraOff = D.sol.visible === false && D.renderer.shadowMap.autoUpdate === false;
       out.sombraOrbit = Math.abs(D.sph.r - r0s) < 1e-9 && D.target.distanceTo(t0s) < 1e-9;
+      // la MALLA es independiente de la sombra: visibilidad + gris manual se mantienen al (des)activar sombras
+      D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-000000000017', nombre:'gm2', familia:'presentacion',
+        suelo:{ ver:true, malla:{ ver:true, auto:false, color:'#2a2a2a' } } });
+      const gv0 = D.gridMesh.visible, gc0 = D.gridMesh.material.uniforms.uColor.value.clone();
+      D.setSombra(true);
+      const gIndOn = D.gridMesh.visible === true && gv0 === true && Math.abs(D.gridMesh.material.uniforms.uColor.value.r - gc0.r) < 1e-6;
+      D.setSombra(false);
+      const gIndOff = D.gridMesh.visible === true && Math.abs(D.gridMesh.material.uniforms.uColor.value.r - gc0.r) < 1e-6;
+      out.gridIndepSombra = gIndOn && gIndOff && Math.abs(gc0.r - 0x2a/255) < 0.02;   // gris manual (~0.165), no auto
+      D.setSuelo(false);
       // export: biblioteca de usuario + estilo vivo bajo sub-clave `estilo`, ambos válidos
       const e = D.buildExport();
       out.serial = Array.isArray(e.estilos) && !!e.estilo && D.validarEstilo(e.estilo).ok
@@ -739,6 +749,7 @@ const secciones = {
     ok('estilos: modo geo (fecha/hora/lugar → az/alt) válido y en rango', r.geo);
     ok('estilos: apagar la sombra restaura (sol off, autoUpdate off)', r.sombraOff);
     ok('estilos: la sombra del sol no altera orbit/zoom-fit ni pivote', r.sombraOrbit);
+    ok('estilos: malla independiente de la sombra (visibilidad + gris manual)', r.gridIndepSombra);
     ok('estilos: export lleva biblioteca + estilo vivo (sub-clave), válidos', r.serial);
   },
 
