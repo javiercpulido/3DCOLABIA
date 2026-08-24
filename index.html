@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.90 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.91 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -443,6 +443,9 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
   <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
    <input id="sunAz" type="range" min="0" max="360" step="1" value="135" title="Azimut (0–360°)" style="width:74px">
    <input id="sunAlt" type="range" min="1" max="90" step="1" value="45" title="Altitud (0–90°)" style="width:56px"></span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Dureza del borde de la sombra: izquierda = suave (penumbra) · derecha = dura (nítida)">Dureza sombra
+  <span style="margin-left:auto;display:flex;gap:6px;align-items:center;font-size:11px;color:var(--mut)">suave
+   <input id="sunDur" type="range" min="0" max="100" step="1" value="55" title="Suave ↔ Dura" style="width:96px">dura</span></label>
  <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
   <input id="styleName" placeholder="Nombre del estilo" style="flex:1;font-size:13px;padding:6px 8px;border:1px solid #ddd;border-radius:8px">
   <button id="styleSave" style="border:0;background:var(--acc);color:#fff;border-radius:8px;padding:7px 11px;font-weight:600;cursor:pointer">Guardar</button></div>
@@ -572,8 +575,11 @@ catch(e){let d=document.getElementById('err');d.style.display='block';
   d.innerHTML='<b>No se pudo iniciar WebGL en este navegador.</b><br><br>Prueba con Safari o Chrome actualizados.<br><br>Detalle: '+e.message;
   throw e;}
 renderer.setSize(W,H); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.localClippingEnabled=true; document.body.appendChild(renderer.domElement);
-// Fase B1 · sombras: mapa de sombras suave (PCF). autoUpdate se activa SOLO con la sombra encendida (modelo estático → coste 0 apagada).
-renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap; renderer.shadowMap.autoUpdate=false;
+// Fase B · sombras. VSM = penumbra AJUSTABLE por shadow.radius (slider de dureza); PCFSoft de reserva si no hay WebGL2.
+// autoUpdate se activa SOLO con la sombra encendida (modelo estático → coste 0 apagada).
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=(renderer.capabilities&&renderer.capabilities.isWebGL2)?THREE.VSMShadowMap:THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate=false;
 function fitSize(){let w=vw(),h=vh();
   if(Math.abs(w-W)>2||Math.abs(h-H)>2){W=w;H=h;applyProj();renderer.setSize(W,H);
     if(window._reclampFloat)window._reclampFloat();}}
@@ -818,7 +824,7 @@ let sunAz=135, sunAlt=45;    // azimut 0–360 (desde el Norte, horario) · alti
 let sunFecha='2026-06-21', sunHora='12:00';   // modo geo: fecha/hora
 let sunLat=40.4168, sunLon=-3.7038;           // modo geo: lugar por defecto (Madrid) hasta que exista el ancla de sitio del Geovisor (F1.5)
 let ilumSol=80, ilumAmb=55;  // iluminacion.sol / iluminacion.ambiental (0–100) — gobiernan la intensidad en modo sol
-let sunDureza=70;            // iluminacion.dureza_sombra (0 suave … 100 dura) — round-trip; penumbra real en B2
+let sunDureza=55;            // iluminacion.dureza_sombra (0 suave … 100 dura) → penumbra (VSM shadow.radius). Más suave de fábrica.
 let _skyTex=null,_skyKey='';
 function skyTexture(){ const key=styleCielo+'|'+styleHorizonte; if(_skyTex&&_skyKey===key)return _skyTex;
   const cnv=document.createElement('canvas'); cnv.width=8; cnv.height=256; const ctx=cnv.getContext('2d');
@@ -1076,6 +1082,7 @@ function syncStylePanel(){ syncStyleFamily();
   document.querySelectorAll('#stylepop .stgl[data-smodo]').forEach(b=>b.classList.toggle('on',b.dataset.smodo===sombraModo));
   const saz=document.getElementById('sunAz'); if(saz)saz.value=Math.round(sunAz);
   const sal=document.getElementById('sunAlt'); if(sal)sal.value=Math.round(Math.max(1,sunAlt));
+  const sdu=document.getElementById('sunDur'); if(sdu)sdu.value=Math.round(sunDureza);
   const o=document.getElementById('styleOpac'); if(o)o.value=Math.round(baseOpacity*100);
   const g=document.getElementById('styleGrosor'); if(g)g.value=edgePx;
   const bc=document.getElementById('styleBgCol'); if(bc&&styleBg)bc.value=styleBg;
@@ -1114,6 +1121,7 @@ document.getElementById('gridManual').oninput=function(){gridManual=+this.value/
 document.getElementById('styleBgCol').oninput=function(){styleBg=this.value; applyMode(); syncStylePanel();};
 document.getElementById('sunAz').oninput=function(){setSunAz(+this.value);};
 document.getElementById('sunAlt').oninput=function(){setSunAlt(+this.value);};
+document.getElementById('sunDur').oninput=function(){setDureza(+this.value);};
 document.getElementById('styleSave').onclick=()=>{
   const inp=document.getElementById('styleName');
   const nUser=savedStyles.filter(s=>!s.de_fabrica).length;
@@ -4162,18 +4170,22 @@ function solarAzAlt(){   // modo geo: fecha/hora/lugar → azimut/altitud (NOAA 
 function fitSunShadow(){ if(!sol)return; const scam=sol.shadow.camera, rad=Math.max(R,1);
   scam.left=-rad; scam.right=rad; scam.top=rad; scam.bottom=-rad; scam.near=0.5; scam.far=rad*8; scam.updateProjectionMatrix();
   sol.shadow.bias=-0.0004; sol.shadow.normalBias=Math.max(0.4,R*0.004); }
+function duraToRadius(d){ return 0.6 + (100-_clamp(d,0,100))/100 * 13; }   // dureza 100→~0.6 (dura) · 0→~13.6 (penumbra suave)
 function applySombra(){ if(!sol)return;
   if(sombraModo==='geo'){ const s=solarAzAlt(); sunAz=s.az; sunAlt=s.alt; }
   const d=sunDir(sunAz, Math.max(1,sunAlt)), dist=Math.max(R*4,50);
   sol.position.copy(C).addScaledVector(d,dist); sol.target.position.copy(C); sol.target.updateMatrixWorld(); fitSunShadow();
+  sol.shadow.radius=duraToRadius(sunDureza);   // penumbra (VSM); en PCFSoft ajusta el desenfoque del muestreo
+  const soft=(100-_clamp(sunDureza,0,100))/100;   // 0 dura … 1 suave: a más suave, relleno un pelín mayor (sombra propia menos dura)
   if(sombraOn){ sol.visible=true; sol.castShadow=true;
     sol.intensity=0.35+0.0075*_clamp(ilumSol,0,100);   // el sol pasa a luz clave
-    amb.intensity=0.20+0.0035*_clamp(ilumAmb,0,100);   // ambiente rebajado para que la sombra lea
-    dl.intensity=0.15; dl2.intensity=0.10;             // relleno suave (las caras a contraluz no quedan negras)
+    amb.intensity=0.20+0.0035*_clamp(ilumAmb,0,100)+0.10*soft;   // ambiente rebajado para que la sombra lea (sube algo si es suave)
+    dl.intensity=0.15+0.10*soft; dl2.intensity=0.10+0.06*soft;   // relleno suave (las caras a contraluz no quedan negras)
   } else { sol.visible=false; sol.castShadow=false; sol.intensity=0;
     amb.intensity=.55; dl.intensity=.7; dl2.intensity=.25; }   // iluminación base restaurada
   renderer.shadowMap.autoUpdate=sombraOn; renderer.shadowMap.needsUpdate=true; }
 function setSombra(on){ sombraOn=!!on; applySombra(); }
+function setDureza(v){ sunDureza=_clamp(+v,0,100); if(sombraOn)applySombra(); }
 function setSunAz(a){ sunAz=((+a%360)+360)%360; if(sombraModo!=='geo')applySombra(); }
 function setSunAlt(a){ sunAlt=_clamp(+a,0,90); if(sombraModo!=='geo')applySombra(); }
 function setSombraModo(m){ sombraModo=(m==='geo')?'geo':'manual'; applySombra(); }
@@ -6725,7 +6737,7 @@ computeIntersections,snapPt,midByArc,get lineW(){return lineW},
 get faceRef(){return faceRef},get frame(){return {on:frameOn,Rface}},get pickables(){return pickables},
 datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes},
 updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},setSuelo,setSueloZ,get sueloMesh(){return sueloMesh},get sueloZ(){return sueloZ},get gizMode(){return gizMode},get sph(){return sph},get target(){return target},updCam,setView,setGrid,get gridOn(){return gridOn},get gridMesh(){return gridMesh},
-setSombra,setSunAz,setSunAlt,setSombraModo,applySombra,solarAzAlt,get sombraOn(){return sombraOn},get sombraModo(){return sombraModo},get sunAz(){return sunAz},get sunAlt(){return sunAlt},get sol(){return sol},get renderer(){return renderer},
+setSombra,setSunAz,setSunAlt,setSombraModo,setDureza,applySombra,solarAzAlt,duraToRadius,get sombraOn(){return sombraOn},get sombraModo(){return sombraModo},get sunAz(){return sunAz},get sunAlt(){return sunAlt},get sunDureza(){return sunDureza},get sol(){return sol},get renderer(){return renderer},
 get edgePx(){return edgePx},setEdgePx,fatLine,buildPlaneMag,get HAIRLINE(){return HAIRLINE},
 filletStart,filletStop,filletApplyAll,computeFilletCorners,applyFilletCorner,filletArc,setFilletR,get filletR(){return filletR},get filletMarkers(){return filletMarkers},
 uniteStrokes,decomposeStroke,faceGroupsOf,decomposePieceFaces,pickFaceLoopAt,pickStrokeAt,shrinkwrapStroke,avgNormalWorld,sculptSurfaceAt,soupOf,get selSet(){return selSet},set selSet(v){selSet=v},setLaserBlack,
