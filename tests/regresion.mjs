@@ -656,6 +656,15 @@ const secciones = {
       D.setSuelo(true);
       out.orbit = Math.abs(D.sph.r - r0) < 1e-9 && D.target.distanceTo(t0) < 1e-9 && !D.pickables.includes(D.sueloMesh);
       D.setSuelo(false);
+      // modo Sombra con aristas vistas por defecto: aristas.ver === true en 'somb'
+      D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-000000000012', nombre:'shd', familia:'presentacion',
+        caras:{ modo:'consistente' }, aristas:{ ver:true, color:{ fuente:'bn' } } });
+      out.sombraEdges = D.viewMode === 'somb' && D.currentStyle().aristas.ver === true;
+      // malla/retícula del suelo: on/off + fuera de pickables
+      D.setSuelo(true); D.setGrid(true);
+      out.gridVis = D.gridMesh.visible === true && !D.pickables.includes(D.gridMesh);
+      D.setGrid(false); out.gridHid = D.gridMesh.visible === false;
+      D.setSuelo(false);
       // export: biblioteca de usuario + estilo vivo bajo sub-clave `estilo`, ambos válidos
       const e = D.buildExport();
       out.serial = Array.isArray(e.estilos) && !!e.estilo && D.validarEstilo(e.estilo).ok
@@ -686,6 +695,8 @@ const secciones = {
     ok('estilos: gizmo de eje Z al seleccionar el suelo virtual', r.gizZ);
     ok('estilos: cielo (fondo degradado cielo/horizonte) round-trip', r.cielo);
     ok('estilos: suelo virtual "infinito" no altera orbit/zoom-fit ni pivote (fuera de pickables)', r.orbit);
+    ok('estilos: modo Sombra con aristas vistas por defecto (aristas.ver=true)', r.sombraEdges);
+    ok('estilos: malla/retícula del suelo activable/desactivable (fuera de pickables)', r.gridVis && r.gridHid);
     ok('estilos: export lleva biblioteca + estilo vivo (sub-clave), válidos', r.serial);
   },
 

@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.82 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.83 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -426,7 +426,12 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Plano de apoyo del visor: VIRTUAL y provisional, hasta cargar el terreno real BIM georreferenciado">Suelo virtual
   <span style="margin-left:auto;display:flex;gap:3px;align-items:center">
    <button class="stgl" data-su="si">Sí</button><button class="stgl on" data-su="no">No</button>
-   <input id="styleSueloCol" type="color" value="#e9ebee" title="Color del suelo virtual" style="width:28px;height:24px;border:1px solid #ddd;border-radius:6px;padding:0;cursor:pointer"></span></label>
+   <input id="styleSueloCol" type="color" value="#eaecee" title="Color del suelo virtual" style="width:28px;height:24px;border:1px solid #ddd;border-radius:6px;padding:0;cursor:pointer"></span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Retícula técnica del suelo. Auto: color según el suelo y el modo noche · Manual: blanco↔negro">Malla suelo
+  <span style="margin-left:auto;display:flex;gap:4px;align-items:center">
+   <button class="stgl on" data-grid="si">Sí</button><button class="stgl" data-grid="no">No</button>
+   <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--mut)"><input type="checkbox" id="gridAuto" checked>auto</label>
+   <input id="gridManual" type="range" min="0" max="100" step="1" value="50" title="Color de la malla: blanco ↔ negro" style="width:54px"></span></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Texturas de material (render en Fase C)">Texturas
   <span style="margin-left:auto;display:flex;gap:3px">
    <button class="stgl" data-tx="si">Sí</button><button class="stgl on" data-tx="no">No</button></span></label>
@@ -776,7 +781,8 @@ let styleHidPat='punteado';// patrón de ocultas: 'punteado' | 'discontinuo' →
 let styleTextures=false;   // texturas on/off → estilo.materiales.texturas (Fase A solo toggle; render en Fase C)
 let stylePerfOn=true;      // perfiles/silueta visibles → estilo.perfiles.ver
 let stylePerfW=null;       // grosor propio del perfil (null = sigue al grosor de aristas) → estilo.perfiles.grosor
-let sueloColor='#e9ebee';  // color del SUELO VIRTUAL → estilo.suelo.color
+let sueloColor='#eaecee';  // color del SUELO VIRTUAL (gris muy claro por defecto) → estilo.suelo.color
+let gridMesh=null, gridOn=true, gridAuto=true, gridManual=0.5;   // malla/retícula del suelo: on/off · color auto (según suelo+noche) o manual (blanco↔negro). Estado de visor (pendiente suelo.malla en el esquema)
 let sueloMesh=null;        // malla del suelo virtual (provisional; la sustituirá el terreno real BIM georreferenciado). Se crea tras conocer el bbox
 let sueloZ=0;              // desplazamiento vertical del suelo virtual → estilo.suelo.z (0 = posición base bajo el modelo)
 let sueloBaseZ=0;          // cota base (bbox.min.z-2); la posición real del plano es sueloBaseZ + sueloZ
@@ -794,7 +800,7 @@ function skyTexture(){ const key=styleCielo+'|'+styleHorizonte; if(_skyTex&&_sky
   _skyTex=tex; _skyKey=key; return tex; }
 let invView=false, invAlpha=0.85;   // modo invertido: fondo oscuro + volúmenes claros translúcidos
 let meshOverlay=false;   // la malla (aristas de triángulos) es un overlay independiente del estilo
-function edgesWanted(){return !styleEdgesOff && viewMode!=='somb';}
+function edgesWanted(){return !styleEdgesOff;}   // aristas vistas en TODOS los modos (incl. Sombra) salvo que se apaguen
 function applyMode(){
   const dk=darkView;
   scene.background=new THREE.Color(dk?0x17191c:((viewMode==='tecnico'||viewMode==='oculto')?0xffffff:0xf4f5f7));
@@ -836,6 +842,7 @@ function applyMode(){
     if(ud.silh)ud.silh.line.material.color.setHex(0x0a84ff);}
   if(styleBg&&!invView)scene.background=new THREE.Color(styleBg);   // fondo de color del estilo (prevalece sobre claro/oscuro)
   if(styleSky&&!invView)scene.background=skyTexture();   // CIELO: degradado cielo→horizonte (prevalece sobre el color)
+  if(typeof applySueloAppearance==='function')applySueloAppearance();   // suelo+malla adaptan color a claro/noche
   _silhFrame=-1; // recalcular siluetas aunque la camara no se haya movido
   document.querySelectorAll('#vmodes button').forEach(b=>b.classList.toggle('on',b.dataset.m===viewMode));
 }
@@ -959,6 +966,7 @@ function currentStyle(){ const st={ v:1, id:_uuid(), nombre:'', familia:styleFam
   return st; }
 function setSuelo(on){ groundLaserOn=!!on; const gl=document.getElementById('groundLaser'); if(gl)gl.checked=groundLaserOn;
   if(sueloMesh)sueloMesh.visible=groundLaserOn;   // el suelo virtual visible acompaña al toggle
+  if(gridMesh)gridMesh.visible=groundLaserOn&&gridOn;   // la malla solo cuando el suelo está visible
   if(typeof updateLasers==='function')updateLasers(); }
 function applyPerfiles(){ for(const n in pieces){const ud=pieces[n].userData;   // grosor propio del perfil (silueta)
   if(ud.silh&&ud.silh.fat)ud.silh.fat.mat.uniforms.uPx.value=(stylePerfW!=null?stylePerfW:edgePx);} }
@@ -1000,6 +1008,9 @@ function syncStylePanel(){ syncStyleFamily();
   const pg=document.getElementById('stylePerfGro'); if(pg)pg.value=(stylePerfW!=null?stylePerfW:edgePx);
   document.querySelectorAll('#stylepop .stgl[data-su]').forEach(b=>b.classList.toggle('on',b.dataset.su===((typeof groundLaserOn!=='undefined'&&groundLaserOn)?'si':'no')));
   const sc=document.getElementById('styleSueloCol'); if(sc&&sueloColor)sc.value=sueloColor;
+  document.querySelectorAll('#stylepop .stgl[data-grid]').forEach(b=>b.classList.toggle('on',b.dataset.grid===(gridOn?'si':'no')));
+  const ga=document.getElementById('gridAuto'); if(ga)ga.checked=gridAuto;
+  const gm=document.getElementById('gridManual'); if(gm)gm.value=Math.round(gridManual*100);
   document.querySelectorAll('#stylepop .stgl[data-tx]').forEach(b=>b.classList.toggle('on',b.dataset.tx===(styleTextures?'si':'no')));
   const o=document.getElementById('styleOpac'); if(o)o.value=Math.round(baseOpacity*100);
   const g=document.getElementById('styleGrosor'); if(g)g.value=edgePx;
@@ -1020,6 +1031,7 @@ document.getElementById('stylepop').addEventListener('click',e=>{
   else if(b.dataset.oc){ if(b.dataset.oc==='no'){styleHidOn=false;} else {styleHidOn=true; styleHidPat=b.dataset.oc;} applyHiddenPattern(); syncStylePanel();}
   else if(b.dataset.pf){stylePerfOn=(b.dataset.pf==='si'); syncStylePanel();}
   else if(b.dataset.su){setSuelo(b.dataset.su==='si'); syncStylePanel();}
+  else if(b.dataset.grid){setGrid(b.dataset.grid==='si'); syncStylePanel();}
   else if(b.dataset.tx){styleTextures=(b.dataset.tx==='si'); syncStylePanel();}
   else if(b.dataset.ec){styleEdgeColor=b.dataset.ec; applyMode(); syncStylePanel();}
   else if(b.dataset.bg){styleBg=null; styleSky=false; const wantDark=b.dataset.bg==='oscuro';
@@ -1031,6 +1043,8 @@ document.getElementById('stylePerfGro').oninput=function(){stylePerfW=+this.valu
 document.getElementById('styleSueloCol').oninput=function(){setSueloColor(this.value);};
 document.getElementById('styleCieloCol').oninput=function(){styleCielo=this.value; if(styleSky)applyMode();};
 document.getElementById('styleHorizCol').oninput=function(){styleHorizonte=this.value; if(styleSky)applyMode();};
+document.getElementById('gridAuto').onchange=function(){gridAuto=this.checked; updateGridColor(); persistGrid();};
+document.getElementById('gridManual').oninput=function(){gridManual=+this.value/100; gridAuto=false; const a=document.getElementById('gridAuto'); if(a)a.checked=false; updateGridColor(); persistGrid();};
 document.getElementById('styleBgCol').oninput=function(){styleBg=this.value; applyMode(); syncStylePanel();};
 document.getElementById('styleSave').onclick=()=>{
   const inp=document.getElementById('styleName');
@@ -4013,10 +4027,27 @@ function sueloAlphaMap(){ if(_sueloAlpha)return _sueloAlpha;
   sueloMesh.position.set(C.x,C.y,sueloBaseZ+sueloZ);   // plano XY (horizontal, Z arriba)
   sueloMesh.receiveShadow=true;                    // listo para recibir sombra en Fase B (suelo.recibe_sombra)
   sueloMesh.renderOrder=-1; sueloMesh.frustumCulled=false; sueloMesh.visible=false; scene.add(sueloMesh);
+  // MALLA/RETÍCULA técnica del suelo (referencia): líneas en el plano XY, finita, sobre el suelo
+  const gcell=Math.max(ext/4,8), ghalf=gcell*30, gp=[];   // celdas finas (ext/4) para que la retícula se lea
+  for(let i=-30;i<=30;i++){ const t=i*gcell; gp.push(-ghalf,t,0, ghalf,t,0, t,-ghalf,0, t,ghalf,0); }
+  const gg=new THREE.BufferGeometry(); gg.setAttribute('position',new THREE.Float32BufferAttribute(gp,3));
+  gridMesh=new THREE.LineSegments(gg,new THREE.LineBasicMaterial({color:0x9aa0a6,transparent:true,opacity:.6,depthWrite:false}));
+  gridMesh.position.copy(sueloMesh.position); gridMesh.renderOrder=0; gridMesh.frustumCulled=false; gridMesh.visible=false; scene.add(gridMesh);
 })();
-function setSueloColor(hex){ if(!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(hex||''))return;
-  sueloColor=hex; if(sueloMesh)sueloMesh.material.color.set(hex); }
+function updateGridColor(){ if(!gridMesh)return; let t;
+  if(gridAuto){ const base=new THREE.Color(sueloColor); let lum=0.2126*base.r+0.7152*base.g+0.0722*base.b; if(darkView)lum*=0.28;
+    t = lum>0.5 ? Math.max(0,lum-0.45) : Math.min(1,lum+0.45); }   // contraste automático con el suelo (y con la noche)
+  else t=gridManual;   // manual: blanco (1) ↔ negro (0)
+  gridMesh.material.color.setRGB(t,t,t); }
+function applySueloAppearance(){ if(sueloMesh){ const base=new THREE.Color(sueloColor); if(darkView)base.multiplyScalar(0.28); sueloMesh.material.color.copy(base); }
+  updateGridColor(); }
+function setSueloColor(hex){ if(!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(hex||''))return; sueloColor=hex; applySueloAppearance(); }
+function setGrid(on){ gridOn=!!on; if(gridMesh)gridMesh.visible=gridOn&&!!(sueloMesh&&sueloMesh.visible); persistGrid(); }
+function persistGrid(){ try{localStorage.setItem('tectosGrid',JSON.stringify({on:gridOn,auto:gridAuto,man:gridManual}));}catch(e){} }
+try{const gs=localStorage.getItem('tectosGrid'); if(gs){const o=JSON.parse(gs)||{}; if(typeof o.on==='boolean')gridOn=o.on; if(typeof o.auto==='boolean')gridAuto=o.auto; if(typeof o.man==='number')gridManual=o.man;}}catch(e){}
+applySueloAppearance();
 function setSueloZ(z){ sueloZ=(typeof z==='number'&&isFinite(z))?z:0; if(sueloMesh)sueloMesh.position.z=sueloBaseZ+sueloZ;
+  if(gridMesh)gridMesh.position.z=sueloBaseZ+sueloZ;
   if(selected&&selected.kind==='suelo')updateGizmo(); }
 function pushSueloXform(z0){ const z1=sueloZ; if(Math.abs(z0-z1)<1e-6)return;
   pushUndo('mover suelo virtual',()=>setSueloZ(z0),()=>setSueloZ(z1)); }
@@ -6567,7 +6598,7 @@ get rendererInfo(){return renderer.info.memory},updateLivePreview,nearestVertexO
 computeIntersections,snapPt,midByArc,get lineW(){return lineW},
 get faceRef(){return faceRef},get frame(){return {on:frameOn,Rface}},get pickables(){return pickables},
 datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes},
-updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},setSuelo,setSueloZ,get sueloMesh(){return sueloMesh},get sueloZ(){return sueloZ},get gizMode(){return gizMode},get sph(){return sph},get target(){return target},
+updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},setSuelo,setSueloZ,get sueloMesh(){return sueloMesh},get sueloZ(){return sueloZ},get gizMode(){return gizMode},get sph(){return sph},get target(){return target},updCam,setView,setGrid,get gridOn(){return gridOn},get gridMesh(){return gridMesh},
 get edgePx(){return edgePx},setEdgePx,fatLine,buildPlaneMag,get HAIRLINE(){return HAIRLINE},
 filletStart,filletStop,filletApplyAll,computeFilletCorners,applyFilletCorner,filletArc,setFilletR,get filletR(){return filletR},get filletMarkers(){return filletMarkers},
 uniteStrokes,decomposeStroke,faceGroupsOf,decomposePieceFaces,pickFaceLoopAt,pickStrokeAt,shrinkwrapStroke,avgNormalWorld,sculptSurfaceAt,soupOf,get selSet(){return selSet},set selSet(v){selSet=v},setLaserBlack,
