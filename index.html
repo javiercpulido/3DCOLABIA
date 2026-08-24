@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.87 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.88 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -435,6 +435,14 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Texturas de material (render en Fase C)">Texturas
   <span style="margin-left:auto;display:flex;gap:3px">
    <button class="stgl" data-tx="si">Sí</button><button class="stgl on" data-tx="no">No</button></span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Sombra arrojada del sol (Fase B). Manual = azimut/altitud (Rhino) · Geo = fecha/hora/lugar (SketchUp)">Sombra sol
+  <span style="margin-left:auto;display:flex;gap:3px;align-items:center">
+   <button class="stgl" data-sombra="si">Sí</button><button class="stgl on" data-sombra="no">No</button>
+   <button class="stgl on" data-smodo="manual">Manual</button><button class="stgl" data-smodo="geo">Geo</button></span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Orientación del sol: azimut (giro) y altitud (altura sobre el horizonte)">Sol az/alt
+  <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
+   <input id="sunAz" type="range" min="0" max="360" step="1" value="135" title="Azimut (0–360°)" style="width:74px">
+   <input id="sunAlt" type="range" min="1" max="90" step="1" value="45" title="Altitud (0–90°)" style="width:56px"></span></label>
  <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
   <input id="styleName" placeholder="Nombre del estilo" style="flex:1;font-size:13px;padding:6px 8px;border:1px solid #ddd;border-radius:8px">
   <button id="styleSave" style="border:0;background:var(--acc);color:#fff;border-radius:8px;padding:7px 11px;font-weight:600;cursor:pointer">Guardar</button></div>
@@ -564,15 +572,18 @@ catch(e){let d=document.getElementById('err');d.style.display='block';
   d.innerHTML='<b>No se pudo iniciar WebGL en este navegador.</b><br><br>Prueba con Safari o Chrome actualizados.<br><br>Detalle: '+e.message;
   throw e;}
 renderer.setSize(W,H); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.localClippingEnabled=true; document.body.appendChild(renderer.domElement);
+// Fase B1 · sombras: mapa de sombras suave (PCF). autoUpdate se activa SOLO con la sombra encendida (modelo estático → coste 0 apagada).
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap; renderer.shadowMap.autoUpdate=false;
 function fitSize(){let w=vw(),h=vh();
   if(Math.abs(w-W)>2||Math.abs(h-H)>2){W=w;H=h;applyProj();renderer.setSize(W,H);
     if(window._reclampFloat)window._reclampFloat();}}
 if(window.ResizeObserver)new ResizeObserver(fitSize).observe(document.body);
 let _fits=0,_fitIv=setInterval(()=>{fitSize();if(++_fits>25)clearInterval(_fitIv);},200);
 if(vw()<700)document.getElementById('side').style.display='none';
-scene.add(new THREE.AmbientLight(0xffffff,.55));
+let amb=new THREE.AmbientLight(0xffffff,.55); scene.add(amb);
 let dl=new THREE.DirectionalLight(0xffffff,.7); dl.position.set(1,-1.2,1.6); scene.add(dl);
 let dl2=new THREE.DirectionalLight(0xffffff,.25); dl2.position.set(-1,1,-.5); scene.add(dl2);
+let sol=null;   // Fase B1 · luz SOL con sombra arrojada (se crea tras conocer el bbox/centro)
 
 // ---- modelo ----
 let edgePx=1.0;   // grosor VISUAL de las aristas (px en pantalla) · por defecto FINO · declarado antes del modelo (lo usa makeFatSeg)
@@ -585,6 +596,7 @@ MESHES.forEach(m=>{
       transparent:true,opacity:1,metalness:.15,roughness:.55,depthFunc:THREE.LessEqualDepth,
       polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));
   mesh.name=m.name; scene.add(mesh); pieces[m.name]=mesh; pickables.push(mesh); bbox.expandByObject(mesh);
+  mesh.castShadow=true; mesh.receiveShadow=true;   // Fase B1: cada pieza arroja y recibe sombra (contacto entre piezas + suelo)
   mesh.userData.baseColor=new THREE.Color(m.color).getHex();
   mesh.userData.matShaded=mesh.material;
   mesh.userData.matFlat=new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide,transparent:true,
@@ -649,6 +661,15 @@ MESHES.forEach(m=>{
 });
 let C=new THREE.Vector3(); bbox.getCenter(C);
 let R=bbox.getSize(new THREE.Vector3()).length()*0.62;
+// ── Fase B1 · SOL con sombra arrojada (dura, PCFSoft) ──────────────────────────
+sol=new THREE.DirectionalLight(0xffffff,0.0);   // intensidad 0 mientras la sombra esté apagada
+sol.castShadow=true;
+sol.shadow.mapSize.set(vw()<700?1024:2048, vw()<700?1024:2048);
+sol.target.position.copy(C); scene.add(sol.target); scene.add(sol);
+(function initSunShadow(){ const scam=sol.shadow.camera, rad=Math.max(R,1);   // frustum ORTOGRÁFICO ceñido al MODELO (no al suelo)
+  scam.left=-rad; scam.right=rad; scam.top=rad; scam.bottom=-rad; scam.near=0.5; scam.far=rad*8; scam.updateProjectionMatrix();
+  sol.shadow.bias=-0.0004; sol.shadow.normalBias=Math.max(0.4,R*0.004);   // sesgos escalados a mm (modelo pequeño): sin acné ni peter-panning
+})();
 // MARCO LOCAL DEL COMPONENTE (no es el edificio): la manilla se edita en su
 // propio marco. Origen (0,0,0) = eje del cuadradillo ∩ cara de montaje de la
 // roseta; Y = eje de giro; unidades mm. La referencia VISIBLE es la CARA DE
@@ -790,6 +811,14 @@ let _sueloAlpha=null;      // alphaMap radial (opaco centro → transparente bor
 let styleSky=false;        // fondo degradado (cielo→horizonte) → estilo.fondo.modo='degradado'
 let styleCielo='#aacbff';  // color superior del degradado → estilo.fondo.cielo
 let styleHorizonte='#eef3f8'; // color inferior/transición → estilo.fondo.horizonte
+// ── Fase B1 · estado de la SOMBRA DEL SOL (estilo.sombra_arrojada + estilo.iluminacion) ──
+let sombraOn=false;          // sombra_arrojada.activo
+let sombraModo='manual';     // sombra_arrojada.modo: 'manual' (az/alt directos, Rhino) | 'geo' (fecha/hora/lugar, SketchUp)
+let sunAz=135, sunAlt=45;    // azimut 0–360 (desde el Norte, horario) · altitud 0–90 (sobre el horizonte)
+let sunFecha='2026-06-21', sunHora='12:00';   // modo geo: fecha/hora
+let sunLat=40.4168, sunLon=-3.7038;           // modo geo: lugar por defecto (Madrid) hasta que exista el ancla de sitio del Geovisor (F1.5)
+let ilumSol=80, ilumAmb=55;  // iluminacion.sol / iluminacion.ambiental (0–100) — gobiernan la intensidad en modo sol
+let sunDureza=70;            // iluminacion.dureza_sombra (0 suave … 100 dura) — round-trip; penumbra real en B2
 let _skyTex=null,_skyKey='';
 function skyTexture(){ const key=styleCielo+'|'+styleHorizonte; if(_skyTex&&_skyKey===key)return _skyTex;
   const cnv=document.createElement('canvas'); cnv.width=8; cnv.height=256; const ctx=cnv.getContext('2d');
@@ -916,7 +945,7 @@ const _EST_ENUM={familia:['tecnico','presentacion'],uso:['boceto','bim','plano',
   estado:['existente','a_demoler','nuevo','temporal','a_conservar','a_intervenir','desconocido'],
   vis:['mostrar','ocultar','fantasma'],fep:['solido','punteado','discontinuo','rayado'],
   fondo:['claro','oscuro','degradado','imagen'],tapa:['color_material','negro','fija'],
-  poche:['por_capa','solido','ninguno'],tramas:['canon','ninguna'],
+  poche:['por_capa','solido','ninguno'],tramas:['canon','ninguna'],smodo:['geo','manual'],
   escala:['1:5','1:10','1:20','1:50','1:100','1:200'],salidas:['vector_svg','vector_pdf','raster_png','imagen_ia']};
 const _UUID_RE=/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 function validarEstilo(st){ const e=[]; const I=_EST_ENUM;
@@ -943,6 +972,15 @@ function validarEstilo(st){ const e=[]; const I=_EST_ENUM;
   if(st.tramas&&!I.tramas.includes(st.tramas))e.push('tramas');
   if(st.perfiles&&st.perfiles.ver!=null&&typeof st.perfiles.ver!=='boolean')e.push('perfiles.ver');
   if(st.materiales&&st.materiales.texturas!=null&&typeof st.materiales.texturas!=='boolean')e.push('materiales.texturas');
+  if(st.iluminacion){ ['sol','ambiental','dureza_sombra'].forEach(k=>{ const v=st.iluminacion[k]; if(v!=null&&(typeof v!=='number'||v<0||v>100))e.push('iluminacion.'+k); }); }
+  if(st.sombra_arrojada){ const S=st.sombra_arrojada;   // Fase B (v3.4)
+    if(S.activo!=null&&typeof S.activo!=='boolean')e.push('sombra_arrojada.activo');
+    if(S.modo!=null&&!I.smodo.includes(S.modo))e.push('sombra_arrojada.modo');
+    if(S.azimut!=null&&(typeof S.azimut!=='number'||S.azimut<0||S.azimut>360))e.push('sombra_arrojada.azimut');
+    if(S.altitud!=null&&(typeof S.altitud!=='number'||S.altitud<0||S.altitud>90))e.push('sombra_arrojada.altitud'); }
+  if(st.oclusion_ambiental){ const O=st.oclusion_ambiental;   // Fase B (v3.4)
+    if(O.activo!=null&&typeof O.activo!=='boolean')e.push('oclusion_ambiental.activo');
+    ['intensidad','radio','calidad'].forEach(k=>{ const v=O[k]; if(v!=null&&(typeof v!=='number'||v<0||v>100))e.push('oclusion_ambiental.'+k); }); }
   if(st.suelo){ if(st.suelo.ver!=null&&typeof st.suelo.ver!=='boolean')e.push('suelo.ver');
     if(st.suelo.recibe_sombra!=null&&typeof st.suelo.recibe_sombra!=='boolean')e.push('suelo.recibe_sombra');
     if(st.suelo.z!=null&&typeof st.suelo.z!=='number')e.push('suelo.z');
@@ -967,6 +1005,9 @@ function currentStyle(){ const st={ v:1, id:_uuid(), nombre:'', familia:styleFam
     fondo:(styleSky?{modo:'degradado',cielo:styleCielo,horizonte:styleHorizonte}
       :(styleBg?{modo:(darkView?'oscuro':'claro'),valor:styleBg}:{modo:(darkView?'oscuro':'claro')})),
     materiales:{texturas:!!styleTextures},
+    iluminacion:{sol:Math.round(ilumSol), ambiental:Math.round(ilumAmb), dureza_sombra:Math.round(sunDureza)},
+    sombra_arrojada:(function(){ const S={activo:!!sombraOn, modo:sombraModo, azimut:Math.round(sunAz), altitud:Math.round(sunAlt)};
+      if(sombraModo==='geo'){ S.fecha=sunFecha; S.hora=sunHora; S.lugar={lat:+sunLat, lon:+sunLon}; } return S; })(),
     suelo:{ver:(typeof groundLaserOn!=='undefined'?!!groundLaserOn:false), color:sueloColor, z:+(+sueloZ).toFixed(3),
       malla:(function(){const m={ver:!!gridOn,auto:!!gridAuto};   // retícula del suelo → estilo.suelo.malla (esquema v3.3)
         if(!gridAuto){const v=Math.round(Math.max(0,Math.min(1,gridManual))*255); m.color='#'+((1<<24)+(v<<16)+(v<<8)+v).toString(16).slice(1);} return m;})()},   // suelo VIRTUAL de apoyo (no geometría real)
@@ -1003,6 +1044,14 @@ function applyStyle(st){ if(!st)return;
       if(typeof M.ver==='boolean')setGrid(M.ver); updateGridColor(); persistGrid(); } }
   if(st.perfiles){ if(typeof st.perfiles.ver==='boolean')stylePerfOn=st.perfiles.ver; stylePerfW=(st.perfiles.grosor!=null?st.perfiles.grosor:null); applyPerfiles(); }
   if(st.aristas&&st.aristas.grosor!=null&&typeof setEdgePx==='function')setEdgePx(st.aristas.grosor);
+  if(st.iluminacion){ if(st.iluminacion.sol!=null)ilumSol=st.iluminacion.sol; if(st.iluminacion.ambiental!=null)ilumAmb=st.iluminacion.ambiental; if(st.iluminacion.dureza_sombra!=null)sunDureza=st.iluminacion.dureza_sombra; }
+  if(st.sombra_arrojada){ const S=st.sombra_arrojada;   // Fase B1: sol/sombra arrojada
+    if(S.modo==='geo'||S.modo==='manual')sombraModo=S.modo;
+    if(S.azimut!=null)sunAz=S.azimut; if(S.altitud!=null)sunAlt=S.altitud;
+    if(S.fecha)sunFecha=S.fecha; if(S.hora)sunHora=S.hora;
+    if(S.lugar){ if(typeof S.lugar.lat==='number')sunLat=S.lugar.lat; if(typeof S.lugar.lon==='number')sunLon=S.lugar.lon; }
+    if(typeof S.activo==='boolean')sombraOn=S.activo; }
+  applySombra();
   const wantDark=!!(st.fondo&&st.fondo.modo==='oscuro');
   if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode();
   syncStyleFamily(); syncStylePanel(); }
@@ -1025,6 +1074,10 @@ function syncStylePanel(){ syncStyleFamily();
   const ga=document.getElementById('gridAuto'); if(ga)ga.checked=gridAuto;
   const gm=document.getElementById('gridManual'); if(gm)gm.value=Math.round(gridManual*100);
   document.querySelectorAll('#stylepop .stgl[data-tx]').forEach(b=>b.classList.toggle('on',b.dataset.tx===(styleTextures?'si':'no')));
+  document.querySelectorAll('#stylepop .stgl[data-sombra]').forEach(b=>b.classList.toggle('on',b.dataset.sombra===(sombraOn?'si':'no')));
+  document.querySelectorAll('#stylepop .stgl[data-smodo]').forEach(b=>b.classList.toggle('on',b.dataset.smodo===sombraModo));
+  const saz=document.getElementById('sunAz'); if(saz)saz.value=Math.round(sunAz);
+  const sal=document.getElementById('sunAlt'); if(sal)sal.value=Math.round(Math.max(1,sunAlt));
   const o=document.getElementById('styleOpac'); if(o)o.value=Math.round(baseOpacity*100);
   const g=document.getElementById('styleGrosor'); if(g)g.value=edgePx;
   const bc=document.getElementById('styleBgCol'); if(bc&&styleBg)bc.value=styleBg;
@@ -1046,6 +1099,8 @@ document.getElementById('stylepop').addEventListener('click',e=>{
   else if(b.dataset.su){setSuelo(b.dataset.su==='si'); syncStylePanel();}
   else if(b.dataset.grid){setGrid(b.dataset.grid==='si'); syncStylePanel();}
   else if(b.dataset.tx){styleTextures=(b.dataset.tx==='si'); syncStylePanel();}
+  else if(b.dataset.sombra){setSombra(b.dataset.sombra==='si'); syncStylePanel();}
+  else if(b.dataset.smodo){setSombraModo(b.dataset.smodo); syncStylePanel();}
   else if(b.dataset.ec){styleEdgeColor=b.dataset.ec; applyMode(); syncStylePanel();}
   else if(b.dataset.bg){styleBg=null; styleSky=false; const wantDark=b.dataset.bg==='oscuro';
     if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode(); syncStylePanel();}
@@ -1059,6 +1114,8 @@ document.getElementById('styleHorizCol').oninput=function(){styleHorizonte=this.
 document.getElementById('gridAuto').onchange=function(){gridAuto=this.checked; updateGridColor(); persistGrid();};
 document.getElementById('gridManual').oninput=function(){gridManual=+this.value/100; gridAuto=false; const a=document.getElementById('gridAuto'); if(a)a.checked=false; updateGridColor(); persistGrid();};
 document.getElementById('styleBgCol').oninput=function(){styleBg=this.value; applyMode(); syncStylePanel();};
+document.getElementById('sunAz').oninput=function(){setSunAz(+this.value);};
+document.getElementById('sunAlt').oninput=function(){setSunAlt(+this.value);};
 document.getElementById('styleSave').onclick=()=>{
   const inp=document.getElementById('styleName');
   const nUser=savedStyles.filter(s=>!s.de_fabrica).length;
@@ -4084,6 +4141,44 @@ function setSueloZ(z){ sueloZ=(typeof z==='number'&&isFinite(z))?z:0; if(sueloMe
   if(selected&&selected.kind==='suelo')updateGizmo(); }
 function pushSueloXform(z0){ const z1=sueloZ; if(Math.abs(z0-z1)<1e-6)return;
   pushUndo('mover suelo virtual',()=>setSueloZ(z0),()=>setSueloZ(z1)); }
+// ── Fase B1 · SOMBRA DEL SOL ───────────────────────────────────────────────────
+function _clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function sunDir(az,alt){ const a=az*Math.PI/180, e=alt*Math.PI/180;   // az desde el Norte (+Y) horario hacia el Este (+X); alt sobre el plano XY
+  return new THREE.Vector3(Math.sin(a)*Math.cos(e), Math.cos(a)*Math.cos(e), Math.sin(e)); }
+function solarAzAlt(){   // modo geo: fecha/hora/lugar → azimut/altitud (NOAA compacto). Sol "virtual" — precisión de croquis, no efeméride.
+  const dm=(sunFecha||'2026-06-21').split('-').map(Number), tm=(sunHora||'12:00').split(':').map(Number);
+  const Y=dm[0]||2026, Mo=dm[1]||6, Da=dm[2]||21, hh=(tm[0]||12)+((tm[1]||0)/60);
+  const mdays=[0,31,59,90,120,151,181,212,243,273,304,334];
+  const leap=(Y%4===0&&Y%100!==0)||Y%400===0; const N=mdays[_clamp(Mo,1,12)-1]+Da+((leap&&Mo>2)?1:0);
+  const tz=Math.round(sunLon/15);
+  const gamma=2*Math.PI/(leap?366:365)*(N-1+(hh-12)/24);
+  const eqtime=229.18*(0.000075+0.001868*Math.cos(gamma)-0.032077*Math.sin(gamma)-0.014615*Math.cos(2*gamma)-0.040849*Math.sin(2*gamma));
+  const decl=0.006918-0.399912*Math.cos(gamma)+0.070257*Math.sin(gamma)-0.006758*Math.cos(2*gamma)+0.000907*Math.sin(2*gamma)-0.002697*Math.cos(3*gamma)+0.00148*Math.sin(3*gamma);
+  const tst=hh*60+(eqtime+4*sunLon-60*tz);   // true solar time (min)
+  const ha=(tst/4-180)*Math.PI/180; const lat=sunLat*Math.PI/180;
+  const cosz=_clamp(Math.sin(lat)*Math.sin(decl)+Math.cos(lat)*Math.cos(decl)*Math.cos(ha),-1,1);
+  const alt=90-Math.acos(cosz)*180/Math.PI;
+  let az=Math.atan2(Math.sin(ha), Math.cos(ha)*Math.sin(lat)-Math.tan(decl)*Math.cos(lat));   // desde el Sur
+  az=(az*180/Math.PI+180+360)%360;   // → desde el Norte, horario
+  return {az, alt:Math.max(0,alt)}; }
+function fitSunShadow(){ if(!sol)return; const scam=sol.shadow.camera, rad=Math.max(R,1);
+  scam.left=-rad; scam.right=rad; scam.top=rad; scam.bottom=-rad; scam.near=0.5; scam.far=rad*8; scam.updateProjectionMatrix();
+  sol.shadow.bias=-0.0004; sol.shadow.normalBias=Math.max(0.4,R*0.004); }
+function applySombra(){ if(!sol)return;
+  if(sombraModo==='geo'){ const s=solarAzAlt(); sunAz=s.az; sunAlt=s.alt; }
+  const d=sunDir(sunAz, Math.max(1,sunAlt)), dist=Math.max(R*4,50);
+  sol.position.copy(C).addScaledVector(d,dist); sol.target.position.copy(C); sol.target.updateMatrixWorld(); fitSunShadow();
+  if(sombraOn){ sol.visible=true; sol.castShadow=true;
+    sol.intensity=0.35+0.0075*_clamp(ilumSol,0,100);   // el sol pasa a luz clave
+    amb.intensity=0.20+0.0035*_clamp(ilumAmb,0,100);   // ambiente rebajado para que la sombra lea
+    dl.intensity=0.15; dl2.intensity=0.10;             // relleno suave (las caras a contraluz no quedan negras)
+  } else { sol.visible=false; sol.castShadow=false; sol.intensity=0;
+    amb.intensity=.55; dl.intensity=.7; dl2.intensity=.25; }   // iluminación base restaurada
+  renderer.shadowMap.autoUpdate=sombraOn; renderer.shadowMap.needsUpdate=true; }
+function setSombra(on){ sombraOn=!!on; applySombra(); }
+function setSunAz(a){ sunAz=((+a%360)+360)%360; if(sombraModo!=='geo')applySombra(); }
+function setSunAlt(a){ sunAlt=_clamp(+a,0,90); if(sombraModo!=='geo')applySombra(); }
+function setSombraModo(m){ sombraModo=(m==='geo')?'geo':'manual'; applySombra(); }
 function cutTris(tris,n,pt,out,M){
   const nx=n.x,ny=n.y,nz=n.z,d0=nx*pt.x+ny*pt.y+nz*pt.z,EPS=1e-6,q=[];
   for(const t of tris){
@@ -6632,6 +6727,7 @@ computeIntersections,snapPt,midByArc,get lineW(){return lineW},
 get faceRef(){return faceRef},get frame(){return {on:frameOn,Rface}},get pickables(){return pickables},
 datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes},
 updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},setSuelo,setSueloZ,get sueloMesh(){return sueloMesh},get sueloZ(){return sueloZ},get gizMode(){return gizMode},get sph(){return sph},get target(){return target},updCam,setView,setGrid,get gridOn(){return gridOn},get gridMesh(){return gridMesh},
+setSombra,setSunAz,setSunAlt,setSombraModo,applySombra,solarAzAlt,get sombraOn(){return sombraOn},get sombraModo(){return sombraModo},get sunAz(){return sunAz},get sunAlt(){return sunAlt},get sol(){return sol},get renderer(){return renderer},
 get edgePx(){return edgePx},setEdgePx,fatLine,buildPlaneMag,get HAIRLINE(){return HAIRLINE},
 filletStart,filletStop,filletApplyAll,computeFilletCorners,applyFilletCorner,filletArc,setFilletR,get filletR(){return filletR},get filletMarkers(){return filletMarkers},
 uniteStrokes,decomposeStroke,faceGroupsOf,decomposePieceFaces,pickFaceLoopAt,pickStrokeAt,shrinkwrapStroke,avgNormalWorld,sculptSurfaceAt,soupOf,get selSet(){return selSet},set selSet(v){selSet=v},setLaserBlack,
@@ -7005,6 +7101,7 @@ setMode('sel');   // herramienta por defecto: SELECCIÓN (flecha)
 try{const iv=localStorage.getItem('tectosInv')==='1';
   if(iv)setInv(true); else if(localStorage.getItem('tectosDark')==='1')setDark(true);}catch(e){}
 applyMode();   // asegura la configuración del poché (stencil) tras crear las mallas stencil
+applySombra();   // Fase B1: estado inicial de la sombra (apagada → coste 0)
 
 (function loop(){requestAnimationFrame(loop);checkHold();
   for(const n in pieces){const P=pieces[n];

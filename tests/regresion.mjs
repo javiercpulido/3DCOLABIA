@@ -677,6 +677,27 @@ const secciones = {
       out.mallaAuto = st8b.suelo.malla.auto === true && st8b.suelo.malla.ver === false
         && !('color' in st8b.suelo.malla) && D.validarEstilo(st8b).ok;
       D.setSuelo(false); D.setGrid(true);
+      // ── Fase B1 · SOMBRA DEL SOL ──
+      out.shadowInit = D.renderer.shadowMap.enabled === true;
+      const r0s = D.sph.r, t0s = D.target.clone();
+      D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-000000000015', nombre:'sun', familia:'presentacion',
+        sombra_arrojada:{ activo:true, modo:'manual', azimut:200, altitud:30 } });
+      const st9 = D.currentStyle();
+      out.sombraOn = D.sombraOn === true && D.sol.visible === true && D.sol.castShadow === true
+        && D.renderer.shadowMap.autoUpdate === true;
+      out.sombraDesc = !!st9.sombra_arrojada && st9.sombra_arrojada.activo === true
+        && st9.sombra_arrojada.modo === 'manual' && st9.sombra_arrojada.azimut === 200
+        && st9.sombra_arrojada.altitud === 30 && !!st9.iluminacion && D.validarEstilo(st9).ok;
+      const p0 = D.sol.position.clone(); D.setSunAz(20); D.setSunAlt(70);
+      out.sunMove = D.sol.position.distanceTo(p0) > 1e-3 && D.currentStyle().sombra_arrojada.azimut === 20;
+      D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-000000000016', nombre:'geo', familia:'presentacion',
+        sombra_arrojada:{ activo:true, modo:'geo', fecha:'2026-06-21', hora:'12:00', lugar:{ lat:40.4, lon:-3.7 } } });
+      const gpos = D.solarAzAlt();
+      out.geo = D.sombraModo === 'geo' && isFinite(gpos.az) && gpos.az>=0 && gpos.az<=360
+        && gpos.alt>=0 && gpos.alt<=90 && D.validarEstilo(D.currentStyle()).ok;
+      D.setSombra(false);
+      out.sombraOff = D.sol.visible === false && D.renderer.shadowMap.autoUpdate === false;
+      out.sombraOrbit = Math.abs(D.sph.r - r0s) < 1e-9 && D.target.distanceTo(t0s) < 1e-9;
       // export: biblioteca de usuario + estilo vivo bajo sub-clave `estilo`, ambos válidos
       const e = D.buildExport();
       out.serial = Array.isArray(e.estilos) && !!e.estilo && D.validarEstilo(e.estilo).ok
@@ -711,6 +732,13 @@ const secciones = {
     ok('estilos: malla/retícula del suelo activable/desactivable (fuera de pickables)', r.gridVis && r.gridHid);
     ok('estilos: suelo.malla en el descriptor (manual con color) round-trip', r.mallaManual);
     ok('estilos: suelo.malla auto (sin color) round-trip', r.mallaAuto);
+    ok('estilos: shadowMap habilitado (Fase B1)', r.shadowInit);
+    ok('estilos: sombra del sol on → luz sol + castShadow + autoUpdate', r.sombraOn);
+    ok('estilos: sombra_arrojada + iluminacion en el descriptor round-trip', r.sombraDesc);
+    ok('estilos: mover azimut/altitud reorienta el sol', r.sunMove);
+    ok('estilos: modo geo (fecha/hora/lugar → az/alt) válido y en rango', r.geo);
+    ok('estilos: apagar la sombra restaura (sol off, autoUpdate off)', r.sombraOff);
+    ok('estilos: la sombra del sol no altera orbit/zoom-fit ni pivote', r.sombraOrbit);
     ok('estilos: export lleva biblioteca + estilo vivo (sub-clave), válidos', r.serial);
   },
 
