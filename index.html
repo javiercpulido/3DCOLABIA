@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.81 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.82 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -780,6 +780,7 @@ let sueloColor='#e9ebee';  // color del SUELO VIRTUAL → estilo.suelo.color
 let sueloMesh=null;        // malla del suelo virtual (provisional; la sustituirá el terreno real BIM georreferenciado). Se crea tras conocer el bbox
 let sueloZ=0;              // desplazamiento vertical del suelo virtual → estilo.suelo.z (0 = posición base bajo el modelo)
 let sueloBaseZ=0;          // cota base (bbox.min.z-2); la posición real del plano es sueloBaseZ + sueloZ
+let _sueloAlpha=null;      // alphaMap radial (opaco centro → transparente borde) = horizonte sin canto
 let styleSky=false;        // fondo degradado (cielo→horizonte) → estilo.fondo.modo='degradado'
 let styleCielo='#aacbff';  // color superior del degradado → estilo.fondo.cielo
 let styleHorizonte='#eef3f8'; // color inferior/transición → estilo.fondo.horizonte
@@ -3995,10 +3996,18 @@ const GROUND_TRIS=(()=>{const zg=bbox.min.z-2,s=150;
   return [new Float64Array([...a,...b2,...c2]),new Float64Array([...a,...c2,...d2])];})();
 // SUELO VIRTUAL visible: plano de apoyo horizontal bajo el modelo (misma cota que la proyección del láser).
 // NO es geometría real — fuera de pickables/bbox/export. Cuando cargue el terreno real BIM georreferenciado, cede.
+function sueloAlphaMap(){ if(_sueloAlpha)return _sueloAlpha;
+  const N=512, cnv=document.createElement('canvas'); cnv.width=cnv.height=N; const ctx=cnv.getContext('2d');
+  const g=ctx.createRadialGradient(N/2,N/2,0,N/2,N/2,N/2);   // opaco en el centro (bajo el modelo), se disuelve hacia el borde
+  g.addColorStop(0.00,'#ffffff'); g.addColorStop(0.08,'#ffffff');
+  g.addColorStop(0.34,'#5a5a5a'); g.addColorStop(0.50,'#000000'); g.addColorStop(1.00,'#000000');
+  ctx.fillStyle=g; ctx.fillRect(0,0,N,N);
+  _sueloAlpha=new THREE.CanvasTexture(cnv); return _sueloAlpha; }
 (function buildSueloVirtual(){
-  const sx=bbox.max.x-bbox.min.x, sy=bbox.max.y-bbox.min.y, s=Math.max(sx,sy,20)*3;
-  const mat=new THREE.MeshStandardMaterial({color:new THREE.Color(sueloColor),roughness:.96,metalness:0,
-    transparent:true,opacity:.9,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:3,polygonOffsetUnits:3});
+  const ext=Math.max(bbox.max.x-bbox.min.x, bbox.max.y-bbox.min.y, bbox.max.z-bbox.min.z, 40);
+  const s=ext*200;   // HORIZONTE "infinito": el borde nunca entra en pantalla (múltiplo grande del bbox)
+  const mat=new THREE.MeshStandardMaterial({color:new THREE.Color(sueloColor),roughness:.98,metalness:0,
+    transparent:true,opacity:1,depthWrite:false,alphaMap:sueloAlphaMap(),side:THREE.DoubleSide});   // fade radial en el MATERIAL (no scene.fog)
   sueloBaseZ=bbox.min.z-2;
   sueloMesh=new THREE.Mesh(new THREE.PlaneGeometry(s,s),mat);
   sueloMesh.position.set(C.x,C.y,sueloBaseZ+sueloZ);   // plano XY (horizontal, Z arriba)
@@ -6558,7 +6567,7 @@ get rendererInfo(){return renderer.info.memory},updateLivePreview,nearestVertexO
 computeIntersections,snapPt,midByArc,get lineW(){return lineW},
 get faceRef(){return faceRef},get frame(){return {on:frameOn,Rface}},get pickables(){return pickables},
 datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes},
-updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},setSuelo,setSueloZ,get sueloMesh(){return sueloMesh},get sueloZ(){return sueloZ},get gizMode(){return gizMode},
+updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},setSuelo,setSueloZ,get sueloMesh(){return sueloMesh},get sueloZ(){return sueloZ},get gizMode(){return gizMode},get sph(){return sph},get target(){return target},
 get edgePx(){return edgePx},setEdgePx,fatLine,buildPlaneMag,get HAIRLINE(){return HAIRLINE},
 filletStart,filletStop,filletApplyAll,computeFilletCorners,applyFilletCorner,filletArc,setFilletR,get filletR(){return filletR},get filletMarkers(){return filletMarkers},
 uniteStrokes,decomposeStroke,faceGroupsOf,decomposePieceFaces,pickFaceLoopAt,pickStrokeAt,shrinkwrapStroke,avgNormalWorld,sculptSurfaceAt,soupOf,get selSet(){return selSet},set selSet(v){selSet=v},setLaserBlack,

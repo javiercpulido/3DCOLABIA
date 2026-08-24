@@ -651,6 +651,11 @@ const secciones = {
       const st7 = D.currentStyle();
       out.cielo = st7.fondo.modo === 'degradado' && st7.fondo.cielo === '#88aaff'
         && st7.fondo.horizonte === '#ffffff' && D.validarEstilo(st7).ok;
+      // REGLA DURA: el suelo virtual (horizonte "infinito") NO altera orbit/zoom-fit (sph.r) ni el pivote (target)
+      const r0 = D.sph.r, t0 = D.target.clone();
+      D.setSuelo(true);
+      out.orbit = Math.abs(D.sph.r - r0) < 1e-9 && D.target.distanceTo(t0) < 1e-9 && !D.pickables.includes(D.sueloMesh);
+      D.setSuelo(false);
       // export: biblioteca de usuario + estilo vivo bajo sub-clave `estilo`, ambos válidos
       const e = D.buildExport();
       out.serial = Array.isArray(e.estilos) && !!e.estilo && D.validarEstilo(e.estilo).ok
@@ -680,6 +685,7 @@ const secciones = {
     ok('estilos: suelo.z (desplazamiento vertical) round-trip', r.sueloZ);
     ok('estilos: gizmo de eje Z al seleccionar el suelo virtual', r.gizZ);
     ok('estilos: cielo (fondo degradado cielo/horizonte) round-trip', r.cielo);
+    ok('estilos: suelo virtual "infinito" no altera orbit/zoom-fit ni pivote (fuera de pickables)', r.orbit);
     ok('estilos: export lleva biblioteca + estilo vivo (sub-clave), válidos', r.serial);
   },
 
