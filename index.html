@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.83 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.84 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -4028,17 +4028,33 @@ function sueloAlphaMap(){ if(_sueloAlpha)return _sueloAlpha;
   sueloMesh.receiveShadow=true;                    // listo para recibir sombra en Fase B (suelo.recibe_sombra)
   sueloMesh.renderOrder=-1; sueloMesh.frustumCulled=false; sueloMesh.visible=false; scene.add(sueloMesh);
   // MALLA/RETÍCULA técnica del suelo (referencia): líneas en el plano XY, finita, sobre el suelo
-  const gcell=Math.max(ext/4,8), ghalf=gcell*30, gp=[];   // celdas finas (ext/4) para que la retícula se lea
-  for(let i=-30;i<=30;i++){ const t=i*gcell; gp.push(-ghalf,t,0, ghalf,t,0, t,-ghalf,0, t,ghalf,0); }
-  const gg=new THREE.BufferGeometry(); gg.setAttribute('position',new THREE.Float32BufferAttribute(gp,3));
-  gridMesh=new THREE.LineSegments(gg,new THREE.LineBasicMaterial({color:0x9aa0a6,transparent:true,opacity:.6,depthWrite:false}));
-  gridMesh.position.copy(sueloMesh.position); gridMesh.renderOrder=0; gridMesh.frustumCulled=false; gridMesh.visible=false; scene.add(gridMesh);
+  // MALLA/RETÍCULA tipo BLENDER: rejilla PROCEDURAL en shader sobre TODA la superficie,
+  // con líneas MENORES + MAYORES (cada 10) y desvanecido con la distancia (horizonte).
+  const gcell=Math.max(ext/10,4);
+  const gmat=new THREE.ShaderMaterial({
+    transparent:true, depthWrite:false, side:THREE.DoubleSide, extensions:{derivatives:true},
+    uniforms:{ uCell:{value:gcell}, uColor:{value:new THREE.Color(0x808080)}, uOpacity:{value:1.0},
+      uCenter:{value:new THREE.Vector2(0,0)}, uFadeNear:{value:ext*30}, uFadeFar:{value:ext*70} },
+    vertexShader:`varying vec3 vW; void main(){ vec4 wp=modelMatrix*vec4(position,1.0); vW=wp.xyz; gl_Position=projectionMatrix*viewMatrix*wp; }`,
+    fragmentShader:`precision highp float; varying vec3 vW;
+      uniform float uCell,uOpacity,uFadeNear,uFadeFar; uniform vec3 uColor; uniform vec2 uCenter;
+      float gf(vec2 coord,float s){ vec2 c=coord/s; vec2 g=abs(fract(c-0.5)-0.5)/fwidth(c); float l=min(g.x,g.y); return 1.0-min(l,1.0); }
+      void main(){ vec2 p=vW.xy;
+        float minor=gf(p,uCell); float major=gf(p,uCell*10.0);
+        float d=length(p-uCenter); float fade=1.0-smoothstep(uFadeNear,uFadeFar,d);
+        float a=max(minor*0.40, major*0.92)*uOpacity*fade;
+        if(a<0.003) discard;
+        gl_FragColor=vec4(uColor,a); }`
+  });
+  gridMesh=new THREE.Mesh(new THREE.PlaneGeometry(s,s), gmat);   // mismo tamaño que el suelo → cubre TODA la superficie
+  gridMesh.position.set(C.x,C.y,sueloBaseZ+sueloZ+0.1); gridMesh.renderOrder=0; gridMesh.frustumCulled=false; gridMesh.visible=false; scene.add(gridMesh);
 })();
 function updateGridColor(){ if(!gridMesh)return; let t;
   if(gridAuto){ const base=new THREE.Color(sueloColor); let lum=0.2126*base.r+0.7152*base.g+0.0722*base.b; if(darkView)lum*=0.28;
     t = lum>0.5 ? Math.max(0,lum-0.45) : Math.min(1,lum+0.45); }   // contraste automático con el suelo (y con la noche)
   else t=gridManual;   // manual: blanco (1) ↔ negro (0)
-  gridMesh.material.color.setRGB(t,t,t); }
+  if(gridMesh.material.uniforms)gridMesh.material.uniforms.uColor.value.setRGB(t,t,t);
+  else gridMesh.material.color.setRGB(t,t,t); }
 function applySueloAppearance(){ if(sueloMesh){ const base=new THREE.Color(sueloColor); if(darkView)base.multiplyScalar(0.28); sueloMesh.material.color.copy(base); }
   updateGridColor(); }
 function setSueloColor(hex){ if(!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(hex||''))return; sueloColor=hex; applySueloAppearance(); }
@@ -4047,7 +4063,7 @@ function persistGrid(){ try{localStorage.setItem('tectosGrid',JSON.stringify({on
 try{const gs=localStorage.getItem('tectosGrid'); if(gs){const o=JSON.parse(gs)||{}; if(typeof o.on==='boolean')gridOn=o.on; if(typeof o.auto==='boolean')gridAuto=o.auto; if(typeof o.man==='number')gridManual=o.man;}}catch(e){}
 applySueloAppearance();
 function setSueloZ(z){ sueloZ=(typeof z==='number'&&isFinite(z))?z:0; if(sueloMesh)sueloMesh.position.z=sueloBaseZ+sueloZ;
-  if(gridMesh)gridMesh.position.z=sueloBaseZ+sueloZ;
+  if(gridMesh)gridMesh.position.z=sueloBaseZ+sueloZ+0.1;
   if(selected&&selected.kind==='suelo')updateGizmo(); }
 function pushSueloXform(z0){ const z1=sueloZ; if(Math.abs(z0-z1)<1e-6)return;
   pushUndo('mover suelo virtual',()=>setSueloZ(z0),()=>setSueloZ(z1)); }
@@ -6986,6 +7002,7 @@ applyMode();   // asegura la configuración del poché (stencil) tras crear las 
     ip.l1.visible=on; ip.l2.visible=on;});
   if(gizmo&&gizmo.visible){const L=Math.max(10,sph.r*0.12);gizmo.scale.set(L,L,L);}
   updateSilh(); updateSecMarkers(); updateNoteScales(); updateSnapGlyphs(); updateDatumLabelScale(); _fatRes.value.set(W,H); updateFilletMarkScales();
+  if(gridMesh&&gridMesh.visible&&gridMesh.material.uniforms){ gridMesh.material.uniforms.uFadeNear.value=sph.r*3.0; gridMesh.material.uniforms.uFadeFar.value=sph.r*8.0; }   // el fade de la rejilla sigue al zoom (horizonte)
   if(polyDraw)positionPolyChips();
   renderer.render(scene,cam);})();
 </script>
