@@ -727,6 +727,30 @@ const secciones = {
       const gIndOff = D.gridMesh.visible === true && Math.abs(D.gridMesh.material.uniforms.uColor.value.r - gc0.r) < 1e-6;
       out.gridIndepSombra = gIndOn && gIndOff && Math.abs(gc0.r - 0x2a/255) < 0.02;   // gris manual (~0.165), no auto
       D.setSuelo(false);
+      // Tanda C · lápiz: abrir editor precargado + flujo sustituir/crear v2, de fábrica nunca se sobrescribe
+      D.styleFamily='presentacion'; D.renderSavedStyles();
+      const nFabA = D.savedStyles.filter(s=>s.de_fabrica).length;
+      const iMaq = D.savedStyles.findIndex(s=>s.nombre==='estilo.maqueta_blanca');
+      D.openStyleEditor(iMaq);                                  // editar un preset de fábrica
+      out.editOpen = D.editingStyleId === D.savedStyles[iMaq].id && document.getElementById('stylepop').style.display==='flex';
+      document.getElementById('edgeNum').value='3'; document.getElementById('edgeNum').dispatchEvent(new Event('input'));
+      const nUA = D.savedStyles.filter(s=>!s.de_fabrica).length;
+      document.getElementById('styleSave').click();            // de fábrica → crea nuevo «… v2», NO sobrescribe
+      const lastU = D.savedStyles[D.savedStyles.length-1];
+      out.factoryNew = D.savedStyles.filter(s=>s.de_fabrica).length===nFabA
+        && D.savedStyles.filter(s=>!s.de_fabrica).length===nUA+1
+        && /v2$/.test(lastU.nombre) && lastU.de_fabrica===false
+        && Math.abs((lastU.aristas.grosor||0)-3) < 0.01;
+      // ahora editar el de usuario y SUSTITUIR (mismo id, no crea otro)
+      const iUser = D.savedStyles.indexOf(lastU);
+      D.openStyleEditor(iUser);
+      out.replaceShown = document.getElementById('styleReplace').style.display !== 'none';
+      document.getElementById('edgeNum').value='5'; document.getElementById('edgeNum').dispatchEvent(new Event('input'));
+      const nUB = D.savedStyles.filter(s=>!s.de_fabrica).length;
+      document.getElementById('styleReplace').click();
+      const rep = D.savedStyles.find(s=>s.id===lastU.id);
+      out.replaced = D.savedStyles.filter(s=>!s.de_fabrica).length===nUB
+        && rep && Math.abs((rep.aristas.grosor||0)-5) < 0.01;
       // export: biblioteca de usuario + estilo vivo bajo sub-clave `estilo`, ambos válidos
       const e = D.buildExport();
       out.serial = Array.isArray(e.estilos) && !!e.estilo && D.validarEstilo(e.estilo).ok
@@ -747,6 +771,9 @@ const secciones = {
     ok('estilos: guardar añade un estilo de usuario válido', r.saved);
     ok('estilos: aplicar un estilo conforme cambia caras/aristas/familia', r.applied);
     ok('estilos: grosor de aristas (aristas.grosor) round-trip', r.grosor);
+    ok('estilos: lápiz abre el editor precargado del estilo', r.editOpen);
+    ok('estilos: editar de fábrica → crea «… v2» (no sobrescribe fábrica)', r.factoryNew);
+    ok('estilos: editar de usuario → Sustituir reemplaza in situ (mismo id)', r.replaceShown && r.replaced);
     ok('estilos: fondo de color (fondo.valor) round-trip y válido', r.bgcolor);
     ok('estilos: sin aristas (aristas.ver=false) round-trip', r.sinAristas);
     ok('estilos: ocultas discontinuas (ocultos.ver/patron) round-trip', r.ocultos);

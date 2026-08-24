@@ -90,6 +90,10 @@
  #dock.horiz #dock2{max-height:none;max-width:70vw}
  #vmodes button{width:auto;padding:0 12px;height:34px;border:0;background:transparent;border-radius:10px;
    font-size:12px;font-weight:600;color:var(--ink);cursor:pointer}
+ #vstyles .strow{display:inline-flex;align-items:center;gap:1px}
+ #vstyles .strow button[data-style]{padding-right:6px}
+ #vstyles .sedit{width:auto!important;padding:0 7px 0 4px!important;height:34px;color:var(--mut)!important;opacity:.55;display:inline-flex;align-items:center}
+ #vstyles .sedit:hover,#vstyles .sedit:active{opacity:1;color:var(--acc)!important;background:transparent!important}
  #stylepop .stgl{border:1px solid rgba(0,0,0,.14);background:transparent;border-radius:7px;padding:5px 9px;font-size:12px;cursor:pointer;color:var(--ink)}
  #stylepop .stgl.on{background:var(--acc);color:#fff;border-color:transparent}
  .axbtn{width:30px!important}
@@ -155,7 +159,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.01 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.02 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -400,8 +404,13 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Aristas
   <span style="margin-left:auto;display:flex;gap:3px">
    <button class="stgl on" data-ec="bn">B/N</button><button class="stgl" data-ec="material">Material</button></span></label>
- <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Grosor aristas
-  <input id="styleGrosor" type="range" min="0.5" max="6" step="0.25" value="0.5" style="flex:1;margin-left:auto;max-width:120px"></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Grosor visual de las aristas en pantalla (px, constante con el zoom)">Grosor aristas
+  <span style="margin-left:auto;display:flex;align-items:center;gap:6px">
+   <input type="number" id="edgeNum" min="0.5" max="6" step="0.25" value="0.5" inputmode="decimal" style="width:60px;font-size:13px;padding:5px 6px;border:1px solid #ddd;border-radius:8px;text-align:right"><span style="color:var(--mut);font-size:11px">px</span>
+   <span style="display:flex;flex-direction:column;gap:3px">
+    <button type="button" id="edgeUp" class="lwstep" title="Más gruesas (+0,25)"><svg width="13" height="8" viewBox="0 0 14 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7 7 2l5 5"/></svg></button>
+    <button type="button" id="edgeDn" class="lwstep" title="Más finas (−0,25)"><svg width="13" height="8" viewBox="0 0 14 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2 7 7l5-5"/></svg></button>
+   </span></span></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Aristas visibles
   <span style="margin-left:auto;display:flex;gap:3px">
    <button class="stgl on" data-av="si">Sí</button><button class="stgl" data-av="no">No</button></span></label>
@@ -452,6 +461,7 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
    <input id="aoInt" type="range" min="0" max="100" step="1" value="60" title="Intensidad del AO" style="width:70px"></span></label>
  <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
   <input id="styleName" placeholder="Nombre del estilo" style="flex:1;font-size:13px;padding:6px 8px;border:1px solid #ddd;border-radius:8px">
+  <button id="styleReplace" style="display:none;border:1px solid var(--acc);background:transparent;color:var(--acc);border-radius:8px;padding:7px 10px;font-weight:600;cursor:pointer">Sustituir</button>
   <button id="styleSave" style="border:0;background:var(--acc);color:#fff;border-radius:8px;padding:7px 11px;font-weight:600;cursor:pointer">Guardar</button></div>
  <span style="font-size:11px;color:var(--mut)">Los cambios se ven en vivo. Guardar lo añade a los estilos de arriba.</span>
 </div>
@@ -500,16 +510,6 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
 </div>
 <div id="side" class="pill"><div class="grip" data-grip title="Mover panel" style="width:100%;height:14px;margin:-4px 0 4px"><svg width="20" height="10" viewBox="0 0 40 12" fill="currentColor"><circle cx="14" cy="6" r="1.5"/><circle cx="20" cy="6" r="1.5"/><circle cx="26" cy="6" r="1.5"/></svg></div><div style="display:flex;align-items:center;justify-content:space-between"><b>Piezas</b><button id="pieceAlphaTgl" title="Transparencia por pieza" style="border:0;background:transparent;color:var(--mut);cursor:pointer;padding:2px;border-radius:7px;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z"/><path d="M9 14a3 3 0 0 0 3 3" opacity=".5"/></svg></button></div><div id="pieces"></div>
  <div id="invARow" style="margin-top:6px;display:none"><b>Transparencia volúmenes (invertido)</b><br><input type="range" id="invA" min="10" max="100" value="85"></div>
- <div style="margin-top:6px"><b>Grosor visual (aristas)</b><br>
-  <span style="display:flex;align-items:center;gap:6px;margin-top:2px">
-   <input type="number" id="edgeNum" min="0.5" max="6" step="0.25" value="0.5" inputmode="decimal" title="Ancho en píxeles (constante en pantalla) de todas las aristas/líneas finas" style="width:74px;font-size:13px;padding:5px 6px;border:1px solid #ddd;border-radius:8px;text-align:right">
-   <span style="color:var(--mut);font-size:11px">px</span>
-   <span style="display:flex;flex-direction:column;gap:3px">
-    <button type="button" id="edgeUp" class="lwstep" title="Aristas más gruesas (+0,25 px)"><svg width="13" height="8" viewBox="0 0 14 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7 7 2l5 5"/></svg></button>
-    <button type="button" id="edgeDn" class="lwstep" title="Aristas más finas (−0,25 px)"><svg width="13" height="8" viewBox="0 0 14 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2 7 7l5-5"/></svg></button>
-   </span>
-  </span>
-  <span style="font-size:10px;color:var(--mut)">cómo se ven TODAS las líneas en pantalla (láser aparte, en su menú)</span></div>
  <div style="margin-top:6px"><b>Grosor real (mm)</b> <span style="color:var(--mut);font-size:10px">· material</span><br>
   <span style="display:flex;align-items:center;gap:6px;margin-top:2px">
    <input type="number" id="lwNum" min="0.15" max="3" step="0.05" value="0.2" inputmode="decimal" title="Grosor físico en mm: por encima de 0,26 el trazo pasa a ser un TUBO con volumen real (material)" style="width:74px;font-size:13px;padding:5px 6px;border:1px solid #ddd;border-radius:8px;text-align:right">
@@ -951,6 +951,8 @@ vEye.onclick=()=>{const d=document.getElementById('vmodes');
   const show=(d.style.display==='none'||!d.style.display);
   if(show)dropFromIcon(d,vEye); else d.style.display='none';};
 document.getElementById('vmodes').addEventListener('click',e=>{
+  const ed=e.target.closest('[data-style-edit]');
+  if(ed){ openStyleEditor(+ed.dataset.styleEdit); return; }
   if(e.target.dataset.m){viewMode=e.target.dataset.m;applyMode();
     document.getElementById('vmodes').style.display='none';}
   else if(e.target.dataset.style!==undefined&&e.target.dataset.style!==''){
@@ -1145,8 +1147,12 @@ function applyStyle(st){ if(!st)return;
   syncStyleFamily(); syncStylePanel(); }
 function renderSavedStyles(){ const c=document.getElementById('vstyles'); if(!c)return; c.innerHTML='';
   savedStyles.forEach((st,i)=>{ if(st.familia&&st.familia!==styleFamily)return;
+    const w=document.createElement('span'); w.className='strow';
     const b=document.createElement('button'); b.textContent=styleLabel(st);
-    b.dataset.style=String(i); if(st.de_fabrica)b.dataset.fab='1'; b.title='Aplicar «'+styleLabel(st)+'»'; c.appendChild(b);}); }
+    b.dataset.style=String(i); if(st.de_fabrica)b.dataset.fab='1'; b.title='Aplicar «'+styleLabel(st)+'»';
+    const e=document.createElement('button'); e.className='sedit'; e.dataset.styleEdit=String(i); e.title='Editar «'+styleLabel(st)+'»';
+    e.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+    w.appendChild(b); w.appendChild(e); c.appendChild(w);}); }
 function syncStyleFamily(){ document.querySelectorAll('#stylepop .stgl[data-fam]').forEach(b=>b.classList.toggle('on',b.dataset.fam===styleFamily)); }
 function syncStylePanel(){ syncStyleFamily();
   document.querySelectorAll('#stylepop .stgl[data-cm]').forEach(b=>b.classList.toggle('on',b.dataset.cm===viewMode));
@@ -1170,13 +1176,28 @@ function syncStylePanel(){ syncStyleFamily();
   document.querySelectorAll('#stylepop .stgl[data-ao]').forEach(b=>b.classList.toggle('on',b.dataset.ao===(aoOn?'si':'no')));
   const aoi=document.getElementById('aoInt'); if(aoi)aoi.value=Math.round(aoIntensidad);
   const o=document.getElementById('styleOpac'); if(o)o.value=Math.round(baseOpacity*100);
-  const g=document.getElementById('styleGrosor'); if(g)g.value=edgePx;
+  const eg=document.getElementById('edgeNum'); if(eg)eg.value=(+edgePx).toFixed(2);
   const bc=document.getElementById('styleBgCol'); if(bc&&styleBg)bc.value=styleBg;
   document.querySelectorAll('#stylepop .stgl[data-sky]').forEach(b=>b.classList.toggle('on',b.dataset.sky===(styleSky?'deg':'no')));
   const cc=document.getElementById('styleCieloCol'); if(cc)cc.value=styleCielo;
   const hc=document.getElementById('styleHorizCol'); if(hc)hc.value=styleHorizonte; }
 function persistStyles(){ try{localStorage.setItem('tectosStyles',JSON.stringify(savedStyles.filter(s=>!s.de_fabrica)));}catch(e){} }
+// ── Edición de estilos (lápiz): abrir el editor precargado con TODOS los valores de un estilo ──
+let editingStyleId=null, editingIsFactory=false, editingLabel='';
+function updateSaveRow(){ const rep=document.getElementById('styleReplace'), sav=document.getElementById('styleSave');
+  const editingCustom=!!editingStyleId&&!editingIsFactory;
+  if(rep)rep.style.display=editingCustom?'inline-block':'none';
+  if(sav)sav.textContent=editingStyleId?'Guardar nuevo':'Guardar'; }
+function openStyleEditor(i){ const st=savedStyles[i]; if(!st)return;
+  applyStyle(st);
+  editingStyleId=st.id||null; editingIsFactory=!!st.de_fabrica; editingLabel=styleLabel(st);
+  const inp=document.getElementById('styleName'); if(inp)inp.value=editingIsFactory?'':editingLabel;   // de fábrica → nombre vacío (se guardará como «X v2»)
+  updateSaveRow();
+  document.getElementById('vmodes').style.display='none';
+  const p=document.getElementById('stylepop'); p.style.display='flex'; syncStylePanel(); }
 document.getElementById('stylePerso').onclick=()=>{
+  editingStyleId=null; editingIsFactory=false; editingLabel='';   // «Personalizar…» = estilo nuevo desde el estado actual
+  const inp=document.getElementById('styleName'); if(inp)inp.value=''; updateSaveRow();
   document.getElementById('vmodes').style.display='none';
   const p=document.getElementById('stylepop'); p.style.display='flex'; syncStylePanel(); };
 document.getElementById('styleClose').onclick=()=>{document.getElementById('stylepop').style.display='none';};
@@ -1198,7 +1219,6 @@ document.getElementById('stylepop').addEventListener('click',e=>{
     if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode(); syncStylePanel();}
   else if(b.dataset.sky){styleSky=(b.dataset.sky==='deg'); applyMode(); syncStylePanel();}});
 document.getElementById('styleOpac').oninput=function(){baseOpacity=Math.max(0.06,+this.value/100); applyMode();};
-document.getElementById('styleGrosor').oninput=function(){setEdgePx(+this.value); syncStylePanel();};
 document.getElementById('stylePerfGro').oninput=function(){stylePerfW=+this.value; applyPerfiles();};
 document.getElementById('styleSueloCol').oninput=function(){setSueloColor(this.value);};
 document.getElementById('styleCieloCol').oninput=function(){styleCielo=this.value; if(styleSky)applyMode();};
@@ -1210,13 +1230,23 @@ document.getElementById('sunAz').oninput=function(){setSunAz(+this.value);};
 document.getElementById('sunAlt').oninput=function(){setSunAlt(+this.value);};
 document.getElementById('sunDur').oninput=function(){setDureza(+this.value);};
 document.getElementById('aoInt').oninput=function(){setAOIntensidad(+this.value);};
-document.getElementById('styleSave').onclick=()=>{
+document.getElementById('styleSave').onclick=()=>{   // Guardar (nuevo): siempre crea un estilo de usuario nuevo
   const inp=document.getElementById('styleName');
-  const nUser=savedStyles.filter(s=>!s.de_fabrica).length;
-  const nombre=(inp.value||'').trim()||('Estilo '+(nUser+1));
+  let nombre=(inp.value||'').trim();
+  if(!nombre) nombre = editingStyleId ? (editingLabel+' v2') : ('Estilo '+(savedStyles.filter(s=>!s.de_fabrica).length+1));
   const st=currentStyle(); st.nombre=nombre; st.de_fabrica=false;
-  savedStyles.push(st); inp.value=''; renderSavedStyles(); persistStyles();
+  savedStyles.push(st);
+  editingStyleId=st.id; editingIsFactory=false; editingLabel=nombre;   // seguimos editando el recién creado
+  inp.value=''; updateSaveRow(); renderSavedStyles(); persistStyles();
   toast('Estilo «'+nombre+'» guardado'); };
+document.getElementById('styleReplace').onclick=()=>{   // Sustituir: reemplaza el estilo de usuario en edición (de fábrica NUNCA)
+  if(!editingStyleId||editingIsFactory)return;
+  const idx=savedStyles.findIndex(s=>s.id===editingStyleId&&!s.de_fabrica);
+  if(idx<0){ toast('No se encontró el estilo a sustituir'); return; }
+  const inp=document.getElementById('styleName'); const nombre=(inp.value||'').trim()||editingLabel;
+  const st=currentStyle(); st.id=editingStyleId; st.nombre=nombre; st.de_fabrica=false;
+  savedStyles[idx]=st; editingLabel=nombre; renderSavedStyles(); persistStyles();
+  toast('Estilo «'+nombre+'» actualizado'); };
 function loadStyles(){ savedStyles=FACTORY_STYLES.map(s=>JSON.parse(JSON.stringify(s)));
   try{const s=localStorage.getItem('tectosStyles'); if(s){(JSON.parse(s)||[]).forEach(x=>{if(x&&!x.de_fabrica)savedStyles.push(x);});}}catch(e){}
   renderSavedStyles(); }
@@ -6910,7 +6940,7 @@ function buildExport(){
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
-window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},get pointersDbg(){return [...pointers.values()].map(v=>v.t)},get capsDbg(){return _caps.size},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},set viewMode(v){viewMode=v},get styleEdgeColor(){return styleEdgeColor},get savedStyles(){return savedStyles},currentStyle,applyStyle,validarEstilo,renderSavedStyles,get styleFamily(){return styleFamily},set styleFamily(v){styleFamily=v},get FACTORY_STYLES(){return FACTORY_STYLES},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
+window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},get pointersDbg(){return [...pointers.values()].map(v=>v.t)},get capsDbg(){return _caps.size},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},set viewMode(v){viewMode=v},get styleEdgeColor(){return styleEdgeColor},get savedStyles(){return savedStyles},currentStyle,applyStyle,validarEstilo,renderSavedStyles,openStyleEditor,get editingStyleId(){return editingStyleId},get styleFamily(){return styleFamily},set styleFamily(v){styleFamily=v},get FACTORY_STYLES(){return FACTORY_STYLES},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
 buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},set contJoin(v){contJoin=v},get drawLock(){return drawLock},set drawLock(v){drawLock=v; const b=document.getElementById('mCont'); if(b)b.classList.toggle('on',drawLock&&contJoin);},get trazoMode(){return trazoMode},get shapeMode(){return shapeMode},cancelShapeDraw,circleFrom3,genPoints,to3,
 buildContourSurfaceFromPts,buildTerrainFromContour,get axGhost(){return axGhost},selectStroke,surfToolStart,surfToolTap,get surfTool(){return surfTool},moveContPoint,askClose,closeContourStroke,strokeClosed,
 buildRevolveFromPts,buildCoonsFromPts,buildExtrudeFromPts,buildTubeFromPts,chain4,buildExport,
