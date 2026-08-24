@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.94 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.95 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -384,7 +384,7 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <div id="paperList"></div>
 </div>
 <div id="vmodes" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:row;padding:5px;gap:2px">
- <button data-m="somb" class="on">Sombra</button><button data-m="blanco">Blanco</button><button data-m="wire">Wire</button><button data-m="xray">X-Ray</button><button data-m="tecnico">Técnico</button><button data-m="oculto">Oculto</button>
+ <button data-m="somb" class="on" title="Sombreado texturado — color/material por pieza (texturas en Fase C)">Sombreado</button><button data-m="blanco" title="Maqueta blanca (clay sombreado)">Blanco</button><button data-m="wire">Wire</button><button data-m="xray">X-Ray</button><button data-m="tecnico">Técnico</button><button data-m="oculto">Oculto</button>
  <span id="vstyles" style="display:contents"></span>
  <span style="width:1px;align-self:stretch;background:rgba(0,0,0,.12);margin:2px 1px"></span>
  <button id="stylePerso" title="Personalizar el estilo y guardarlo">Personalizar…</button>
@@ -396,7 +396,7 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
    <button class="stgl on" data-fam="presentacion">Presentación</button><button class="stgl" data-fam="tecnico">Técnico</button></span></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Caras
   <span style="margin-left:auto;display:flex;gap:3px">
-   <button class="stgl" data-cm="somb">Sombra</button><button class="stgl" data-cm="blanco">Blanco</button><button class="stgl" data-cm="wire">Alambre</button><button class="stgl" data-cm="xray">X-Ray</button></span></label>
+   <button class="stgl" data-cm="somb" title="Sombreado texturado — color/material por pieza (texturas en Fase C)">Sombreado</button><button class="stgl" data-cm="blanco" title="Maqueta blanca (clay sombreado)">Blanco</button><button class="stgl" data-cm="wire">Alambre</button><button class="stgl" data-cm="xray">X-Ray</button></span></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Aristas
   <span style="margin-left:auto;display:flex;gap:3px">
    <button class="stgl on" data-ec="bn">B/N</button><button class="stgl" data-ec="material">Material</button></span></label>
@@ -598,6 +598,33 @@ let sol=null;   // Fase B1 · luz SOL con sombra arrojada (se crea tras conocer 
 // ---- modelo ----
 let edgePx=1.0;   // grosor VISUAL de las aristas (px en pantalla) · por defecto FINO · declarado antes del modelo (lo usa makeFatSeg)
 let pieces={}, pickables=[], bbox=new THREE.Box3();
+// Normales por ÁNGULO (grupos de suavizado): las caras planas quedan planas y las curvas suaves.
+// Mantiene la geometría INDEXADA (duplica vértices solo en aristas vivas) → no rompe el picking de caras.
+function angleNormals(posArr, idxArr, deg){
+  const cosT=Math.cos((deg||30)*Math.PI/180), nf=idxArr.length/3;
+  const gv=i=>{const j=i*3;return [posArr[j],posArr[j+1],posArr[j+2]];};
+  const faceN=new Array(nf), A=new THREE.Vector3(),B=new THREE.Vector3(),Cc=new THREE.Vector3(),e1=new THREE.Vector3(),e2=new THREE.Vector3();
+  for(let f=0;f<nf;f++){ const a=idxArr[f*3],b=idxArr[f*3+1],c=idxArr[f*3+2];
+    A.set.apply(A,gv(a)); B.set.apply(B,gv(b)); Cc.set.apply(Cc,gv(c));
+    e1.subVectors(B,A); e2.subVectors(Cc,A); faceN[f]=new THREE.Vector3().crossVectors(e1,e2).normalize(); }
+  const inc=new Map();   // vértice original → caras incidentes
+  for(let f=0;f<nf;f++)for(let k=0;k<3;k++){ const vi=idxArr[f*3+k]; let a=inc.get(vi); if(!a){a=[];inc.set(vi,a);} a.push(f); }
+  const newPos=[], newNorm=[], newIdx=new Array(idxArr.length), keyMap=new Map(), acc=new THREE.Vector3();
+  for(let f=0;f<nf;f++){ const nfv=faceN[f];
+    for(let k=0;k<3;k++){ const vi=idxArr[f*3+k]; acc.set(0,0,0);
+      const faces=inc.get(vi);
+      for(let q=0;q<faces.length;q++){ if(faceN[faces[q]].dot(nfv)>=cosT) acc.add(faceN[faces[q]]); }
+      if(acc.lengthSq()<1e-12)acc.copy(nfv); acc.normalize();
+      const nk=vi+'|'+Math.round(acc.x*100)+'_'+Math.round(acc.y*100)+'_'+Math.round(acc.z*100);
+      let ni=keyMap.get(nk);
+      if(ni===undefined){ ni=newPos.length/3; keyMap.set(nk,ni); const p=gv(vi); newPos.push(p[0],p[1],p[2]); newNorm.push(acc.x,acc.y,acc.z); }
+      newIdx[f*3+k]=ni; } }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(newPos,3));
+  g.setAttribute('normal',new THREE.Float32BufferAttribute(newNorm,3));
+  g.setIndex(newIdx); g.computeBoundingBox(); g.computeBoundingSphere();
+  return g;
+}
 MESHES.forEach(m=>{
   let g=new THREE.BufferGeometry();
   g.setAttribute('position',new THREE.Float32BufferAttribute(m.v,3));
@@ -658,6 +685,7 @@ MESHES.forEach(m=>{
       for(let k=0;k<3;k++){const p=f[i+k]*3;t[k*3]=v[p];t[k*3+1]=v[p+1];t[k*3+2]=v[p+2];}
       arr.push(t);}
     mesh.userData.ltris=arr;})();
+  mesh.geometry=angleNormals(m.v,m.f,30);   // normales por ÁNGULO: caras planas planas, curvas suaves (aristas vivas >30° parten el sombreado)
   mesh.userData.alpha=1;
   let lab=document.createElement('label');
   lab.style.display='flex'; lab.style.alignItems='center'; lab.style.gap='5px';
