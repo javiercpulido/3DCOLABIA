@@ -35,7 +35,7 @@ const secciones = {
       mode: window._dbg.mode,
       selOn: document.getElementById('mSel').classList.contains('on'),
       topBar: [...document.querySelectorAll('#views button')].slice(0, 3).map(b => b.id).join(','),
-      version: /v6\.\d+/.test(document.getElementById('brand').textContent),
+      version: /v\d+\.\d+/.test(document.getElementById('brand').textContent),
     }));
     ok('herramienta por defecto: selección', r.mode === 'sel' && r.selOn);
     ok('deshacer/rehacer arriba, antes de órbita', r.topBar === 'undo,redo,mOrbit');

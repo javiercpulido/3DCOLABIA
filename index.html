@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.99 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.00 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -589,9 +589,10 @@ function fitSize(){let w=vw(),h=vh();
 if(window.ResizeObserver)new ResizeObserver(fitSize).observe(document.body);
 let _fits=0,_fitIv=setInterval(()=>{fitSize();if(++_fits>25)clearInterval(_fitIv);},200);
 if(vw()<700)document.getElementById('side').style.display='none';
-let amb=new THREE.AmbientLight(0xffffff,.55); scene.add(amb);
-let dl=new THREE.DirectionalLight(0xffffff,.7); dl.position.set(1,-1.2,1.6); scene.add(dl);
-let dl2=new THREE.DirectionalLight(0xffffff,.25); dl2.position.set(-1,1,-.5); scene.add(dl2);
+let amb=new THREE.AmbientLight(0xffffff,.30); scene.add(amb);
+let hemi=new THREE.HemisphereLight(0xffffff,0x8b9096,.55); hemi.position.set(0,0,1); scene.add(hemi);   // luz de entorno (cielo↑/suelo↓): da degradado a las caras en sombra (forma legible)
+let dl=new THREE.DirectionalLight(0xffffff,.55); dl.position.set(1,-1.2,1.6); scene.add(dl);
+let dl2=new THREE.DirectionalLight(0xffffff,.22); dl2.position.set(-1,1,-.5); scene.add(dl2);
 let sol=null;   // Fase B1 · luz SOL con sombra arrojada (se crea tras conocer el bbox/centro)
 
 // ---- modelo ----
@@ -4261,11 +4262,11 @@ function applySombra(){ if(!sol)return;
   sol.shadow.radius=duraToRadius(sunDureza);   // penumbra (VSM); en PCFSoft ajusta el desenfoque del muestreo
   const soft=(100-_clamp(sunDureza,0,100))/100;   // 0 dura … 1 suave: a más suave, relleno un pelín mayor (sombra propia menos dura)
   if(sombraOn){ sol.visible=true; sol.castShadow=true;
-    sol.intensity=0.35+0.0075*_clamp(ilumSol,0,100);   // el sol pasa a luz clave
-    amb.intensity=0.20+0.0035*_clamp(ilumAmb,0,100)+0.10*soft;   // ambiente rebajado para que la sombra lea (sube algo si es suave)
-    dl.intensity=0.15+0.10*soft; dl2.intensity=0.10+0.06*soft;   // relleno suave (las caras a contraluz no quedan negras)
+    sol.intensity=0.45+0.006*_clamp(ilumSol,0,100);   // el sol pasa a luz CLAVE (lado iluminado claro)
+    hemi.intensity=0.35+0.004*_clamp(ilumAmb,0,100)+0.10*soft;   // HEMISFERIO = ambiente direccional: las caras en sombra revelan la forma (cielo↑ claro, suelo↓ oscuro)
+    amb.intensity=0.10; dl.intensity=0.10; dl2.intensity=0.06;   // relleno plano mínimo (nada queda negro puro)
   } else { sol.visible=false; sol.castShadow=false; sol.intensity=0;
-    amb.intensity=.55; dl.intensity=.7; dl2.intensity=.25; }   // iluminación base restaurada
+    amb.intensity=.30; hemi.intensity=.55; dl.intensity=.55; dl2.intensity=.22; }   // iluminación base restaurada (con hemisferio)
   renderer.shadowMap.autoUpdate=sombraOn; renderer.shadowMap.needsUpdate=true; }
 function setSombra(on){ sombraOn=!!on; applySombra(); }
 function setDureza(v){ sunDureza=_clamp(+v,0,100); if(sombraOn)applySombra(); }
