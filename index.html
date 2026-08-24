@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.93 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.94 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -945,10 +945,27 @@ const FACTORY_STYLES=[
    lineas_mano:{activo:true,jitter:35,extension:6},iluminacion:{sol:40,ambiental:70,dureza_sombra:20},
    sombra_arrojada:{activo:true,azimut:135,altitud:45},oclusion_ambiental:{activo:false},
    fuente_color:{modo:'bn'},fondo:{modo:'claro',valor:'#fbfbf7'},
-   suelo:{ver:true,color:'#eaecee',malla:{ver:true,auto:true}},salidas:['raster_png','imagen_ia']}
+   suelo:{ver:true,color:'#eaecee',malla:{ver:true,auto:true}},salidas:['raster_png','imagen_ia']},
+  {v:1,id:'5a1e0000-0000-4000-8000-000000000004',nombre:'estilo.maqueta_blanca',familia:'presentacion',uso:'presentacion',de_fabrica:true,
+   origen_nl:'maqueta blanca realista, tipo clay/yeso, sin texturas ni aristas, con oclusión ambiental y sombras suaves',
+   caras:{modo:'blanco'},aristas:{ver:false,color:{fuente:'bn'}},perfiles:{ver:false},
+   iluminacion:{sol:75,ambiental:58,dureza_sombra:45},
+   sombra_arrojada:{activo:true,modo:'manual',azimut:220,altitud:48},
+   oclusion_ambiental:{activo:true,intensidad:72,radio:45},
+   materiales:{texturas:false},fuente_color:{modo:'bn'},fondo:{modo:'claro',valor:'#eef1f4'},
+   suelo:{ver:true,color:'#e9ecee',malla:{ver:false,auto:true}},salidas:['raster_png','imagen_ia']},
+  {v:1,id:'5a1e0000-0000-4000-8000-000000000005',nombre:'estilo.maqueta_blanca_aristas',familia:'presentacion',uso:'presentacion',de_fabrica:true,
+   origen_nl:'maqueta blanca con aristas: como la maqueta blanca pero con las aristas dibujadas',
+   caras:{modo:'blanco'},aristas:{ver:true,grosor:1.0,color:{fuente:'bn'}},perfiles:{ver:true,grosor:1.5},
+   iluminacion:{sol:75,ambiental:58,dureza_sombra:45},
+   sombra_arrojada:{activo:true,modo:'manual',azimut:220,altitud:48},
+   oclusion_ambiental:{activo:true,intensidad:72,radio:45},
+   materiales:{texturas:false},fuente_color:{modo:'bn'},fondo:{modo:'claro',valor:'#eef1f4'},
+   suelo:{ver:true,color:'#e9ecee',malla:{ver:false,auto:true}},salidas:['raster_png','imagen_ia']}
 ];
 // Catálogo i18n mínimo embebido (es) — código≠etiqueta. En backend, next-intl (TEC-62).
-const STYLE_LABELS_ES={'estilo.pen':'Pen (blanco / línea negra)','estilo.plano_demolicion':'Plano de demolición','estilo.boceto':'Boceto a mano'};
+const STYLE_LABELS_ES={'estilo.pen':'Pen (blanco / línea negra)','estilo.plano_demolicion':'Plano de demolición','estilo.boceto':'Boceto a mano',
+  'estilo.maqueta_blanca':'Maqueta blanca','estilo.maqueta_blanca_aristas':'Maqueta blanca con aristas'};
 function styleLabel(st){ return (st.de_fabrica&&STYLE_LABELS_ES[st.nombre])||st.nombre||'Estilo'; }
 // Validación ligera contra estilo.schema.json v3 (oráculo de tests + guardarraíl runtime).
 const _EST_ENUM={familia:['tecnico','presentacion'],uso:['boceto','bim','plano','presentacion'],

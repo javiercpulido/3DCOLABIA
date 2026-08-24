@@ -594,7 +594,7 @@ const secciones = {
       out.valido = D.validarEstilo(st0).ok;
       // los 3 preajustes de fábrica (estilos_ejemplo.json) cargados y válidos
       const fab = D.savedStyles.filter(s => s.de_fabrica);
-      out.goldenN = fab.length === 3;
+      out.goldenN = fab.length === 5;
       out.golden = fab.every(s => D.validarEstilo(s).ok);
       // panel Personalizar: aristas B/N ↔ material
       document.getElementById('vEye').click(); document.getElementById('stylePerso').click();
@@ -741,7 +741,7 @@ const secciones = {
     });
     ok('estilos: descriptor conforme a estilo.schema.json v3 (v/id/familia/caras.modo/aristas.color.fuente/fondo.modo)', r.descriptor);
     ok('estilos: currentStyle() valida contra el contrato', r.valido);
-    ok('estilos: 3 preajustes de fábrica cargados (estilos_ejemplo.json)', r.goldenN);
+    ok('estilos: 5 preajustes de fábrica cargados (3 golden + 2 maqueta blanca)', r.goldenN);
     ok('estilos: los 3 golden validan contra el esquema', r.golden);
     ok('estilos: aristas B/N ↔ material desde el panel Personalizar', r.material);
     ok('estilos: guardar añade un estilo de usuario válido', r.saved);
