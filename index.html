@@ -155,7 +155,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v6.91 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v6.92 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -599,8 +599,8 @@ MESHES.forEach(m=>{
   g.setAttribute('position',new THREE.Float32BufferAttribute(m.v,3));
   g.setIndex(m.f); g.computeVertexNormals();
   let mesh=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:m.color,side:THREE.DoubleSide,
-      transparent:true,opacity:1,metalness:.15,roughness:.55,depthFunc:THREE.LessEqualDepth,
-      polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));
+      transparent:true,opacity:1,metalness:0,roughness:.9,depthFunc:THREE.LessEqualDepth,
+      polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));   // mate (no plástico): sin especular que simule reflejos curvos
   mesh.name=m.name; scene.add(mesh); pieces[m.name]=mesh; pickables.push(mesh); bbox.expandByObject(mesh);
   mesh.castShadow=true; mesh.receiveShadow=true;   // Fase B1: cada pieza arroja y recibe sombra (contacto entre piezas + suelo)
   mesh.userData.baseColor=new THREE.Color(m.color).getHex();
