@@ -159,7 +159,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.10 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.11 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -7190,15 +7190,15 @@ addEventListener('pagehide',autosave);
 })();
 // ---- AVISO DE VERSIÓN NUEVA: compara la marca local con la publicada ----------
 (function avisoVersion(){
-  const cur=(document.getElementById('brand').textContent.match(/v6\.\d+/)||[])[0];
+  const cur=(document.getElementById('brand').textContent.match(/v\d+\.\d+/)||[])[0];   // v\d+ (antes v6): el aviso de nueva versión dejó de funcionar al pasar a v7.x
   if(!cur||location.protocol==='file:')return;
   let shown=false;
   async function check(){
     if(shown||document.visibilityState!=='visible')return;
     try{
       const t=await (await fetch('index.html',{cache:'no-store'})).text();
-      const m=t.match(/v6\.\d+ · WebGL/); if(!m)return;
-      const nv=m[0].match(/v6\.\d+/)[0];
+      const m=t.match(/v\d+\.\d+ · WebGL/); if(!m)return;
+      const nv=m[0].match(/v\d+\.\d+/)[0];
       if(nv!==cur){shown=true;
         const b=document.createElement('div'); b.className='sysbar';
         b.innerHTML='<span>Versión '+nv+' disponible</span><button id="updGo">Recargar</button>';
