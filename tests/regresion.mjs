@@ -1820,6 +1820,31 @@ const secciones = {
     ok('estilo: "Maqueta blanca con aristas" grosor 0,5 por defecto (aristas y perfiles)', r.grosor05);
   },
 
+  async estilos_carga_limpia() {   // EXHAUSTIVO: aplicar un estilo tras uno MÁXIMO (todo ON) = aplicarlo en limpio (cero herencia)
+    const r = await page.evaluate(() => {
+      const D = window._dbg;
+      // estilo con TODOS los toggles visuales encendidos y valores extremos
+      const MAX = { v:1, id:'5a1e0000-0000-4000-8000-0000000000ff', nombre:'MAX', familia:'presentacion',
+        caras:{modo:'xray',opacidad:0.5}, aristas:{ver:true,grosor:4,color:{fuente:'material'}},
+        perfiles:{ver:true,grosor:5}, ocultos:{ver:true,patron:'discontinuo'},
+        materiales:{texturas:true,saturacion:20}, fondo:{modo:'degradado',cielo:'#123456',horizonte:'#654321'},
+        iluminacion:{sol:10,ambiental:20,dureza_sombra:5},
+        sombra_arrojada:{activo:true,modo:'manual',azimut:300,altitud:12},
+        oclusion_ambiental:{activo:true,intensidad:90,radio:80},
+        suelo:{ver:true,color:'#abcdef',z:33,solido:true,malla:{ver:true,auto:false,color:'#111111'}} };
+      const MIN = { v:1, id:'5a1e0000-0000-4000-8000-0000000000fe', nombre:'MIN', familia:'presentacion', caras:{modo:'somb'} };
+      const snap = () => { const s = D.currentStyle(); return JSON.stringify({ caras:s.caras, aristas:s.aristas, perfiles:s.perfiles, ocultos:s.ocultos||null, materiales:s.materiales, fondo:s.fondo, iluminacion:s.iluminacion, sombra:s.sombra_arrojada, ao:s.oclusion_ambiental, suelo:s.suelo }); };
+      const fugas = [];
+      for (const st of D.FACTORY_STYLES) {
+        D.applyStyle(MIN); D.applyStyle(st); const a = snap();
+        D.applyStyle(MAX); D.applyStyle(st); const b = snap();
+        if (a !== b) fugas.push(st.nombre);
+      }
+      return { fugas };
+    });
+    ok('estilo: carga LIMPIA — ningún estilo hereda estado del anterior (auditoría exhaustiva)', r.fugas.length === 0);
+  },
+
   async saturacion_caras() {   // materiales.saturacion (v3.6): desatura las caras en cualquier modo; X-Ray a 0 = grises
     const r = await page.evaluate(() => {
       const D = window._dbg, out = {};
