@@ -1907,6 +1907,24 @@ const secciones = {
     ok('estilo: aplicar desde el menú ⋯ funciona y lo cierra', r.aplica && r.menuCerrado);
   },
 
+  async estilos_editor_acoplado() {   // el editor se acopla a la derecha en pantallas anchas (iPad/horizontal) y se centra en móvil vertical
+    // ANCHO (≥640px): acoplado al borde derecho, a toda altura, sobre el panel de Piezas
+    await page.setViewportSize({ width: 1024, height: 768 });
+    const ancho = await page.evaluate(() => { window._dbg.openStyleEditor(0);
+      const b = document.getElementById('stylepop').getBoundingClientRect();
+      return { pegadoDcha: Math.abs(b.right - window.innerWidth) < 2, mitadDcha: b.left > window.innerWidth / 2,
+        toca_arriba: b.top < 120, alto: b.height > window.innerHeight * 0.6 }; });
+    ok('editor: en pantalla ancha se acopla al borde derecho, a toda altura', ancho.pegadoDcha && ancho.mitadDcha && ancho.alto);
+    // ESTRECHO (<640px, móvil vertical): vuelve a ventana CENTRADA como estaba
+    await page.setViewportSize({ width: 390, height: 844 });
+    const estrecho = await page.evaluate(() => { document.getElementById('stylepop').style.display = 'none'; window._dbg.openStyleEditor(0);
+      const b = document.getElementById('stylepop').getBoundingClientRect();
+      const centro = (b.left + b.right) / 2;
+      return { noPegado: b.right < window.innerWidth - 4, centrado: Math.abs(centro - window.innerWidth / 2) < 12 }; });
+    ok('editor: en móvil vertical (<640px) se centra como ventana (no acoplado)', estrecho.noPegado && estrecho.centrado);
+    await page.setViewportSize({ width: 1200, height: 820 });   // restablece para el resto
+  },
+
   async estilos_caras_roundtrip() {   // el modo de Caras (p. ej. «Blanco») de un estilo personalizado se conserva al Sustituir, cambiar de estilo y volver
     const r = await page.evaluate(() => {
       const D = window._dbg, out = {};

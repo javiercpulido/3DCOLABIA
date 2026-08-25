@@ -101,6 +101,18 @@
  #styleMoreMenu .sedit:hover,#styleMoreMenu .sedit:active{opacity:1;color:var(--acc)}
  #stylepop .stgl{border:1px solid rgba(0,0,0,.14);background:transparent;border-radius:7px;padding:5px 9px;font-size:12px;cursor:pointer;color:var(--ink)}
  #stylepop .stgl.on{background:var(--acc);color:#fff;border-color:transparent}
+ /* Editor de estilos ACOPLADO a la derecha (sobre el panel #side de Piezas) en pantallas anchas:
+    iPad (vertical/horizontal) y móvil GIRADO. En móvil VERTICAL (<640px) se queda como estaba:
+    ventana centrada que ocupa la pantalla. Solo cambia la POSICIÓN, no el contenido del editor. */
+ @media (min-width:640px){
+   #stylepop{
+     top:calc(74px + env(safe-area-inset-top))!important; right:0!important; left:auto!important;
+     bottom:calc(10px + env(safe-area-inset-bottom))!important; transform:none!important;
+     width:min(322px,46vw)!important; max-width:46vw!important; min-width:264px!important;
+     max-height:none!important; border-radius:16px 0 0 16px!important;
+     box-shadow:-10px 0 30px rgba(20,28,48,.16)!important;
+   }
+ }
  .axbtn{width:30px!important}
  svg{pointer-events:none}
  #strokeOps,#xformOps,#laserOps,#secOps{display:none;align-items:center;gap:4px;flex-wrap:nowrap}
@@ -164,7 +176,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.21 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.22 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
