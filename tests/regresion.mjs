@@ -1925,6 +1925,31 @@ const secciones = {
     await page.setViewportSize({ width: 1200, height: 820 });   // restablece para el resto
   },
 
+  async estilos_editor_teclado() {   // al abrir el teclado en pantalla, el editor sube su borde por encima y el campo del nombre queda visible
+    const r = await page.evaluate(() => {
+      window._dbg.openStyleEditor(0);
+      const p = document.getElementById('stylepop'), inp = document.getElementById('styleName');
+      const real = window.visualViewport;
+      // simula teclado que tapa 320px por abajo
+      Object.defineProperty(window, 'visualViewport', { configurable: true, value: { height: window.innerHeight - 320, offsetTop: 0, addEventListener() {} } });
+      window.fitEditorKeyboard();
+      const bottomSet = parseInt(p.style.bottom || '0', 10);   // debe subir ~328px
+      inp.scrollIntoView({ block: 'center' });
+      const pr = p.getBoundingClientRect(), ir = inp.getBoundingClientRect();
+      const panelSobreTeclado = pr.bottom <= (window.innerHeight - 320) + 1;   // panel por encima del teclado
+      const nombreVisible = ir.bottom <= pr.bottom + 1 && ir.top >= pr.top - 1;
+      // teclado cerrado → vuelve a la posición normal
+      Object.defineProperty(window, 'visualViewport', { configurable: true, value: { height: window.innerHeight, offsetTop: 0, addEventListener() {} } });
+      window.fitEditorKeyboard();
+      const restaurado = !p.style.bottom;
+      Object.defineProperty(window, 'visualViewport', { configurable: true, value: real });
+      return { bottomSet, panelSobreTeclado, nombreVisible, restaurado };
+    });
+    ok('editor+teclado: el panel sube su borde inferior por encima del teclado', r.bottomSet > 300 && r.panelSobreTeclado);
+    ok('editor+teclado: el campo del NOMBRE queda visible dentro del panel', r.nombreVisible);
+    ok('editor+teclado: al cerrarse el teclado, el editor vuelve a su posición', r.restaurado);
+  },
+
   async estilos_caras_roundtrip() {   // el modo de Caras (p. ej. «Blanco») de un estilo personalizado se conserva al Sustituir, cambiar de estilo y volver
     const r = await page.evaluate(() => {
       const D = window._dbg, out = {};
