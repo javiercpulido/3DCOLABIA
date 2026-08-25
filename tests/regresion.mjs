@@ -1765,6 +1765,35 @@ const secciones = {
     ok('bloqueo del plano se guarda y se recupera', r.exporta && r.importa);
   },
 
+  async estilos_sin_fuga() {   // aplicar un estilo RESETEA todo: ningún rasgo del anterior se queda pegado
+    const r = await page.evaluate(() => {
+      const D = window._dbg, out = {};
+      const F = D.FACTORY_STYLES, by = n => F.find(s => s.nombre === n);
+      // perfiles del Boceto (gruesos) NO deben sobrevivir al pasar a Maqueta blanca (sin perfiles)
+      D.applyStyle(by('estilo.boceto'));            out.bocetoPerfOn = D.currentStyle().perfiles.ver === true;
+      D.applyStyle(by('estilo.maqueta_blanca'));    out.perfilLimpio = D.currentStyle().perfiles.ver === false;
+      // oclusión ambiental NO debe quedarse al pasar a un estilo que no la declara (pen)
+      D.applyStyle(by('estilo.maqueta_blanca'));    out.aoOn = D.currentStyle().oclusion_ambiental.activo === true;
+      D.applyStyle(by('estilo.pen'));               out.aoLimpio = D.currentStyle().oclusion_ambiental.activo === false;
+      // sombra del sol NO debe quedarse al pasar a un técnico sin sombra
+      D.applyStyle(by('estilo.maqueta_blanca'));    out.sombraOn = D.currentStyle().sombra_arrojada.activo === true;
+      D.applyStyle(by('estilo.tecnico_bn'));        out.sombraLimpia = D.currentStyle().sombra_arrojada.activo === false;
+      // suelo NO debe quedarse
+      D.applyStyle(by('estilo.maqueta_blanca'));    out.sueloOn = D.currentStyle().suelo.ver === true;
+      D.applyStyle(by('estilo.pen'));               out.sueloLimpio = D.currentStyle().suelo.ver === false;
+      // grosor por defecto de "Maqueta blanca con aristas" = 0,5 (aristas y perfiles), editable después
+      D.applyStyle(by('estilo.maqueta_blanca_aristas'));
+      const cs = D.currentStyle();
+      out.grosor05 = cs.aristas.grosor === 0.5 && cs.perfiles.grosor === 0.5;
+      return out;
+    });
+    ok('estilo: los perfiles del Boceto no se quedan al cambiar de estilo', r.bocetoPerfOn && r.perfilLimpio);
+    ok('estilo: la oclusión ambiental no se queda pegada', r.aoOn && r.aoLimpio);
+    ok('estilo: la sombra del sol no se queda pegada', r.sombraOn && r.sombraLimpia);
+    ok('estilo: el suelo no se queda pegado', r.sueloOn && r.sueloLimpio);
+    ok('estilo: "Maqueta blanca con aristas" grosor 0,5 por defecto (aristas y perfiles)', r.grosor05);
+  },
+
   async poche_seccion() {   // POCHÉ: rellena SÓLO la sección real, sin sobre-relleno de silueta
     const r = await page.evaluate(() => {
       const D = window._dbg, T3 = window.THREE, out = {};

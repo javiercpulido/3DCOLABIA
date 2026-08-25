@@ -159,7 +159,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.03 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.04 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -1001,7 +1001,7 @@ const FACTORY_STYLES=[
    suelo:{ver:true,color:'#eeeeee',malla:{ver:true,auto:true}},salidas:['raster_png','imagen_ia']},
   {v:1,id:'5a1e0000-0000-4000-8000-000000000005',nombre:'estilo.maqueta_blanca_aristas',familia:'presentacion',uso:'presentacion',de_fabrica:true,
    origen_nl:'maqueta blanca con aristas finas y perfil, sombra suave y oclusión ambiental',
-   caras:{modo:'blanco'},aristas:{ver:true,grosor:1.0,color:{fuente:'bn'}},perfiles:{ver:true,grosor:1.5},
+   caras:{modo:'blanco'},aristas:{ver:true,grosor:0.5,color:{fuente:'bn'}},perfiles:{ver:true,grosor:0.5},
    iluminacion:{sol:75,ambiental:58,dureza_sombra:45},
    sombra_arrojada:{activo:true,modo:'manual',azimut:220,altitud:48},
    oclusion_ambiental:{activo:true,intensidad:72,radio:45},
@@ -1111,7 +1111,30 @@ function applyHiddenPattern(){ const dp=(styleHidPat==='discontinuo')?{d:3.0,g:2
   for(const n in pieces){const ud=pieces[n].userData;
     if(ud.edgesHid){ud.edgesHid.material.dashSize=dp.d; ud.edgesHid.material.gapSize=dp.g; ud.edgesHid.material.needsUpdate=true;}
     if(ud.silh&&ud.silh.lineHid){ud.silh.lineHid.material.dashSize=dp.d; ud.silh.lineHid.material.gapSize=dp.g; ud.silh.lineHid.material.needsUpdate=true;}} }
+// NEUTRO del estilo: valor por defecto de CADA variable que gobierna un estilo.
+// Al aplicar un estilo se fusiona ENCIMA de esto, de modo que un campo OMITIDO en el
+// descriptor vuelve a su neutro en vez de arrastrar el estado del estilo anterior.
+// (Fin de las fugas: los perfiles gruesos del Boceto, la oclusión ambiental, la
+//  sombra del sol, el suelo, el grosor de aristas… ya no se quedan pegados.)
+function styleDefaults(){ return {
+  caras:{modo:'consistente',opacidad:1},
+  aristas:{ver:true,grosor:0.5,color:{fuente:'bn'}},
+  perfiles:{ver:false,grosor:0.5},
+  fuente_color:{modo:'bn'},
+  fondo:{modo:'claro'},
+  materiales:{texturas:false},
+  iluminacion:{sol:80,ambiental:55,dureza_sombra:55},
+  sombra_arrojada:{activo:false,modo:'manual',azimut:135,altitud:45},
+  oclusion_ambiental:{activo:false,intensidad:60,radio:50},
+  suelo:{ver:false,color:'#eaecee',malla:{ver:false,auto:true}},
+  ocultos:{ver:false} }; }
+function _deepMerge(base, over){ if(over===undefined||over===null)return base;
+  if(typeof over!=='object'||Array.isArray(over))return over;
+  const out=(base&&typeof base==='object'&&!Array.isArray(base))?Object.assign({},base):{};
+  for(const k in over)out[k]=_deepMerge(out[k], over[k]);
+  return out; }
 function applyStyle(st){ if(!st)return;
+  st=_deepMerge(styleDefaults(), st);   // rellena todo campo omitido con su NEUTRO → aplicar un estilo resetea el estado por completo
   if(st.familia==='tecnico'||st.familia==='presentacion')styleFamily=st.familia;
   if(st.caras&&st.caras.modo)viewMode=viewFromCarasModo(st.caras.modo);
   if(st.ocultos&&st.ocultos.ver===true)viewMode='oculto';
@@ -4322,9 +4345,16 @@ function solarAzAlt(){   // modo geo: fecha/hora/lugar → azimut/altitud (NOAA 
   let az=Math.atan2(Math.sin(ha), Math.cos(ha)*Math.sin(lat)-Math.tan(decl)*Math.cos(lat));   // desde el Sur
   az=(az*180/Math.PI+180+360)%360;   // → desde el Norte, horario
   return {az, alt:Math.max(0,alt)}; }
-function fitSunShadow(){ if(!sol)return; const scam=sol.shadow.camera, rad=Math.max(R,1);
-  scam.left=-rad; scam.right=rad; scam.top=rad; scam.bottom=-rad; scam.near=0.5; scam.far=rad*8; scam.updateProjectionMatrix();
-  sol.shadow.bias=-0.00015; sol.shadow.normalBias=Math.max(0.9,R*0.016); }   // normalBias mayor: elimina el moteado (acné VSM) en superficies curvas tangentes al sol
+const _sunSph=new THREE.Sphere();
+function fitSunShadow(){ if(!sol)return; const scam=sol.shadow.camera;
+  // FRUSTUM CEÑIDO a la esfera real del modelo (no al R holgado): más densidad de téxeles
+  // → sombras más nítidas y menos acné SIN subir el bias a lo bruto (que despega la sombra
+  // de contacto = peter-panning, y es justo lo que ocultaba la sombra pieza-sobre-pieza).
+  bbox.getBoundingSphere(_sunSph); const rad=Math.max(_sunSph.radius*1.06, 1);
+  scam.left=-rad; scam.right=rad; scam.top=rad; scam.bottom=-rad; scam.near=0.5; scam.far=Math.max(R,1)*8; scam.updateProjectionMatrix();
+  // bias MODERADO (antes 1.6mm ≈ peter-panning). Con el frustum ceñido + 4096 en escritorio,
+  // este valor mata el grueso del acné sin despegar la sombra de contacto entre piezas.
+  sol.shadow.bias=-0.00008; sol.shadow.normalBias=Math.max(0.35, rad*0.008); }
 function duraToRadius(d){ return 0.6 + (100-_clamp(d,0,100))/100 * 13; }   // dureza 100→~0.6 (dura) · 0→~13.6 (penumbra suave)
 function applySombra(){ if(!sol)return;
   if(sombraModo==='geo'){ const s=solarAzAlt(); sunAz=s.az; sunAlt=s.alt; }
@@ -4333,9 +4363,13 @@ function applySombra(){ if(!sol)return;
   sol.shadow.radius=duraToRadius(sunDureza);   // penumbra (VSM); en PCFSoft ajusta el desenfoque del muestreo
   const soft=(100-_clamp(sunDureza,0,100))/100;   // 0 dura … 1 suave: a más suave, relleno un pelín mayor (sombra propia menos dura)
   if(sombraOn){ sol.visible=true; sol.castShadow=true;
-    sol.intensity=0.35+0.005*_clamp(ilumSol,0,100);   // el sol = luz CLAVE (lado iluminado); algo menos dominante para que el relleno lea
-    hemi.intensity=0.35+0.004*_clamp(ilumAmb,0,100)+0.10*soft;   // HEMISFERIO = ambiente direccional (cielo↑ claro, suelo↓ oscuro)
-    amb.intensity=0.08; dl.intensity=0.08; dl2.intensity=0.05; camFill.intensity=0.42;   // relleno de cámara: revela la curvatura de la cara frontal
+    // Con sombra ACTIVA: el sol es la luz CLAVE y el relleno BAJA, para que las sombras
+    // (propias, de contacto y pieza-sobre-pieza) LEAN como en SketchUp. Antes el relleno
+    // (hemisferio 0.55 + relleno de cámara 0.42 + ambiente) las lavaba hasta hacerlas
+    // invisibles aunque SÍ se calculaban. La vista base (sin sombra) no cambia.
+    sol.intensity=0.62+0.006*_clamp(ilumSol,0,100);   // sol dominante (clave)
+    hemi.intensity=0.16+0.003*_clamp(ilumAmb,0,100)+0.06*soft;   // hemisferio contenido (cielo↑/suelo↓)
+    amb.intensity=0.05; dl.intensity=0.05; dl2.intensity=0.03; camFill.intensity=0.16;   // relleno mínimo: revela la curvatura sin borrar la sombra
   } else { sol.visible=false; sol.castShadow=false; sol.intensity=0;
     amb.intensity=.28; hemi.intensity=.55; dl.intensity=.5; dl2.intensity=.2; camFill.intensity=.25; }   // base (con hemisferio + relleno de cámara suave)
   renderer.shadowMap.autoUpdate=sombraOn; renderer.shadowMap.needsUpdate=true; }
