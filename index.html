@@ -185,7 +185,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.28 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.29 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -685,7 +685,9 @@ MESHES.forEach(m=>{
       shadowSide:THREE.BackSide,   // ACNÉ DE AUTO-SOMBRA: el material es DoubleSide, así que al mapa de sombra
       transparent:true,opacity:1,metalness:0,roughness:.9,depthFunc:THREE.LessEqualDepth,   // se renderizan las caras TRASERAS → la cara iluminada deja de auto-sombrearse (Cowork)
       polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));   // mate (no plástico): sin especular que simule reflejos curvos
-  mesh.name=m.name; scene.add(mesh); pieces[m.name]=mesh; pickables.push(mesh); bbox.expandByObject(mesh);
+  mesh.name=m.name;
+  if(/^(2 cuello|3 garganta|4 palanca)/.test(m.name))mesh.position.x=-3;   // ALINEA el eje del cuello (piezas 2/3/4, horneadas en X=3) con el CENTRO de la roseta y el origen (X=0)
+  scene.add(mesh); pieces[m.name]=mesh; pickables.push(mesh); bbox.expandByObject(mesh);
   mesh.castShadow=true; mesh.receiveShadow=true;   // Fase B1: cada pieza arroja y recibe sombra (contacto entre piezas + suelo)
   mesh.userData.baseColor=new THREE.Color(m.color).getHex();
   mesh.userData.matShaded=mesh.material;

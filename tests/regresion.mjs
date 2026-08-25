@@ -811,7 +811,7 @@ const secciones = {
       const m = D.pieces['4 palanca'];
       D.select('pieza', m, 'p'); D.updateGizmo(); await frame();
       const g = D.gizmo.position;
-      const pieza = Math.abs(g.x - 53) < 1 && Math.abs(g.y - 48) < 1 && Math.abs(g.z) < 1;
+      const pieza = Math.abs(g.x - 50) < 1 && Math.abs(g.y - 48) < 1 && Math.abs(g.z) < 1;   // palanca alineada: centro real X=50 (antes 53, −3 al alinear el cuello con la roseta)
       D.deselect(); await frame();
       const st = { points: [[0, 0, 0], [2, 0, 0], [100, 0, 20]], color: '#000', w: 0.2, sobre: 't' };
       D.strokes.push(st); D.redraw(); D.select('trazo', st, 't'); D.updateGizmo(); await frame();
