@@ -1765,6 +1765,32 @@ const secciones = {
     ok('bloqueo del plano se guarda y se recupera', r.exporta && r.importa);
   },
 
+  async riqueza_tonos() {   // las caras del prisma (pieza 4) deben leer con tonos DISTINTOS (no todas quemadas a blanco)
+    const pts = await page.evaluate(() => {
+      const D = window._dbg, T = window.THREE;
+      D.applyStyle(D.FACTORY_STYLES.find(s => s.nombre === 'estilo.maqueta_blanca'));   // sol del preset (az220 alt48)
+      D.setView(-1.05, 1.15);
+      const m = D.pieces['4 palanca']; m.updateMatrixWorld(); m.geometry.computeBoundingBox();
+      const bb = m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld), cx = (bb.min.x + bb.max.x) / 2;
+      const top = new T.Vector3(cx, (bb.min.y + bb.max.y) / 2, bb.max.z);
+      const end = new T.Vector3(bb.max.x, (bb.min.y + bb.max.y) / 2, (bb.min.z + bb.max.z) / 2);
+      const toS = p => { const v = p.clone().project(D.cam); const dpr = window.devicePixelRatio || 1;
+        return [Math.round((v.x * 0.5 + 0.5) * D.renderer.domElement.width / dpr), Math.round((-v.y * 0.5 + 0.5) * D.renderer.domElement.height / dpr)]; };
+      D.renderer.shadowMap.needsUpdate = true;
+      return { top: toS(top), end: toS(end) };
+    });
+    await new Promise(r => setTimeout(r, 300));
+    const px = await page.evaluate((pts) => {
+      const cv = window._dbg.renderer.domElement, c = document.createElement('canvas');
+      c.width = cv.width; c.height = cv.height; const x = c.getContext('2d'); x.drawImage(cv, 0, 0);
+      const dpr = window.devicePixelRatio || 1;
+      const samp = ([sx, sy]) => { let s = 0, n = 0; for (let dx = -5; dx <= 5; dx += 5) for (let dy = -5; dy <= 5; dy += 5) { const d = x.getImageData((sx + dx) * dpr, (sy + dy) * dpr, 1, 1).data; s += (d[0] + d[1] + d[2]) / 3; n++; } return s / n; };
+      return { top: samp(pts.top), end: samp(pts.end) };
+    }, pts);
+    // la cara superior (al sol) debe ser CLARAMENTE más clara que la testa (en sombra): sin esto = todas quemadas a blanco (bug v7.05)
+    ok('riqueza de tonos: las caras del prisma se diferencian (superior ≫ testa)', (px.top - px.end) > 25);
+  },
+
   async estilos_sin_fuga() {   // aplicar un estilo RESETEA todo: ningún rasgo del anterior se queda pegado
     const r = await page.evaluate(() => {
       const D = window._dbg, out = {};
