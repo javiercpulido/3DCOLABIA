@@ -176,7 +176,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.23 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.24 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -4585,8 +4585,12 @@ function ensureAO(){
     const quad=new THREE.Mesh(new THREE.PlaneGeometry(2,2),ssaoMat); quad.frustumCulled=false; aoScene.add(quad);
     o={ ssaoMat, blurMat, compMat, scene:aoScene, cam:aoCam, quad, kernel, noiseTex };
   }
-  const depth=new THREE.DepthTexture(w,h); depth.type=THREE.UnsignedIntType;
-  o.beauty=new THREE.WebGLRenderTarget(w,h,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthTexture:depth,depthBuffer:true,stencilBuffer:false});
+  // El target «beauty» DEBE llevar STENCIL: el poché de sección se dibuja con máscara de
+  // stencil (paridad de caras del sólido). Sin stencil, al renderizar la escena aquí (ruta AO,
+  // p. ej. maqueta blanca) la tapa del poché no se enmascara y rellena TODO el rectángulo.
+  // Profundidad + stencil combinados → DEPTH24_STENCIL8 (la profundidad se sigue leyendo en .x).
+  const depth=new THREE.DepthTexture(w,h); depth.type=THREE.UnsignedInt248Type; depth.format=THREE.DepthStencilFormat;
+  o.beauty=new THREE.WebGLRenderTarget(w,h,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthTexture:depth,depthBuffer:true,stencilBuffer:true});
   const rtOpt={minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthBuffer:false,stencilBuffer:false};
   o.aoA=new THREE.WebGLRenderTarget(w,h,rtOpt); o.aoB=new THREE.WebGLRenderTarget(w,h,rtOpt);
   o.w=w; o.h=h; _ao=o;
@@ -7167,7 +7171,7 @@ computeIntersections,snapPt,midByArc,get lineW(){return lineW},
 get faceRef(){return faceRef},get frame(){return {on:frameOn,Rface}},get pickables(){return pickables},
 datumOrigin,updateCoordHud,get datumLbl(){return datumLbl},get axesObj(){return axes},
 updateSurfPop,surfPopCreate,booleanSolids,meshToCSG,get color(){return color},get groundLaserOn(){return groundLaserOn},setSuelo,setSueloZ,get sueloMesh(){return sueloMesh},get sueloZ(){return sueloZ},get gizMode(){return gizMode},get sph(){return sph},get target(){return target},updCam,setView,setGrid,get gridOn(){return gridOn},get gridMesh(){return gridMesh},
-setSombra,setSunAz,setSunAlt,setSombraModo,setDureza,applySombra,solarAzAlt,duraToRadius,get sombraOn(){return sombraOn},get sombraModo(){return sombraModo},get sunAz(){return sunAz},get sunAlt(){return sunAlt},get sunDureza(){return sunDureza},get sol(){return sol},get renderer(){return renderer},
+setSombra,setSunAz,setSunAlt,setSombraModo,setDureza,applySombra,solarAzAlt,duraToRadius,get sombraOn(){return sombraOn},get sombraModo(){return sombraModo},get sunAz(){return sunAz},get sunAlt(){return sunAlt},get sunDureza(){return sunDureza},get sol(){return sol},get renderer(){return renderer},get _ao(){return _ao},
 setAO,setAOIntensidad,setAORadio,renderAO,ensureAO,get aoOn(){return aoOn},get aoIntensidad(){return aoIntensidad},get aoRadio(){return aoRadio},get aoReady(){return !!_ao},
 get edgePx(){return edgePx},setEdgePx,fatLine,buildPlaneMag,get HAIRLINE(){return HAIRLINE},
 filletStart,filletStop,filletApplyAll,computeFilletCorners,applyFilletCorner,filletArc,setFilletR,get filletR(){return filletR},get filletMarkers(){return filletMarkers},

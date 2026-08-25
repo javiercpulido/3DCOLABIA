@@ -1950,6 +1950,29 @@ const secciones = {
     ok('editor+teclado: al cerrarse el teclado, el editor vuelve a su posición', r.restaurado);
   },
 
+  async poche_ao_stencil() {   // el poché de sección no se desborda a un rectángulo cuando el AO está activo (maqueta blanca)
+    const r = await page.evaluate(async () => {
+      const D = window._dbg, T = window.THREE;
+      const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      // maqueta blanca enciende el AO
+      D.applyStyle(D.FACTORY_STYLES.find(s => s.nombre === 'estilo.maqueta_blanca'));
+      // una sección que corta las piezas (centro = caja envolvente de las piezas)
+      const bb = new T.Box3(); for (const n in D.pieces) bb.expandByObject(D.pieces[n]);
+      const c = bb.getCenter(new T.Vector3());
+      const s = D.newSectionObj('AOQA', c, new T.Vector3(1, 0, 0), false);
+      D.activateSection(s); D.applySec(); D.updatePoche();
+      await frame(); await frame();   // fuerza la ruta renderAO() → construye _ao
+      const b = D._ao && D._ao.beauty;
+      return { aoOn: D.aoOn, cuts: D.activeCutsN,
+        beautyExiste: !!b,
+        conStencil: !!(b && b.stencilBuffer === true),
+        depthStencil: !!(b && b.depthTexture && b.depthTexture.format === T.DepthStencilFormat) };
+    });
+    ok('poché+AO: la ruta AO se activa con maqueta blanca y hay sección', r.aoOn && r.cuts === 1 && r.beautyExiste);
+    ok('poché+AO: el target «beauty» del AO lleva STENCIL (el poché no se desborda)', r.conStencil);
+    ok('poché+AO: profundidad+stencil combinados (DEPTH24_STENCIL8)', r.depthStencil);
+  },
+
   async estilos_caras_roundtrip() {   // el modo de Caras (p. ej. «Blanco») de un estilo personalizado se conserva al Sustituir, cambiar de estilo y volver
     const r = await page.evaluate(() => {
       const D = window._dbg, out = {};
