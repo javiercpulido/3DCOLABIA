@@ -1820,6 +1820,32 @@ const secciones = {
     ok('estilo: "Maqueta blanca con aristas" grosor 0,5 por defecto (aristas y perfiles)', r.grosor05);
   },
 
+  async estilos_boton_modo() {   // los botones de MODO (Sombreado/Blanco/…) dan vista LIMPIA: no arrastran AO/sombra/suelo de la maqueta
+    const r = await page.evaluate(() => {
+      const D = window._dbg, out = {};
+      const clickMode = vm => { const menu = document.getElementById('vmodes'); menu.style.display = 'flex'; menu.querySelector('[data-m="' + vm + '"]').click(); };
+      // maqueta blanca (AO+sombra+suelo ON) → botón "Sombreado" debe dejar todo OFF
+      D.applyStyle(D.FACTORY_STYLES.find(s => s.nombre === 'estilo.maqueta_blanca'));
+      out.maqAO = D.aoOn === true && D.sombraOn === true;   // precondición: la maqueta los enciende
+      clickMode('somb');
+      const cs = D.currentStyle();
+      out.limpio = D.aoOn === false && D.sombraOn === false && cs.oclusion_ambiental.activo === false && cs.sombra_arrojada.activo === false && cs.suelo.ver === false;
+      out.vmSomb = D.viewMode === 'somb';
+      // maqueta con aristas (perfiles ON) → botón "Blanco" debe apagar perfiles
+      D.applyStyle(D.FACTORY_STYLES.find(s => s.nombre === 'estilo.maqueta_blanca_aristas'));
+      clickMode('blanco');
+      out.perfLimpio = D.currentStyle().perfiles.ver === false && D.viewMode === 'blanco';
+      // cada modo cae en su viewMode; Oculto enciende líneas ocultas
+      const modos = ['somb', 'blanco', 'wire', 'xray', 'tecnico', 'oculto'];
+      out.modos = modos.every(m => { clickMode(m); return D.viewMode === m; });
+      clickMode('oculto'); out.ocultoHid = D.currentStyle().ocultos && D.currentStyle().ocultos.ver === true;
+      return out;
+    });
+    ok('botón de modo: "Sombreado" tras maqueta deja AO/sombra/suelo apagados (vista limpia)', r.maqAO && r.limpio && r.vmSomb);
+    ok('botón de modo: "Blanco" tras maqueta con aristas apaga los perfiles', r.perfLimpio);
+    ok('botón de modo: cada modo cae en su vista (incl. Técnico/Oculto) y Oculto enciende ocultas', r.modos && r.ocultoHid);
+  },
+
   async estilos_sin_fuga_pixel() {   // PÍXELES: cambiar de estilo restaura la imagen EXACTA (no solo el descriptor)
     const diff = await page.evaluate(async () => {
       const D = window._dbg;
