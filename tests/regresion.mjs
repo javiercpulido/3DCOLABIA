@@ -1851,7 +1851,42 @@ const secciones = {
     ok('estilo: eliminar un personalizado (fábrica intacta)', r.eliminado && r.fabricaIntacta);
   },
 
-  async estilos_boton_modo() {   // los botones de MODO (Sombreado/Blanco/…) dan vista LIMPIA: no arrastran AO/sombra/suelo de la maqueta
+  async estilos_caras_roundtrip() {   // el modo de Caras (p. ej. «Blanco») de un estilo personalizado se conserva al Sustituir, cambiar de estilo y volver
+    const r = await page.evaluate(() => {
+      const D = window._dbg, out = {};
+      const cm = v => document.querySelector('#stylepop .stgl[data-cm="' + v + '"]').click();
+      const cmOn = () => [...document.querySelectorAll('#stylepop .stgl[data-cm].on')].map(b => b.dataset.cm);
+      // crear estilo personalizado con Caras = Blanco desde el editor
+      document.getElementById('stylePerso').click();
+      cm('blanco');
+      document.getElementById('styleOpac').value = 40;
+      document.getElementById('styleOpac').dispatchEvent(new Event('input', { bubbles: true }));
+      document.getElementById('styleName').value = 'Color Sólido Gris Transp';
+      document.getElementById('styleSave').click();
+      const t0 = D.savedStyles.find(s => s.nombre === 'Color Sólido Gris Transp');
+      out.guardado = !!t0 && t0.caras.modo === 'blanco';
+      // Sustituir tras volver a marcar Blanco
+      cm('blanco');
+      document.getElementById('styleReplace').click();
+      out.sustituido = D.savedStyles.find(s => s.nombre === 'Color Sólido Gris Transp').caras.modo === 'blanco';
+      // ir a OTRO estilo y VOLVER al personalizado
+      D.applyStyle(D.FACTORY_STYLES.find(s => s.nombre === 'estilo.tecnico_bn') || D.FACTORY_STYLES[0]);
+      const idx = D.savedStyles.findIndex(s => s.nombre === 'Color Sólido Gris Transp');
+      D.applyStyle(D.savedStyles[idx]);
+      out.vmVuelta = D.viewMode === 'blanco';
+      // reabrir el editor: el botón de Caras marcado debe seguir siendo Blanco
+      D.openStyleEditor(idx);
+      out.cmVuelta = cmOn().length === 1 && cmOn()[0] === 'blanco';
+      out.opVuelta = document.getElementById('styleOpac').value === '40';   // opacidad (Gris Transp) restaurada en el editor
+      return out;
+    });
+    ok('estilo: Caras=Blanco de un personalizado se guarda', r.guardado);
+    ok('estilo: Caras=Blanco se conserva al Sustituir', r.sustituido);
+    ok('estilo: al cambiar de estilo y volver, la vista sigue en Blanco', r.vmVuelta);
+    ok('estilo: el editor reabierto marca Blanco (no se pierde el «basado en Blanco») + opacidad', r.cmVuelta && r.opVuelta);
+  },
+
+  async estilos_boton_modo() {   // los botones de MODO (Color Sólido/Blanco/…) dan vista LIMPIA: no arrastran AO/sombra/suelo de la maqueta
     const r = await page.evaluate(() => {
       const D = window._dbg, out = {};
       const clickMode = vm => { const menu = document.getElementById('vmodes'); menu.style.display = 'flex'; menu.querySelector('[data-m="' + vm + '"]').click(); };
