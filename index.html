@@ -159,7 +159,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.05 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.06 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -4369,9 +4369,9 @@ function applySombra(){ if(!sol)return;
     // (propias, de contacto y pieza-sobre-pieza) LEAN como en SketchUp. Antes el relleno
     // (hemisferio 0.55 + relleno de cámara 0.42 + ambiente) las lavaba hasta hacerlas
     // invisibles aunque SÍ se calculaban. La vista base (sin sombra) no cambia.
-    sol.intensity=0.60+0.006*_clamp(ilumSol,0,100);   // sol dominante (clave)
-    hemi.intensity=0.30+0.003*_clamp(ilumAmb,0,100)+0.05*soft;   // hemisferio MODERADO: el lado en sombra del cilindro queda gris suave, NO negro
-    amb.intensity=0.10; dl.intensity=0.12; dl2.intensity=0.08; camFill.intensity=0.28;   // relleno que revela la curvatura sin lavar la sombra arrojada
+    sol.intensity=0.35+0.006*_clamp(ilumSol,0,100);   // sol = luz CLAVE, pero SIN quemar: a intensidad alta todas las caras saturaban a blanco y se perdía la riqueza de tonos por cara
+    hemi.intensity=0.34+0.004*_clamp(ilumAmb,0,100)+0.05*soft;   // HEMISFERIO fuerte = gradiente cielo↑/suelo↓ → cada cara del prisma coge un tono distinto (lo que da la riqueza). Mantiene el lado en sombra del cilindro gris, no negro.
+    amb.intensity=0.06; dl.intensity=0.06; dl2.intensity=0.04; camFill.intensity=0.06;   // relleno PLANO mínimo: el relleno omnidireccional (sobre todo el de cámara) aplana el contraste entre caras y borra la riqueza de tonos, así que se reduce al mínimo
   } else { sol.visible=false; sol.castShadow=false; sol.intensity=0;
     amb.intensity=.28; hemi.intensity=.55; dl.intensity=.5; dl2.intensity=.2; camFill.intensity=.25; }   // base (con hemisferio + relleno de cámara suave)
   renderer.shadowMap.autoUpdate=sombraOn; renderer.shadowMap.needsUpdate=true; }
