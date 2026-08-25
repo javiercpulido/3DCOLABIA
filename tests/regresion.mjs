@@ -1820,6 +1820,30 @@ const secciones = {
     ok('estilo: "Maqueta blanca con aristas" grosor 0,5 por defecto (aristas y perfiles)', r.grosor05);
   },
 
+  async estilos_sin_fuga_pixel() {   // PÍXELES: cambiar de estilo restaura la imagen EXACTA (no solo el descriptor)
+    const diff = await page.evaluate(async () => {
+      const D = window._dbg;
+      const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      D.setView(-0.6, 1.2); await frame();
+      const cv = D.renderer.domElement;
+      const grab = () => { const c = document.createElement('canvas'); c.width = cv.width; c.height = cv.height; const x = c.getContext('2d'); x.drawImage(cv, 0, 0); return x.getImageData(0, 0, c.width, c.height); };
+      const by = n => D.FACTORY_STYLES.find(s => s.nombre === n);
+      const MIN = { v:1, id:'5a1e0000-0000-4000-8000-0000000000fe', nombre:'MIN', familia:'presentacion', caras:{modo:'somb'} };
+      const SOMB = { v:1, id:'5a1e0000-0000-4000-8000-0000000000fd', nombre:'S', familia:'presentacion', caras:{modo:'somb'} };
+      const shot = async (pre, B) => { D.applyStyle(pre); await frame(); D.applyStyle(B); await frame(); await frame(); return grab(); };
+      const d = (a, b) => { let n = 0; for (let i = 0; i < a.data.length; i += 4) { if (Math.abs(a.data[i]-b.data[i]) + Math.abs(a.data[i+1]-b.data[i+1]) + Math.abs(a.data[i+2]-b.data[i+2]) > 24) n++; } return n / (a.width * a.height); };
+      // pen tras MIN vs pen tras maqueta_blanca (la que más enciende: AO, sombra, suelo, blanco)
+      const penClean = await shot(MIN, by('estilo.pen'));
+      const penAfterMaq = await shot(by('estilo.maqueta_blanca'), by('estilo.pen'));
+      // sombreado tras MIN vs sombreado tras boceto (perfiles gruesos)
+      const sombClean = await shot(MIN, SOMB);
+      const sombAfterBoc = await shot(by('estilo.boceto'), SOMB);
+      return { pen: d(penClean, penAfterMaq), somb: d(sombClean, sombAfterBoc) };
+    });
+    ok('estilo (píxeles): maqueta→pen restaura la imagen idéntica a pen limpio', diff.pen < 0.003);
+    ok('estilo (píxeles): boceto→sombreado restaura la imagen idéntica a sombreado limpio', diff.somb < 0.003);
+  },
+
   async estilos_carga_limpia() {   // EXHAUSTIVO: aplicar un estilo tras uno MÁXIMO (todo ON) = aplicarlo en limpio (cero herencia)
     const r = await page.evaluate(() => {
       const D = window._dbg;
