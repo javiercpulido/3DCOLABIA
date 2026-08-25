@@ -159,7 +159,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.11 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.12 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -1179,6 +1179,7 @@ function applyStyle(st){ if(!st)return;
   syncStyleFamily(); syncStylePanel(); }
 function renderSavedStyles(){ const c=document.getElementById('vstyles'); if(!c)return; c.innerHTML='';
   savedStyles.forEach((st,i)=>{ if(st.familia&&st.familia!==styleFamily)return;
+    if(st.de_fabrica&&st.nombre==='estilo.boceto')return;   // Boceto a mano OCULTO por ahora (sigue en el código, no se muestra)
     const w=document.createElement('span'); w.className='strow';
     const b=document.createElement('button'); b.textContent=styleLabel(st);
     b.dataset.style=String(i); if(st.de_fabrica)b.dataset.fab='1'; b.title='Aplicar «'+styleLabel(st)+'»';
