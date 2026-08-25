@@ -1074,11 +1074,12 @@ const secciones = {
   async marco_local() {   // la manilla es un COMPONENTE: marco local, no datum de edificio
     const r = await page.evaluate(() => {
       const D = window._dbg, out = {};
-      // origen del componente en (0,0,0) = eje del cuadradillo ∩ cara de montaje
+      // origen del componente = eje del cuadradillo ∩ cara de montaje: centrado en la roseta (X,Z)
+      // y en la cara que apoya en la puerta (Y de la puerta, no la cara del cuello)
       const o = D.datumOrigin();
-      out.origen0 = Math.abs(o.x) < 1e-9 && Math.abs(o.y) < 1e-9 && Math.abs(o.z) < 1e-9;
+      out.origen0 = Math.abs(o.x) < 1e-6 && Math.abs(o.z) < 1e-6 && o.y < 0;
       // los ejes de color nacen en el origen local (no en una esquina del suelo)
-      out.ejesEnOrigen = D.axesObj.position.length() < 1e-9;
+      out.ejesEnOrigen = D.axesObj.position.distanceTo(o) < 1e-6;
       // referencia visible del marco (cara de montaje + eje) y su ojo
       const eye = document.querySelector('[data-frame-eye]');
       out.eyeExiste = !!eye && !!D.faceRef;
@@ -1103,7 +1104,7 @@ const secciones = {
       out.fueraExport = !/faceref|cara de montaje|marco local|rejilla/i.test(json);   // 'suelo' ya es campo legítimo del estilo (plano base de apoyo)
       return out;
     });
-    ok('componente: origen local en (0,0,0), ejes ahí', r.origen0 && r.ejesEnOrigen);
+    ok('componente: origen local en el centro de la roseta (cara de montaje), ejes ahí', r.origen0 && r.ejesEnOrigen);
     ok('referencia de cara de montaje: ojo ver/ocultar', r.eyeExiste && r.visible0 && r.oculto && r.visible1);
     ok('cara de montaje con radio de la roseta', r.rface);
     ok('sin suelo/rejilla de edificio ni Altura/Mover', r.sinSuelo);
@@ -1849,6 +1850,22 @@ const secciones = {
     ok('estilo: los de fábrica NO se pueden eliminar (botón oculto)', r.delHiddenFactory);
     ok('estilo: sustituir (reescribir) un personalizado', r.sustituido);
     ok('estilo: eliminar un personalizado (fábrica intacta)', r.eliminado && r.fabricaIntacta);
+  },
+
+  async origen_marco_local() {   // el origen (0,0,0) = centro de la roseta en la CARA DE MONTAJE (la que toca la puerta)
+    const r = await page.evaluate(() => {
+      const D = window._dbg, T = window.THREE;
+      const o = window.datumOrigin();
+      // roseta: centro X/Z y sus caras Y
+      const key = Object.keys(D.pieces).find(n => /roseta/i.test(n));
+      const m = D.pieces[key]; m.updateMatrixWorld(); m.geometry.computeBoundingBox();
+      const bb = m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld);
+      const cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2;
+      // la manilla crece hacia +Y → cara de montaje = min Y de la roseta
+      return { o: [o.x, o.y, o.z], cx, cz, doorY: bb.min.y, frontY: bb.max.y };
+    });
+    ok('origen: centrado en la roseta (X,Z)', Math.abs(r.o[0] - r.cx) < 0.01 && Math.abs(r.o[2] - r.cz) < 0.01);
+    ok('origen: en la cara de montaje (Y de la puerta, no la cara del cuello)', Math.abs(r.o[1] - r.doorY) < 0.01 && r.doorY < r.frontY);
   },
 
   async estilos_renombrar() {   // Renombrar cambia SOLO el nombre (no reescribe el resto del descriptor) y no duplica

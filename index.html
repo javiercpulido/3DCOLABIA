@@ -176,7 +176,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.24 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.25 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -1464,7 +1464,24 @@ let axes=new THREE.AxesHelper(40); scene.add(axes);
 // nacen los ejes de color y desde ahí se leen las coordenadas LOCALES (X, Z en la
 // cara · Y = profundidad a lo largo del cuadradillo, el eje de giro). No cambia
 // las coordenadas internas del modelo; es sólo la referencia visible.
-function datumOrigin(){return new THREE.Vector3(0,0,0);}
+// El origen (0,0,0 local) = eje del cuadradillo ∩ CARA DE MONTAJE de la roseta (la que toca la
+// puerta). Se calcula desde la geometría: centro X/Z de la roseta y su cara Y OPUESTA a la
+// manilla (cuello/palanca), que es la que apoya en la puerta. Robusto ante la orientación.
+let _datumPos=new THREE.Vector3(0,0,0);
+function computeDatum(){
+  let ros=null; for(const n in pieces){ if(/roseta/i.test(n)){ros=pieces[n];break;} }
+  if(!ros){ _datumPos.set(0,0,0); return; }
+  ros.updateMatrixWorld(); ros.geometry.computeBoundingBox();
+  const bb=ros.geometry.boundingBox.clone().applyMatrix4(ros.matrixWorld);
+  const cx=(bb.min.x+bb.max.x)/2, cz=(bb.min.z+bb.max.z)/2, cyR=(bb.min.y+bb.max.y)/2;
+  let sy=0,k=0; for(const n in pieces){ if(/roseta/i.test(n))continue; const m=pieces[n];
+    m.updateMatrixWorld(); m.geometry.computeBoundingBox();
+    const b=m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld); sy+=(b.min.y+b.max.y)/2; k++; }
+  const handleY=k?sy/k:cyR+1;                       // hacia dónde crece la manilla
+  const doorY=(handleY>=cyR)?bb.min.y:bb.max.y;     // la puerta apoya en la cara OPUESTA a la manilla
+  _datumPos.set(cx,doorY,cz);
+}
+function datumOrigin(){return _datumPos.clone();}
 let _axesOn=true;
 // PUNTO DE INSERCIÓN: marcador rojo limpio (tipo BIM) en el origen local, en vez del texto "0".
 // F1.5-HOOK: cuando la manilla sea un elemento BIM anidado, ESTE punto = su punto de inserción
@@ -1480,6 +1497,7 @@ let datumLbl=(function(){
   sp.userData.aspect=1; sp.renderOrder=13; scene.add(sp); return sp;
 })();
 function applyDatum(){
+  computeDatum();                                   // recalcula el origen desde la roseta (cara de montaje)
   const o=datumOrigin();
   axes.position.copy(o); axes.visible=_axesOn;
   datumLbl.position.copy(o); datumLbl.visible=_axesOn&&frameOn;   // el punto se sitúa EXACTO en el origen (0,0,0)
@@ -1489,12 +1507,12 @@ function updateDatumLabelScale(){const s=26*wppAt(datumLbl.position); datumLbl.s
 // componente; Y = profundidad desde la cara de montaje, el eje del cuadradillo)
 function updateCoordHud(e){
   if(e.target!==renderer.domElement)return;   // sólo sobre el lienzo
-  ndc(e); let p=null;
+  ndc(e); let p=null; const o=datumOrigin();
   const hits=ray.intersectObjects(pickables.filter(x=>x.visible),false);
   if(hits.length)p=hits[0].point;
-  else{const pl=new THREE.Plane(new THREE.Vector3(0,1,0),0); p=ray.ray.intersectPlane(pl,new THREE.Vector3());}   // plano de la cara de montaje (Y=0)
+  else{const pl=new THREE.Plane(new THREE.Vector3(0,1,0),-o.y); p=ray.ray.intersectPlane(pl,new THREE.Vector3());}   // plano de la cara de montaje (Y del origen)
   if(!p)return;
-  document.getElementById('hud').textContent='local · X '+p.x.toFixed(1)+' · Y '+p.y.toFixed(1)+' · Z '+p.z.toFixed(1)+' mm';
+  document.getElementById('hud').textContent='local · X '+(p.x-o.x).toFixed(1)+' · Y '+(p.y-o.y).toFixed(1)+' · Z '+(p.z-o.z).toFixed(1)+' mm';   // coordenadas relativas al origen (cara de montaje)
 }
 _datumReady=true; applyDatum();
 
