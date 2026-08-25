@@ -94,6 +94,11 @@
  #vstyles .strow button[data-style]{padding-right:6px}
  #vstyles .sedit{width:auto!important;padding:0 7px 0 4px!important;height:34px;color:var(--mut)!important;opacity:.55;display:inline-flex;align-items:center}
  #vstyles .sedit:hover,#vstyles .sedit:active{opacity:1;color:var(--acc)!important;background:transparent!important}
+ #styleMoreMenu .moreRow{display:flex;align-items:center;gap:1px}
+ #styleMoreMenu .moreApply{flex:1;text-align:left;border:0;background:transparent;color:var(--ink);border-radius:8px;padding:8px 10px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw}
+ #styleMoreMenu .moreApply:hover,#styleMoreMenu .moreApply:active{background:var(--acc);color:#fff}
+ #styleMoreMenu .sedit{width:auto;padding:0 8px;height:34px;color:var(--mut);opacity:.6;display:inline-flex;align-items:center;border:0;background:transparent;cursor:pointer}
+ #styleMoreMenu .sedit:hover,#styleMoreMenu .sedit:active{opacity:1;color:var(--acc)}
  #stylepop .stgl{border:1px solid rgba(0,0,0,.14);background:transparent;border-radius:7px;padding:5px 9px;font-size:12px;cursor:pointer;color:var(--ink)}
  #stylepop .stgl.on{background:var(--acc);color:#fff;border-color:transparent}
  .axbtn{width:30px!important}
@@ -159,7 +164,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.19 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.20 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -390,10 +395,12 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
 <div id="vmodes" class="pill" style="position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11;display:none;flex-direction:row;padding:5px;gap:2px">
  <button data-m="somb" class="on" title="Color sólido — color/material propio de cada pieza (texturas en Fase C)">Color Sólido</button><button data-m="blanco" title="Maqueta blanca (clay sombreado)">Blanco</button><button data-m="wire">Wire</button><button data-m="xray">X-Ray</button><button data-m="tecnico">Técnico</button><button data-m="oculto">Oculto</button>
  <span id="vstyles" style="display:contents"></span>
+ <button id="styleMore" title="Más estilos" style="display:none;font-size:17px;line-height:1;padding:0 10px">⋯</button>
  <span style="width:1px;align-self:stretch;background:rgba(0,0,0,.12);margin:2px 1px"></span>
  <button id="stylePerso" title="Personalizar el estilo y guardarlo">Personalizar…</button>
 </div>
-<div id="stylepop" class="pill" style="position:fixed;top:calc(120px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:16;display:none;flex-direction:column;gap:9px;padding:12px 14px;font-size:13px;min-width:230px;max-width:94vw">
+<div id="styleMoreMenu" class="pill" style="position:fixed;z-index:17;display:none;flex-direction:column;gap:2px;padding:6px;max-height:60dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;min-width:170px;max-width:80vw"></div>
+<div id="stylepop" class="pill" style="position:fixed;top:calc(112px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:16;display:none;flex-direction:column;gap:7px;padding:11px 13px;font-size:11.5px;min-width:230px;max-width:94vw;max-height:calc(100dvh - 128px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow-y:auto;-webkit-overflow-scrolling:touch">
  <div style="display:flex;align-items:center;gap:8px"><b style="font-size:13px;flex:1">Personalizar estilo</b><button id="styleClose" style="border:0;background:rgba(0,0,0,.06);border-radius:8px;padding:4px 8px;cursor:pointer">✕</button></div>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Familia
   <span style="margin-left:auto;display:flex;gap:3px">
@@ -462,12 +469,13 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
   <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
    <button class="stgl" data-ao="si">Sí</button><button class="stgl on" data-ao="no">No</button>
    <input id="aoInt" type="range" min="0" max="100" step="1" value="60" title="Intensidad del AO" style="width:70px"></span></label>
- <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
-  <input id="styleName" placeholder="Nombre del estilo" style="flex:1;font-size:13px;padding:6px 8px;border:1px solid #ddd;border-radius:8px">
+ <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:2px">
+  <input id="styleName" placeholder="Nombre del estilo" style="flex:1 1 120px;min-width:110px;font-size:12px;padding:6px 8px;border:1px solid #ddd;border-radius:8px">
+  <button id="styleRename" title="Cambiar solo el nombre (sin tocar el resto del estilo)" style="display:none;border:1px solid var(--mut);background:transparent;color:var(--ink);border-radius:8px;padding:7px 9px;font-weight:600;cursor:pointer">Renombrar</button>
   <button id="styleDelete" title="Eliminar este estilo personalizado" style="display:none;border:1px solid #e0534f;background:transparent;color:#e0534f;border-radius:8px;padding:7px 9px;font-weight:600;cursor:pointer">Eliminar</button>
-  <button id="styleReplace" style="display:none;border:1px solid var(--acc);background:transparent;color:var(--acc);border-radius:8px;padding:7px 10px;font-weight:600;cursor:pointer">Sustituir</button>
+  <button id="styleReplace" title="Reescribir este estilo con los ajustes actuales" style="display:none;border:1px solid var(--acc);background:transparent;color:var(--acc);border-radius:8px;padding:7px 10px;font-weight:600;cursor:pointer">Sustituir</button>
   <button id="styleSave" style="border:0;background:var(--acc);color:#fff;border-radius:8px;padding:7px 11px;font-weight:600;cursor:pointer">Guardar</button></div>
- <span style="font-size:11px;color:var(--mut)">Los cambios se ven en vivo. Guardar lo añade a los estilos de arriba.</span>
+ <span style="font-size:10.5px;color:var(--mut)">Los cambios se ven en vivo. <b>Renombrar</b> cambia solo el nombre · <b>Sustituir</b> reescribe el estilo · <b>Guardar</b> crea uno nuevo.</span>
 </div>
 <div id="drawmenu" class="pill" style="position:fixed;top:76px;left:12px;z-index:11;display:none;flex-direction:column;padding:7px;gap:5px;width:186px;max-width:64vw;font-size:12.5px;color:var(--ink)">
  <b style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Modo de lápiz</b>
@@ -958,7 +966,8 @@ function setDark(on){ darkView=!!on; if(!darkView)invView=false; applyTheme(); }
 function setInv(on){ invView=!!on; if(invView)darkView=true; applyTheme(); }
 vEye.onclick=()=>{const d=document.getElementById('vmodes');
   const show=(d.style.display==='none'||!d.style.display);
-  if(show)dropFromIcon(d,vEye); else d.style.display='none';};
+  const mm=document.getElementById('styleMoreMenu'); if(mm)mm.style.display='none';
+  if(show){dropFromIcon(d,vEye); layoutStyleOverflow();} else d.style.display='none';};
 document.getElementById('vmodes').addEventListener('click',e=>{
   const ed=e.target.closest('[data-style-edit]');
   if(ed){ openStyleEditor(+ed.dataset.styleEdit); return; }
@@ -1196,7 +1205,49 @@ function renderSavedStyles(){ const c=document.getElementById('vstyles'); if(!c)
     b.dataset.style=String(i); if(st.de_fabrica)b.dataset.fab='1'; b.title='Aplicar «'+styleLabel(st)+'»';
     const e=document.createElement('button'); e.className='sedit'; e.dataset.styleEdit=String(i); e.title='Editar «'+styleLabel(st)+'»';
     e.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
-    w.appendChild(b); w.appendChild(e); c.appendChild(w);}); }
+    w.appendChild(b); w.appendChild(e); c.appendChild(w);});
+  layoutStyleOverflow(); }
+// Los chips de estilo que no caben en la barra se recogen en el menú «⋯» (antes de Personalizar).
+function layoutStyleOverflow(){
+  const bar=document.getElementById('vmodes'), host=document.getElementById('vstyles'),
+        more=document.getElementById('styleMore'), menu=document.getElementById('styleMoreMenu');
+  if(!bar||!host||!more||!menu)return;
+  [...host.children].forEach(r=>r.style.display='');   // reinicia: todos visibles en la barra
+  more.style.display='none'; menu.style.display='none'; menu.innerHTML='';
+  if(bar.style.display==='none'||bar.offsetWidth===0)return;   // solo medimos con la barra visible (fixed → offsetParent es null, no sirve)
+  const limit=Math.min(window.innerWidth-14, window.innerWidth*0.96);
+  const rows=[...host.children]; const hidden=[];
+  for(let i=rows.length-1;i>=0;i--){
+    if(bar.offsetWidth<=limit)break;
+    rows[i].style.display='none'; hidden.unshift(rows[i]);   // oculta desde el final; unshift → orden ascendente
+    more.style.display='inline-flex';
+  }
+  if(!hidden.length)return;
+  hidden.forEach(r=>{
+    const bs=r.querySelector('[data-style]'), ed=r.querySelector('[data-style-edit]');
+    const row=document.createElement('div'); row.className='moreRow';
+    const a=document.createElement('button'); a.className='moreApply'; a.textContent=bs.textContent; a.dataset.style=bs.dataset.style; a.title='Aplicar «'+bs.textContent+'»';
+    const e=document.createElement('button'); e.className='sedit'; e.dataset.styleEdit=ed.dataset.styleEdit; e.title='Editar «'+bs.textContent+'»'; e.innerHTML=ed.innerHTML;
+    row.appendChild(a); row.appendChild(e); menu.appendChild(row);
+  }); }
+document.getElementById('styleMore').onclick=(ev)=>{ ev.stopPropagation();
+  const menu=document.getElementById('styleMoreMenu'), more=document.getElementById('styleMore');
+  if(menu.style.display==='flex'){menu.style.display='none';return;}
+  const r=more.getBoundingClientRect();
+  menu.style.display='flex'; menu.style.left='';
+  menu.style.top=(r.bottom+6)+'px';
+  const mw=menu.offsetWidth; let left=r.right-mw; if(left<8)left=8;
+  if(left+mw>window.innerWidth-8)left=window.innerWidth-8-mw;
+  menu.style.left=left+'px'; };
+document.getElementById('styleMoreMenu').addEventListener('click',e=>{
+  const menu=document.getElementById('styleMoreMenu');
+  const ed=e.target.closest('[data-style-edit]');
+  if(ed){ menu.style.display='none'; document.getElementById('vmodes').style.display='none'; openStyleEditor(+ed.dataset.styleEdit); return; }
+  const ap=e.target.closest('[data-style]');
+  if(ap){ menu.style.display='none'; document.getElementById('vmodes').style.display='none'; applyStyle(savedStyles[+ap.dataset.style]); } });
+window.addEventListener('resize',()=>{ const menu=document.getElementById('styleMoreMenu'); if(menu)menu.style.display='none'; layoutStyleOverflow(); });
+document.addEventListener('click',e=>{ const mm=document.getElementById('styleMoreMenu');
+  if(mm&&mm.style.display==='flex'&&!e.target.closest('#styleMoreMenu')&&!e.target.closest('#styleMore'))mm.style.display='none'; });
 function syncStyleFamily(){ document.querySelectorAll('#stylepop .stgl[data-fam]').forEach(b=>b.classList.toggle('on',b.dataset.fam===styleFamily)); }
 function syncStylePanel(){ syncStyleFamily();
   document.querySelectorAll('#stylepop .stgl[data-cm]').forEach(b=>b.classList.toggle('on',b.dataset.cm===viewMode));
@@ -1229,10 +1280,11 @@ function syncStylePanel(){ syncStyleFamily();
 function persistStyles(){ try{localStorage.setItem('tectosStyles',JSON.stringify(savedStyles.filter(s=>!s.de_fabrica)));}catch(e){} }
 // ── Edición de estilos (lápiz): abrir el editor precargado con TODOS los valores de un estilo ──
 let editingStyleId=null, editingIsFactory=false, editingLabel='';
-function updateSaveRow(){ const rep=document.getElementById('styleReplace'), sav=document.getElementById('styleSave'), del=document.getElementById('styleDelete');
+function updateSaveRow(){ const rep=document.getElementById('styleReplace'), sav=document.getElementById('styleSave'), del=document.getElementById('styleDelete'), ren=document.getElementById('styleRename');
   const editingCustom=!!editingStyleId&&!editingIsFactory;
   if(rep)rep.style.display=editingCustom?'inline-block':'none';
   if(del)del.style.display=editingCustom?'inline-block':'none';   // Eliminar SOLO en estilos personalizados (los de fábrica nunca)
+  if(ren)ren.style.display=editingCustom?'inline-block':'none';   // Renombrar SOLO en personalizados (cambia el nombre sin reescribir el resto)
   if(sav)sav.textContent=editingStyleId?'Guardar nuevo':'Guardar'; }
 function openStyleEditor(i){ const st=savedStyles[i]; if(!st)return;
   applyStyle(st);
@@ -1294,6 +1346,16 @@ document.getElementById('styleReplace').onclick=()=>{   // Sustituir: reemplaza 
   const st=currentStyle(); st.id=editingStyleId; st.nombre=nombre; st.de_fabrica=false;
   savedStyles[idx]=st; editingLabel=nombre; renderSavedStyles(); persistStyles();
   toast('Estilo «'+nombre+'» actualizado'); };
+document.getElementById('styleRename').onclick=()=>{   // Renombrar: cambia SOLO el nombre del estilo personalizado (no reescribe caras/aristas/sombras…)
+  if(!editingStyleId||editingIsFactory)return;
+  const idx=savedStyles.findIndex(s=>s.id===editingStyleId&&!s.de_fabrica);
+  if(idx<0){ toast('Solo se pueden renombrar estilos personalizados'); return; }
+  const inp=document.getElementById('styleName'); const nombre=(inp.value||'').trim();
+  if(!nombre){ toast('Escribe un nombre'); return; }
+  if(nombre===editingLabel){ toast('El nombre no ha cambiado'); return; }
+  savedStyles[idx].nombre=nombre; savedStyles[idx].de_fabrica=false; editingLabel=nombre;   // SOLO el nombre; el resto del descriptor intacto
+  renderSavedStyles(); persistStyles();
+  toast('Renombrado a «'+nombre+'»'); };
 document.getElementById('styleDelete').onclick=()=>{   // Eliminar: SOLO estilos personalizados (los de fábrica nunca se pueden borrar)
   if(!editingStyleId||editingIsFactory)return;
   const idx=savedStyles.findIndex(s=>s.id===editingStyleId&&!s.de_fabrica);

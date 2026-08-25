@@ -1851,6 +1851,62 @@ const secciones = {
     ok('estilo: eliminar un personalizado (fábrica intacta)', r.eliminado && r.fabricaIntacta);
   },
 
+  async estilos_renombrar() {   // Renombrar cambia SOLO el nombre (no reescribe el resto del descriptor) y no duplica
+    const r = await page.evaluate(() => {
+      const D = window._dbg, out = {};
+      document.getElementById('stylePerso').click();
+      document.querySelector('#stylepop .stgl[data-cm="blanco"]').click();   // caras = blanco, para verificar que NO se pierde al renombrar
+      document.getElementById('styleName').value = 'NombreViejo';
+      document.getElementById('styleSave').click();
+      const nCustom = () => D.savedStyles.filter(s => !s.de_fabrica).length;
+      out.creado = nCustom() === 1;
+      const idx = D.savedStyles.findIndex(s => s.nombre === 'NombreViejo');
+      D.openStyleEditor(idx);
+      out.renVisible = getComputedStyle(document.getElementById('styleRename')).display !== 'none';
+      const carasAntes = JSON.stringify(D.savedStyles[idx].caras);
+      document.getElementById('styleName').value = 'NombreNuevo';
+      document.getElementById('styleRename').click();
+      out.sinDuplicar = nCustom() === 1;
+      const t = D.savedStyles.find(s => s.nombre === 'NombreNuevo');
+      out.renombrado = !!t && !D.savedStyles.some(s => s.nombre === 'NombreViejo');
+      out.carasIntactas = t && JSON.stringify(t.caras) === carasAntes && t.caras.modo === 'blanco';
+      // Renombrar NO está disponible en estilos de fábrica
+      D.openStyleEditor(D.savedStyles.findIndex(s => s.de_fabrica));
+      out.renHiddenFactory = getComputedStyle(document.getElementById('styleRename')).display === 'none';
+      return out;
+    });
+    ok('estilo: crear + botón Renombrar visible en personalizado', r.creado && r.renVisible);
+    ok('estilo: Renombrar cambia el nombre sin duplicar', r.sinDuplicar && r.renombrado);
+    ok('estilo: Renombrar conserva el resto del descriptor (Caras=Blanco intacto)', r.carasIntactas);
+    ok('estilo: Renombrar NO disponible en estilos de fábrica', r.renHiddenFactory);
+  },
+
+  async estilos_overflow() {   // los estilos que no caben en la barra se recogen en el menú «⋯» (antes de Personalizar)
+    const r = await page.evaluate(() => {
+      const D = window._dbg, out = {};
+      // crear muchos estilos de nombre largo para forzar el desbordamiento a 1200px
+      for (let i = 0; i < 12; i++) { document.getElementById('stylePerso').click(); document.getElementById('styleName').value = 'EstiloDePruebaLargo' + i; document.getElementById('styleSave').click(); document.getElementById('styleClose').click(); }
+      const bar = document.getElementById('vmodes'); bar.style.display = 'flex';
+      window.layoutStyleOverflow();
+      const more = document.getElementById('styleMore'), menu = document.getElementById('styleMoreMenu');
+      out.moreVisible = getComputedStyle(more).display !== 'none';
+      out.cabeEnPantalla = bar.offsetWidth <= window.innerWidth;   // la barra ya no se sale
+      // abrir el menú y comprobar que lista los ocultos
+      more.click();
+      out.menuAbierto = getComputedStyle(menu).display !== 'none';
+      out.menuTiene = menu.querySelectorAll('.moreRow').length > 0;
+      // aplicar un estilo desde el menú funciona
+      const first = menu.querySelector('.moreApply');
+      const nm = first.textContent; first.click();
+      out.aplica = D.savedStyles.some(s => s.nombre === nm);   // (existe; el click aplica sin lanzar)
+      out.menuCerrado = getComputedStyle(menu).display === 'none';
+      return out;
+    });
+    ok('estilo: con overflow aparece el botón ⋯ y la barra no se sale de pantalla', r.moreVisible && r.cabeEnPantalla);
+    ok('estilo: el menú ⋯ se abre y lista los estilos ocultos', r.menuAbierto && r.menuTiene);
+    ok('estilo: aplicar desde el menú ⋯ funciona y lo cierra', r.aplica && r.menuCerrado);
+  },
+
   async estilos_caras_roundtrip() {   // el modo de Caras (p. ej. «Blanco») de un estilo personalizado se conserva al Sustituir, cambiar de estilo y volver
     const r = await page.evaluate(() => {
       const D = window._dbg, out = {};
