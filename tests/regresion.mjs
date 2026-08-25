@@ -695,14 +695,18 @@ const secciones = {
       const gpos = D.solarAzAlt();
       out.geo = D.sombraModo === 'geo' && isFinite(gpos.az) && gpos.az>=0 && gpos.az<=360
         && gpos.alt>=0 && gpos.alt<=90 && D.validarEstilo(D.currentStyle()).ok;
-      // B2 · dureza de sombra → penumbra (shadow.radius): suave > radio que dura; round-trip del campo
+      // B2 · densidad de sombra (dureza_sombra reinterpretado) → OSCURECE el relleno con la
+      // penumbra FIJA y limpia (más densidad = menos relleno = sombra más oscura, sin manchas)
       D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-000000000018', nombre:'soft', familia:'presentacion',
         sombra_arrojada:{ activo:true, modo:'manual', azimut:200, altitud:40 },
         iluminacion:{ sol:80, ambiental:55, dureza_sombra:10 } });
-      const radSoft = D.sol.shadow.radius, durSoft = D.currentStyle().iluminacion.dureza_sombra;
+      let amb = null; D.sol.parent.traverse(o => { if (o.isAmbientLight) amb = o; });
+      const radFijo = D.sol.shadow.radius, fillTenue = amb.intensity, durSoft = D.currentStyle().iluminacion.dureza_sombra;
       D.setDureza(95);
-      const radHard = D.sol.shadow.radius;
-      out.dureza = radSoft > radHard && durSoft === 10 && D.currentStyle().iluminacion.dureza_sombra === 95
+      const fillMarcada = amb.intensity;
+      out.dureza = fillTenue > fillMarcada                        // más densidad → relleno menor → sombra más oscura
+        && Math.abs(D.sol.shadow.radius - radFijo) < 1e-6         // la penumbra NO cambia (fija y limpia)
+        && durSoft === 10 && D.currentStyle().iluminacion.dureza_sombra === 95
         && D.validarEstilo(D.currentStyle()).ok;
       // B3 · AO (SSAO): activar construye el pase y hace round-trip; desactivar vuelve a render directo
       D.applyStyle({ v:1, id:'5a1e0000-0000-4000-8000-000000000019', nombre:'ao', familia:'presentacion',
@@ -793,7 +797,7 @@ const secciones = {
     ok('estilos: sombra_arrojada + iluminacion en el descriptor round-trip', r.sombraDesc);
     ok('estilos: mover azimut/altitud reorienta el sol', r.sunMove);
     ok('estilos: modo geo (fecha/hora/lugar → az/alt) válido y en rango', r.geo);
-    ok('estilos: dureza de sombra → penumbra (suave > radio que dura) + round-trip', r.dureza);
+    ok('estilos: densidad de sombra → oscurece el relleno con penumbra fija (sin manchas) + round-trip', r.dureza);
     ok('estilos: oclusión ambiental (AO) round-trip + activa el pase SSAO', r.aoDesc && r.aoReady && r.aoOff);
     ok('estilos: apagar la sombra restaura (sol off, autoUpdate off)', r.sombraOff);
     ok('estilos: la sombra del sol no altera orbit/zoom-fit ni pivote', r.sombraOrbit);

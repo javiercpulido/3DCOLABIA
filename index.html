@@ -176,7 +176,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.25 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.26 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -474,9 +474,9 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
   <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
    <input id="sunAz" type="range" min="0" max="360" step="1" value="135" title="Azimut (0–360°)" style="width:74px">
    <input id="sunAlt" type="range" min="1" max="90" step="1" value="45" title="Altitud (0–90°)" style="width:56px"></span></label>
- <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Dureza del borde de la sombra: izquierda = suave (penumbra) · derecha = dura (nítida)">Dureza sombra
-  <span style="margin-left:auto;display:flex;gap:6px;align-items:center;font-size:11px;color:var(--mut)">suave
-   <input id="sunDur" type="range" min="0" max="100" step="1" value="55" title="Suave ↔ Dura" style="width:96px">dura</span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Densidad de la sombra: oscurece la sombra (bajando el relleno) SIN perder definición ni ensuciar el borde. La penumbra es suave y limpia (fija).">Densidad sombra
+  <span style="margin-left:auto;display:flex;gap:6px;align-items:center;font-size:11px;color:var(--mut)">tenue
+   <input id="sunDur" type="range" min="0" max="100" step="1" value="55" title="Tenue ↔ Marcada" style="width:96px">marcada</span></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Oclusión ambiental: oscurece rincones y uniones (contacto). Look tipo Rhino Arctic / Blender">Oclusión AO
   <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
    <button class="stgl" data-ao="si">Sí</button><button class="stgl on" data-ao="no">No</button>
@@ -4504,21 +4504,28 @@ function fitSunShadow(){ if(!sol)return; const scam=sol.shadow.camera;
 // Penumbra (VSM shadow.radius). Curva cuadrática: en el tramo SUAVE (izquierda del
 // slider) crece mucho más → sombras notablemente más blandas (y menos superposición
 // de sombra propia en retina). dureza 100→~0.6 (dura) · 50→~12 · 0→~30 (muy suave).
-function duraToRadius(d){ const s=(100-_clamp(d,0,100))/100; return 0.6 + s*13 + s*s*16; }
+function duraToRadius(d){ const s=(100-_clamp(d,0,100))/100; return 0.6 + s*13 + s*s*16; }   // (en desuso: la penumbra ahora es fija)
+const SOMBRA_RADIO_SUAVE=26;   // penumbra VSM fija en el tramo suave-LIMPIO (sin manchas de acné en cilindros)
 function applySombra(){ if(!sol)return;
   if(sombraModo==='geo'){ const s=solarAzAlt(); sunAz=s.az; sunAlt=s.alt; }
   const d=sunDir(sunAz, Math.max(1,sunAlt)), dist=Math.max(R*4,50);
   sol.position.copy(C).addScaledVector(d,dist); sol.target.position.copy(C); sol.target.updateMatrixWorld(); fitSunShadow();
-  sol.shadow.radius=duraToRadius(sunDureza);   // penumbra (VSM); en PCFSoft ajusta el desenfoque del muestreo
-  const soft=(100-_clamp(sunDureza,0,100))/100;   // 0 dura … 1 suave: a más suave, relleno un pelín mayor (sombra propia menos dura)
+  // PENUMBRA FIJA y LIMPIA (VSM): la penumbra pequeña (sombra "dura") producía manchas de
+  // acné en los cilindros; la suave es limpia. Se fija en el tramo suave-limpio y el slider
+  // deja de controlar la penumbra. En su lugar, controla la DENSIDAD/OSCURIDAD de la sombra.
+  sol.shadow.radius=SOMBRA_RADIO_SUAVE;
+  // DENSIDAD de sombra (dureza_sombra reinterpretado: 0 tenue … 100 marcada). Oscurece la
+  // sombra bajando el RELLENO (no el sol), así el borde sigue igual de limpio y definido:
+  // "oscurecer sin perder definición". El hemisferio (riqueza de tonos) se reduce menos.
+  const dens=_clamp(sunDureza,0,100)/100;
+  const fillK=1.0-0.85*dens;   // relleno plano: 1.0 (tenue) … 0.15 (marcada)
+  const hemiK=1.0-0.50*dens;   // hemisferio: 1.0 … 0.50 (conserva el gradiente que da la riqueza)
   if(sombraOn){ sol.visible=true; sol.castShadow=true;
     // Con sombra ACTIVA: el sol es la luz CLAVE y el relleno BAJA, para que las sombras
-    // (propias, de contacto y pieza-sobre-pieza) LEAN como en SketchUp. Antes el relleno
-    // (hemisferio 0.55 + relleno de cámara 0.42 + ambiente) las lavaba hasta hacerlas
-    // invisibles aunque SÍ se calculaban. La vista base (sin sombra) no cambia.
-    sol.intensity=0.35+0.006*_clamp(ilumSol,0,100);   // sol = luz CLAVE, pero SIN quemar: a intensidad alta todas las caras saturaban a blanco y se perdía la riqueza de tonos por cara
-    hemi.intensity=0.34+0.004*_clamp(ilumAmb,0,100)+0.05*soft;   // HEMISFERIO fuerte = gradiente cielo↑/suelo↓ → cada cara del prisma coge un tono distinto (lo que da la riqueza). Mantiene el lado en sombra del cilindro gris, no negro.
-    amb.intensity=0.06; dl.intensity=0.06; dl2.intensity=0.04; camFill.intensity=0.06;   // relleno PLANO mínimo: el relleno omnidireccional (sobre todo el de cámara) aplana el contraste entre caras y borra la riqueza de tonos, así que se reduce al mínimo
+    // (propias, de contacto y pieza-sobre-pieza) LEAN como en SketchUp. La vista base (sin sombra) no cambia.
+    sol.intensity=0.35+0.006*_clamp(ilumSol,0,100);   // sol = luz CLAVE, pero SIN quemar
+    hemi.intensity=(0.34+0.004*_clamp(ilumAmb,0,100))*hemiK;   // HEMISFERIO = gradiente cielo↑/suelo↓ → riqueza de tonos por cara
+    amb.intensity=0.06*fillK; dl.intensity=0.06*fillK; dl2.intensity=0.04*fillK; camFill.intensity=0.06*fillK;   // relleno PLANO: a más densidad, más oscura la sombra
   } else { sol.visible=false; sol.castShadow=false; sol.intensity=0;
     amb.intensity=.28; hemi.intensity=.55; dl.intensity=.5; dl2.intensity=.2; camFill.intensity=.25; }   // base (con hemisferio + relleno de cámara suave)
   renderer.shadowMap.autoUpdate=sombraOn; renderer.shadowMap.needsUpdate=true; }
