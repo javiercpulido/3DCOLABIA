@@ -185,7 +185,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.27 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.28 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -4538,7 +4538,7 @@ function fitSunShadow(){ if(!sol)return; const scam=sol.shadow.camera;
 // slider) crece mucho más → sombras notablemente más blandas (y menos superposición
 // de sombra propia en retina). dureza 100→~0.6 (dura) · 50→~12 · 0→~30 (muy suave).
 function duraToRadius(d){ const s=(100-_clamp(d,0,100))/100; return 0.6 + s*13 + s*s*16; }   // (en desuso: la penumbra ahora es fija)
-const SOMBRA_RADIO_SUAVE=26;   // penumbra VSM fija en el tramo suave-LIMPIO (sin manchas de acné en cilindros)
+const SOMBRA_RADIO_SUAVE=30;   // penumbra VSM fija = la SUAVE MÁXIMA (limpia, aprobada); sin manchas de acné en cilindros. NO se añade control de nitidez/difuminado (el tramo duro las provocaba).
 function applySombra(){ if(!sol)return;
   if(sombraModo==='geo'){ const s=solarAzAlt(); sunAz=s.az; sunAlt=s.alt; }
   const d=sunDir(sunAz, Math.max(1,sunAlt)), dist=Math.max(R*4,50);
