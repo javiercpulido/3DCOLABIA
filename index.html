@@ -159,7 +159,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.17 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.18 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -4436,14 +4436,24 @@ function ensureAO(){
     // 1) SSAO → factor de oclusión en escala de grises
     const ssaoMat=new THREE.ShaderMaterial({ extensions:{derivatives:true},
       uniforms:{ tDepth:{value:null}, tNoise:{value:noiseTex}, uProj:{value:new THREE.Matrix4()}, uInvProj:{value:new THREE.Matrix4()},
-        uKernel:{value:kernel}, uRes:{value:new THREE.Vector2()}, uRadius:{value:5.0}, uIntensity:{value:0.8}, uBias:{value:0.15} },
+        uKernel:{value:kernel}, uRes:{value:new THREE.Vector2()}, uRadius:{value:5.0}, uIntensity:{value:0.8}, uBias:{value:0.15}, uNPx:{value:1.5} },
       vertexShader:VS,
       fragmentShader:`precision highp float; varying vec2 vUv;
         uniform sampler2D tDepth,tNoise; uniform mat4 uProj,uInvProj; uniform vec3 uKernel[32];
-        uniform vec2 uRes; uniform float uRadius,uIntensity,uBias; ${VPOS}
+        uniform vec2 uRes; uniform float uRadius,uIntensity,uBias,uNPx; ${VPOS}
         void main(){ float d=texture2D(tDepth,vUv).x;
           if(d>=1.0){ gl_FragColor=vec4(1.0); return; }
-          vec3 p=vpos(vUv,d); vec3 n=normalize(cross(dFdx(p),dFdy(p)));
+          vec3 p=vpos(vUv,d);
+          // NORMAL desde profundidad con paso en píxeles ESCALADO con la resolución (uNPx) →
+          // estable a cualquier DPR (antes dFdx(p) = 1 píxel: a alta densidad/retina la normal
+          // salía ruidosa y creaba la banda oscura "superpuesta" en las curvas). A resolución
+          // completa (sin reescalar buffers) → sin parpadeo.
+          vec2 tx=1.0/uRes; vec2 ex=vec2(uNPx,0.0)*tx, ey=vec2(0.0,uNPx)*tx;
+          vec3 pl=vpos(vUv-ex,texture2D(tDepth,vUv-ex).x), pr=vpos(vUv+ex,texture2D(tDepth,vUv+ex).x);
+          vec3 pb=vpos(vUv-ey,texture2D(tDepth,vUv-ey).x), pt=vpos(vUv+ey,texture2D(tDepth,vUv+ey).x);
+          vec3 ddx=(abs(pr.z-p.z)<abs(p.z-pl.z))?(pr-p):(p-pl);   // lado más cercano → no cruza aristas
+          vec3 ddy=(abs(pt.z-p.z)<abs(p.z-pb.z))?(pt-p):(p-pb);
+          vec3 n=normalize(cross(ddx,ddy));
           vec3 rv=texture2D(tNoise, vUv*(uRes/4.0)).xyz;
           vec3 t=normalize(rv-n*dot(rv,n)); vec3 b=cross(n,t); mat3 TBN=mat3(t,b,n);
           float occ=0.0;
@@ -4498,6 +4508,7 @@ function renderAO(){
   let u=o.ssaoMat.uniforms;
   u.tDepth.value=o.beauty.depthTexture; u.uProj.value.copy(cam.projectionMatrix); u.uInvProj.value.copy(invP);
   u.uRes.value.set(o.w,o.h); u.uRadius.value=rad; u.uIntensity.value=_clamp(aoIntensidad,0,100)/100*1.1; u.uBias.value=rad*0.05;   // intensidad algo menor (1.1) + bias mayor: menos auto-oclusión entre facetas (bandas) en cilindros bastos
+  u.uNPx.value=Math.max(1.5, o.h/1000*1.5);   // paso de la normal escalado con la resolución → mismo tamaño de mundo a cualquier DPR (fin de la banda en retina, sin tocar los buffers)
   blit(o.ssaoMat,o.aoA);
   // 3) blur bilateral H (aoA→aoB) y V (aoB→aoA)
   u=o.blurMat.uniforms; u.tDepth.value=o.beauty.depthTexture; u.uInvProj.value.copy(invP); u.uRange.value=Math.max(2,R*0.06);
