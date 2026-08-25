@@ -159,7 +159,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.15 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.16 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -464,6 +464,7 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
    <input id="aoInt" type="range" min="0" max="100" step="1" value="60" title="Intensidad del AO" style="width:70px"></span></label>
  <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
   <input id="styleName" placeholder="Nombre del estilo" style="flex:1;font-size:13px;padding:6px 8px;border:1px solid #ddd;border-radius:8px">
+  <button id="styleDelete" title="Eliminar este estilo personalizado" style="display:none;border:1px solid #e0534f;background:transparent;color:#e0534f;border-radius:8px;padding:7px 9px;font-weight:600;cursor:pointer">Eliminar</button>
   <button id="styleReplace" style="display:none;border:1px solid var(--acc);background:transparent;color:var(--acc);border-radius:8px;padding:7px 10px;font-weight:600;cursor:pointer">Sustituir</button>
   <button id="styleSave" style="border:0;background:var(--acc);color:#fff;border-radius:8px;padding:7px 11px;font-weight:600;cursor:pointer">Guardar</button></div>
  <span style="font-size:11px;color:var(--mut)">Los cambios se ven en vivo. Guardar lo añade a los estilos de arriba.</span>
@@ -1228,9 +1229,10 @@ function syncStylePanel(){ syncStyleFamily();
 function persistStyles(){ try{localStorage.setItem('tectosStyles',JSON.stringify(savedStyles.filter(s=>!s.de_fabrica)));}catch(e){} }
 // ── Edición de estilos (lápiz): abrir el editor precargado con TODOS los valores de un estilo ──
 let editingStyleId=null, editingIsFactory=false, editingLabel='';
-function updateSaveRow(){ const rep=document.getElementById('styleReplace'), sav=document.getElementById('styleSave');
+function updateSaveRow(){ const rep=document.getElementById('styleReplace'), sav=document.getElementById('styleSave'), del=document.getElementById('styleDelete');
   const editingCustom=!!editingStyleId&&!editingIsFactory;
   if(rep)rep.style.display=editingCustom?'inline-block':'none';
+  if(del)del.style.display=editingCustom?'inline-block':'none';   // Eliminar SOLO en estilos personalizados (los de fábrica nunca)
   if(sav)sav.textContent=editingStyleId?'Guardar nuevo':'Guardar'; }
 function openStyleEditor(i){ const st=savedStyles[i]; if(!st)return;
   applyStyle(st);
@@ -1292,6 +1294,17 @@ document.getElementById('styleReplace').onclick=()=>{   // Sustituir: reemplaza 
   const st=currentStyle(); st.id=editingStyleId; st.nombre=nombre; st.de_fabrica=false;
   savedStyles[idx]=st; editingLabel=nombre; renderSavedStyles(); persistStyles();
   toast('Estilo «'+nombre+'» actualizado'); };
+document.getElementById('styleDelete').onclick=()=>{   // Eliminar: SOLO estilos personalizados (los de fábrica nunca se pueden borrar)
+  if(!editingStyleId||editingIsFactory)return;
+  const idx=savedStyles.findIndex(s=>s.id===editingStyleId&&!s.de_fabrica);
+  if(idx<0){ toast('Solo se pueden eliminar estilos personalizados'); return; }
+  const nombre=styleLabel(savedStyles[idx]);
+  askClose('¿Eliminar el estilo «'+nombre+'»? (no afecta a los de fábrica)',()=>{
+    savedStyles.splice(idx,1); persistStyles();
+    editingStyleId=null; editingIsFactory=false; editingLabel='';
+    const inp=document.getElementById('styleName'); if(inp)inp.value='';
+    updateSaveRow(); renderSavedStyles();
+    toast('Estilo «'+nombre+'» eliminado'); }); };
 function loadStyles(){ savedStyles=FACTORY_STYLES.map(s=>JSON.parse(JSON.stringify(s)));
   try{const s=localStorage.getItem('tectosStyles'); if(s){(JSON.parse(s)||[]).forEach(x=>{if(x&&!x.de_fabrica)savedStyles.push(x);});}}catch(e){}
   renderSavedStyles(); }
@@ -4470,8 +4483,15 @@ function ensureAO(){
   const depth=new THREE.DepthTexture(w,h); depth.type=THREE.UnsignedIntType;
   o.beauty=new THREE.WebGLRenderTarget(w,h,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthTexture:depth,depthBuffer:true,stencilBuffer:false});
   const rtOpt={minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthBuffer:false,stencilBuffer:false};
-  o.aoA=new THREE.WebGLRenderTarget(w,h,rtOpt); o.aoB=new THREE.WebGLRenderTarget(w,h,rtOpt);
-  o.w=w; o.h=h; _ao=o;
+  // El AO se calcula a resolución ACOTADA (independiente de la ventana/retina). A alta
+  // resolución (DPR 2) las derivadas de profundidad (dFdx/dFdy) que reconstruyen la normal
+  // salen ruidosas → banda oscura "superpuesta" en las curvas (se veía en navegador completo
+  // y no en la ventana emergente). Fijando la res del AO, la normal es estable y el color
+  // sigue nítido (beauty a resolución completa). El AO es de baja frecuencia: no pierde nada.
+  const AOCAP=1100, sc=Math.min(1,AOCAP/Math.max(w,h));
+  const aw=Math.max(2,Math.round(w*sc)), ah=Math.max(2,Math.round(h*sc));
+  o.aoA=new THREE.WebGLRenderTarget(aw,ah,rtOpt); o.aoB=new THREE.WebGLRenderTarget(aw,ah,rtOpt);
+  o.w=w; o.h=h; o.aw=aw; o.ah=ah; _ao=o;
   return true;
 }
 function renderAO(){
@@ -4484,12 +4504,12 @@ function renderAO(){
   // 2) SSAO → aoA
   let u=o.ssaoMat.uniforms;
   u.tDepth.value=o.beauty.depthTexture; u.uProj.value.copy(cam.projectionMatrix); u.uInvProj.value.copy(invP);
-  u.uRes.value.set(o.w,o.h); u.uRadius.value=rad; u.uIntensity.value=_clamp(aoIntensidad,0,100)/100*1.1; u.uBias.value=rad*0.05;   // intensidad algo menor (1.1) + bias mayor: menos auto-oclusión entre facetas (bandas) en cilindros bastos
+  u.uRes.value.set(o.aw,o.ah); u.uRadius.value=rad; u.uIntensity.value=_clamp(aoIntensidad,0,100)/100*1.1; u.uBias.value=rad*0.05;   // res ACOTADA del AO (normal estable a cualquier DPR); intensidad 1.1 + bias mayor
   blit(o.ssaoMat,o.aoA);
-  // 3) blur bilateral H (aoA→aoB) y V (aoB→aoA)
+  // 3) blur bilateral H (aoA→aoB) y V (aoB→aoA) — paso en píxeles de la res ACOTADA del AO
   u=o.blurMat.uniforms; u.tDepth.value=o.beauty.depthTexture; u.uInvProj.value.copy(invP); u.uRange.value=Math.max(2,R*0.06);
-  u.tAO.value=o.aoA.texture; u.uDir.value.set(1/o.w,0); blit(o.blurMat,o.aoB);
-  u.tAO.value=o.aoB.texture; u.uDir.value.set(0,1/o.h); blit(o.blurMat,o.aoA);
+  u.tAO.value=o.aoA.texture; u.uDir.value.set(1/o.aw,0); blit(o.blurMat,o.aoB);
+  u.tAO.value=o.aoB.texture; u.uDir.value.set(0,1/o.ah); blit(o.blurMat,o.aoA);
   // 4) composición color × AO → pantalla
   o.compMat.uniforms.tColor.value=o.beauty.texture; o.compMat.uniforms.tAO.value=o.aoA.texture;
   blit(o.compMat,null);

@@ -1820,6 +1820,37 @@ const secciones = {
     ok('estilo: "Maqueta blanca con aristas" grosor 0,5 por defecto (aristas y perfiles)', r.grosor05);
   },
 
+  async estilos_editar_eliminar() {   // editar/sustituir un estilo de usuario y ELIMINAR (solo personalizados; los de fábrica nunca)
+    const r = await page.evaluate(() => {
+      const D = window._dbg, out = {};
+      const nCustom = () => D.savedStyles.filter(s => !s.de_fabrica).length;
+      // crear un estilo de usuario
+      document.getElementById('stylePerso').click();
+      document.getElementById('styleName').value = 'MiEstilo';
+      document.getElementById('styleSave').click();
+      out.creado = nCustom() === 1 && D.savedStyles.some(s => s.nombre === 'MiEstilo' && !s.de_fabrica);
+      out.delVisibleCustom = getComputedStyle(document.getElementById('styleDelete')).display !== 'none';
+      // editar un estilo de FÁBRICA → Eliminar NO visible (no se pueden borrar)
+      D.openStyleEditor(D.savedStyles.findIndex(s => s.de_fabrica));
+      out.delHiddenFactory = getComputedStyle(document.getElementById('styleDelete')).display === 'none';
+      // SUSTITUIR (reescribir) el estilo de usuario
+      D.openStyleEditor(D.savedStyles.findIndex(s => !s.de_fabrica));
+      document.getElementById('styleReplace').click();
+      out.sustituido = nCustom() === 1;
+      // ELIMINAR el estilo de usuario (confirmar Sí)
+      D.openStyleEditor(D.savedStyles.findIndex(s => !s.de_fabrica));
+      document.getElementById('styleDelete').click();
+      document.getElementById('cfYes').click();
+      out.eliminado = nCustom() === 0;
+      out.fabricaIntacta = D.savedStyles.filter(s => s.de_fabrica).length === D.FACTORY_STYLES.length;
+      return out;
+    });
+    ok('estilo: crear personalizado + Eliminar/Sustituir visibles en personalizado', r.creado && r.delVisibleCustom);
+    ok('estilo: los de fábrica NO se pueden eliminar (botón oculto)', r.delHiddenFactory);
+    ok('estilo: sustituir (reescribir) un personalizado', r.sustituido);
+    ok('estilo: eliminar un personalizado (fábrica intacta)', r.eliminado && r.fabricaIntacta);
+  },
+
   async estilos_boton_modo() {   // los botones de MODO (Sombreado/Blanco/…) dan vista LIMPIA: no arrastran AO/sombra/suelo de la maqueta
     const r = await page.evaluate(() => {
       const D = window._dbg, out = {};
