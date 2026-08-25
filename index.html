@@ -101,6 +101,8 @@
  #styleMoreMenu .sedit:hover,#styleMoreMenu .sedit:active{opacity:1;color:var(--acc)}
  #stylepop .stgl{border:1px solid rgba(0,0,0,.14);background:transparent;border-radius:7px;padding:5px 9px;font-size:12px;cursor:pointer;color:var(--ink)}
  #stylepop .stgl.on{background:var(--acc);color:#fff;border-color:transparent}
+ /* Posición POR DEFECTO (móvil vertical <640px): ventana centrada. */
+ #stylepop{ top:calc(112px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%); }
  /* Editor de estilos ACOPLADO a la derecha (sobre el panel #side de Piezas) en pantallas anchas:
     iPad (vertical/horizontal) y móvil GIRADO. En móvil VERTICAL (<640px) se queda como estaba:
     ventana centrada que ocupa la pantalla. Solo cambia la POSICIÓN, no el contenido del editor. */
@@ -113,6 +115,13 @@
      box-shadow:-10px 0 30px rgba(20,28,48,.16)!important;
    }
  }
+ /* FLOTANTE: el usuario arrastra la cabecera → posición libre (por si un teclado flotante
+    tapa el campo del nombre). Prevalece sobre acoplado y centrado (id+clase, !important). */
+ #stylepop.floating{ left:var(--fx,50%)!important; top:var(--fy,120px)!important; right:auto!important;
+   bottom:auto!important; transform:none!important; max-height:calc(100dvh - 24px)!important;
+   width:min(322px,92vw)!important; border-radius:14px!important; }
+ #styleHdr{ touch-action:none; cursor:grab; user-select:none; -webkit-user-select:none }
+ #styleHdr:active{ cursor:grabbing }
  .axbtn{width:30px!important}
  svg{pointer-events:none}
  #strokeOps,#xformOps,#laserOps,#secOps{display:none;align-items:center;gap:4px;flex-wrap:nowrap}
@@ -176,7 +185,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.26 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.27 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -412,8 +421,12 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <button id="stylePerso" title="Personalizar el estilo y guardarlo">Personalizar…</button>
 </div>
 <div id="styleMoreMenu" class="pill" style="position:fixed;z-index:17;display:none;flex-direction:column;gap:2px;padding:6px;max-height:60dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;min-width:170px;max-width:80vw"></div>
-<div id="stylepop" class="pill" style="position:fixed;top:calc(112px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:16;display:none;flex-direction:column;gap:7px;padding:11px 13px;font-size:11.5px;min-width:230px;max-width:94vw;max-height:calc(100dvh - 128px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow-y:auto;-webkit-overflow-scrolling:touch">
- <div style="display:flex;align-items:center;gap:8px"><b style="font-size:13px;flex:1">Personalizar estilo</b><button id="styleClose" style="border:0;background:rgba(0,0,0,.06);border-radius:8px;padding:4px 8px;cursor:pointer">✕</button></div>
+<div id="stylepop" class="pill" style="position:fixed;z-index:16;display:none;flex-direction:column;gap:7px;padding:11px 13px;font-size:11.5px;min-width:230px;max-width:94vw;max-height:calc(100dvh - 128px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow-y:auto;-webkit-overflow-scrolling:touch">
+ <div id="styleHdr" style="display:flex;align-items:center;gap:7px">
+   <span title="Arrastra para mover el editor" style="display:flex;color:var(--mut);flex:none"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></span>
+   <b style="font-size:12.5px;flex:1">Personalizar estilo</b>
+   <button id="styleDock" title="Volver a acoplar a la derecha" style="display:none;border:0;background:rgba(0,0,0,.06);border-radius:8px;padding:4px 7px;cursor:pointer;color:var(--ink)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="13" y="4" width="7" height="16" rx="1"/><path d="M9 12h-6M5 9l-3 3 3 3"/></svg></button>
+   <button id="styleClose" style="border:0;background:rgba(0,0,0,.06);border-radius:8px;padding:4px 8px;cursor:pointer">✕</button></div>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Familia
   <span style="margin-left:auto;display:flex;gap:3px">
    <button class="stgl on" data-fam="presentacion">Presentación</button><button class="stgl" data-fam="tecnico">Técnico</button></span></label>
@@ -1058,7 +1071,7 @@ const FACTORY_STYLES=[
 ];
 // Catálogo i18n mínimo embebido (es) — código≠etiqueta. En backend, next-intl (TEC-62).
 const STYLE_LABELS_ES={'estilo.pen':'Pen (blanco / línea negra)','estilo.plano_demolicion':'Plano de demolición','estilo.boceto':'Boceto a mano',
-  'estilo.maqueta_blanca':'Maqueta blanca','estilo.maqueta_blanca_aristas':'Maqueta blanca con aristas',
+  'estilo.maqueta_blanca':'Maqueta blanca','estilo.maqueta_blanca_aristas':'Maqueta blanca 2',
   'estilo.tecnico_bn':'Técnico B&N','estilo.oculto_bn':'Oculto B&N'};
 function styleLabel(st){ return (st.de_fabrica&&STYLE_LABELS_ES[st.nombre])||st.nombre||'Estilo'; }
 // Validación ligera contra estilo.schema.json v3 (oráculo de tests + guardarraíl runtime).
@@ -1311,6 +1324,26 @@ document.getElementById('stylePerso').onclick=()=>{
   document.getElementById('vmodes').style.display='none';
   const p=document.getElementById('stylepop'); p.style.display='flex'; syncStylePanel(); fitEditorKeyboard(); };
 document.getElementById('styleClose').onclick=()=>{const p=document.getElementById('stylepop'); p.style.display='none'; p.style.removeProperty('bottom');};
+// EDITOR FLOTANTE: arrastra la cabecera para moverlo (útil cuando un teclado FLOTANTE de iPad
+// —que no reduce el visualViewport— tapa el campo del nombre). El botón ⇤ lo vuelve a acoplar.
+(function(){ const p=document.getElementById('stylepop'), hdr=document.getElementById('styleHdr'), dockBtn=document.getElementById('styleDock');
+  if(!p||!hdr)return;
+  function setFloat(x,y){ p.classList.add('floating'); p.style.setProperty('--fx',x+'px'); p.style.setProperty('--fy',y+'px'); if(dockBtn)dockBtn.style.display='inline-flex'; }
+  function clampFloat(){ if(!p.classList.contains('floating'))return; const r=p.getBoundingClientRect();
+    let x=parseFloat(p.style.getPropertyValue('--fx'))||r.left, y=parseFloat(p.style.getPropertyValue('--fy'))||r.top;
+    x=Math.max(6,Math.min(x,window.innerWidth-r.width-6)); y=Math.max(6,Math.min(y,window.innerHeight-44));
+    p.style.setProperty('--fx',x+'px'); p.style.setProperty('--fy',y+'px'); }
+  hdr.addEventListener('pointerdown',e=>{ if(e.target.closest('button'))return;   // no arrastrar al pulsar ✕ / acoplar
+    const r=p.getBoundingClientRect(), ox=e.clientX-r.left, oy=e.clientY-r.top;
+    try{hdr.setPointerCapture(e.pointerId);}catch(_){}
+    const move=ev=>{ setFloat(ev.clientX-ox, ev.clientY-oy); };
+    const up=()=>{ try{hdr.releasePointerCapture(e.pointerId);}catch(_){}
+      hdr.removeEventListener('pointermove',move); hdr.removeEventListener('pointerup',up); hdr.removeEventListener('pointercancel',up); clampFloat(); };
+    hdr.addEventListener('pointermove',move); hdr.addEventListener('pointerup',up); hdr.addEventListener('pointercancel',up); });
+  if(dockBtn)dockBtn.onclick=()=>{ p.classList.remove('floating'); p.style.removeProperty('--fx'); p.style.removeProperty('--fy'); p.style.removeProperty('bottom'); dockBtn.style.display='none'; };
+  window.addEventListener('resize',clampFloat);
+  window._clampStyleFloat=clampFloat;
+})();
 // TECLADO EN PANTALLA (iPad/iPhone): el editor es position:fixed y el teclado lo taparía por
 // abajo, justo donde está el campo del NOMBRE. Con visualViewport detectamos el teclado y
 // subimos el borde inferior del editor por encima de él; luego llevamos el campo a la vista.

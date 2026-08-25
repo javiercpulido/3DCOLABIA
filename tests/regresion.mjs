@@ -1928,6 +1928,25 @@ const secciones = {
     ok('estilo: aplicar desde el menú ⋯ funciona y lo cierra', r.aplica && r.menuCerrado);
   },
 
+  async estilos_editor_flotante() {   // arrastrar la cabecera del editor lo hace flotante; el botón lo vuelve a acoplar
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.evaluate(() => { const p = document.getElementById('stylepop'); p.style.display = 'none'; p.classList.remove('floating'); window._dbg.openStyleEditor(0); });
+    const docked = await page.evaluate(() => { const p = document.getElementById('stylepop'), b = p.getBoundingClientRect();
+      return { right: Math.abs(b.right - window.innerWidth) < 2, floating: p.classList.contains('floating') }; });
+    const hb = await page.evaluate(() => { const h = document.getElementById('styleHdr').getBoundingClientRect(); return { x: h.x + 30, y: h.y + h.height / 2 }; });
+    await page.mouse.move(hb.x, hb.y); await page.mouse.down();
+    await page.mouse.move(hb.x - 260, hb.y + 180, { steps: 5 }); await page.mouse.up();
+    const floated = await page.evaluate(() => { const p = document.getElementById('stylepop');
+      return { floating: p.classList.contains('floating'), dock: getComputedStyle(document.getElementById('styleDock')).display !== 'none' }; });
+    await page.evaluate(() => document.getElementById('styleDock').click());
+    const redock = await page.evaluate(() => { const p = document.getElementById('stylepop'), b = p.getBoundingClientRect();
+      return { floating: p.classList.contains('floating'), right: Math.abs(b.right - window.innerWidth) < 2 }; });
+    await page.setViewportSize({ width: 1200, height: 820 });
+    ok('editor flotante: arranca acoplado a la derecha', docked.right && !docked.floating);
+    ok('editor flotante: arrastrar la cabecera lo hace flotante + botón acoplar visible', floated.floating && floated.dock);
+    ok('editor flotante: el botón lo devuelve a acoplado a la derecha', !redock.floating && redock.right);
+  },
+
   async estilos_editor_acoplado() {   // el editor se acopla a la derecha en pantallas anchas (iPad/horizontal) y se centra en móvil vertical
     // ANCHO (≥640px): acoplado al borde derecho, a toda altura, sobre el panel de Piezas
     await page.setViewportSize({ width: 1024, height: 768 });
