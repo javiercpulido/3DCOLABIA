@@ -159,7 +159,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.07 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.08 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -401,6 +401,12 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Caras
   <span style="margin-left:auto;display:flex;gap:3px">
    <button class="stgl" data-cm="somb" title="Sombreado texturado — color/material por pieza (texturas en Fase C)">Sombreado</button><button class="stgl" data-cm="blanco" title="Maqueta blanca (clay sombreado)">Blanco</button><button class="stgl" data-cm="wire">Alambre</button><button class="stgl" data-cm="xray">X-Ray</button></span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Texturas de material (render en Fase C)">Texturas
+  <span style="margin-left:auto;display:flex;gap:3px">
+   <button class="stgl" data-tx="si">Sí</button><button class="stgl on" data-tx="no">No</button></span></label>
+ <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Saturación del color de las caras (independiente del modo). 0 = escala de grises · 100 = color pleno. Ej.: X-Ray a 0 = X-Ray en grises.">Saturación
+  <span style="margin-left:auto;display:flex;align-items:center;gap:6px">
+   <input id="styleSat" type="range" min="0" max="100" step="1" value="100" style="width:120px"></span></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)">Aristas
   <span style="margin-left:auto;display:flex;gap:3px">
    <button class="stgl on" data-ec="bn">B/N</button><button class="stgl" data-ec="material">Material</button></span></label>
@@ -441,9 +447,6 @@ body.dark .sysbar button.ghost{background:#2a2e33;color:#ccc}
    <button class="stgl on" data-grid="si">Sí</button><button class="stgl" data-grid="no">No</button>
    <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--mut)"><input type="checkbox" id="gridAuto" checked>auto</label>
    <input id="gridManual" type="range" min="0" max="100" step="1" value="50" title="Color de la malla: blanco ↔ negro" style="width:54px"></span></label>
- <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Texturas de material (render en Fase C)">Texturas
-  <span style="margin-left:auto;display:flex;gap:3px">
-   <button class="stgl" data-tx="si">Sí</button><button class="stgl on" data-tx="no">No</button></span></label>
  <label style="display:flex;align-items:center;gap:8px;color:var(--mut)" title="Sombra arrojada del sol (Fase B). Manual = azimut/altitud (Rhino) · Geo = fecha/hora/lugar (SketchUp)">Sombra sol
   <span style="margin-left:auto;display:flex;gap:3px;align-items:center">
    <button class="stgl" data-sombra="si">Sí</button><button class="stgl on" data-sombra="no">No</button>
@@ -854,6 +857,7 @@ let styleEdgesOff=false;   // 'sin aristas': fuerza aristas+silueta ocultas → 
 let styleHidOn=false;      // mostrar líneas ocultas (discontinuas) → estilo.ocultos.ver
 let styleHidPat='punteado';// patrón de ocultas: 'punteado' | 'discontinuo' → estilo.ocultos.patron
 let styleTextures=false;   // texturas on/off → estilo.materiales.texturas (Fase A solo toggle; render en Fase C)
+let matSaturacion=100;     // materiales.saturacion (0–100, v3.6): desatura el COLOR de las caras hacia gris, en CUALQUIER modo (0 = escala de grises, 100 = color pleno). Ej.: X-Ray a 0 = X-Ray en grises.
 let stylePerfOn=true;      // perfiles/silueta visibles → estilo.perfiles.ver
 let stylePerfW=null;       // grosor propio del perfil (null = sigue al grosor de aristas) → estilo.perfiles.grosor
 let sueloColor='#eaecee';  // color del SUELO VIRTUAL (gris muy claro por defecto) → estilo.suelo.color
@@ -902,6 +906,9 @@ function applyMode(){
     else if(viewMode==='blanco'){ms.color.setHex(dk?0x3d4248:0xe9ebee);ms.opacity=baseOpacity;}
     else if(viewMode==='wire'){ms.color.setHex(dk?0x0e1013:0xffffff);ms.opacity=0.06;}
     else if(viewMode==='xray'){ms.color.setHex(ud.baseColor);ms.opacity=0.16;}
+    if(matSaturacion<100){ const s=_clamp(matSaturacion,0,100)/100;   // desatura hacia la luminancia (independiente del modo): p.ej. X-Ray a 0 = X-Ray en grises
+      const c=ms.color, l=c.r*0.299+c.g*0.587+c.b*0.114;
+      c.setRGB(l+(c.r-l)*s, l+(c.g-l)*s, l+(c.b-l)*s); }
   }
   // MODO INVERTIDO: fondo oscuro pero volúmenes claros (como modelo de escayola),
   // con transparencia regulable. Prevalece sobre el color de cada estilo.
@@ -1091,7 +1098,7 @@ function currentStyle(){ const st={ v:1, id:_uuid(), nombre:'', familia:styleFam
     fuente_color:{modo:(styleEdgeColor==='material'?'material':'bn')},
     fondo:(styleSky?{modo:'degradado',cielo:styleCielo,horizonte:styleHorizonte}
       :(styleBg?{modo:(darkView?'oscuro':'claro'),valor:styleBg}:{modo:(darkView?'oscuro':'claro')})),
-    materiales:{texturas:!!styleTextures},
+    materiales:{texturas:!!styleTextures, saturacion:Math.round(matSaturacion)},
     iluminacion:{sol:Math.round(ilumSol), ambiental:Math.round(ilumAmb), dureza_sombra:Math.round(sunDureza)},
     sombra_arrojada:(function(){ const S={activo:!!sombraOn, modo:sombraModo, azimut:Math.round(sunAz), altitud:Math.round(sunAlt)};
       if(sombraModo==='geo'){ S.fecha=sunFecha; S.hora=sunHora; S.lugar={lat:+sunLat, lon:+sunLon}; } return S; })(),
@@ -1123,7 +1130,7 @@ function styleDefaults(){ return {
   perfiles:{ver:false,grosor:0.5},
   fuente_color:{modo:'bn'},
   fondo:{modo:'claro'},
-  materiales:{texturas:false},
+  materiales:{texturas:false,saturacion:100},
   iluminacion:{sol:80,ambiental:55,dureza_sombra:55},
   sombra_arrojada:{activo:false,modo:'manual',azimut:135,altitud:45},
   oclusion_ambiental:{activo:false,intensidad:60,radio:50},
@@ -1148,6 +1155,7 @@ function applyStyle(st){ if(!st)return;
   if(st.ocultos){styleHidOn=(st.ocultos.ver===true); if(st.ocultos.patron==='punteado'||st.ocultos.patron==='discontinuo')styleHidPat=st.ocultos.patron;} else styleHidOn=false;
   applyHiddenPattern();
   if(st.materiales&&typeof st.materiales.texturas==='boolean')styleTextures=st.materiales.texturas;
+  if(st.materiales&&st.materiales.saturacion!=null)matSaturacion=_clamp(st.materiales.saturacion,0,100);
   if(st.suelo){ if(typeof st.suelo.ver==='boolean')setSuelo(st.suelo.ver); if(st.suelo.color)setSueloColor(st.suelo.color); if(st.suelo.z!=null)setSueloZ(st.suelo.z);
     if(st.suelo.malla){ const M=st.suelo.malla;   // retícula del suelo (esquema v3.3)
       if(typeof M.auto==='boolean')gridAuto=M.auto;
@@ -1192,6 +1200,7 @@ function syncStylePanel(){ syncStyleFamily();
   const ga=document.getElementById('gridAuto'); if(ga)ga.checked=gridAuto;
   const gm=document.getElementById('gridManual'); if(gm)gm.value=Math.round(gridManual*100);
   document.querySelectorAll('#stylepop .stgl[data-tx]').forEach(b=>b.classList.toggle('on',b.dataset.tx===(styleTextures?'si':'no')));
+  const sat=document.getElementById('styleSat'); if(sat)sat.value=Math.round(matSaturacion);
   document.querySelectorAll('#stylepop .stgl[data-sombra]').forEach(b=>b.classList.toggle('on',b.dataset.sombra===(sombraOn?'si':'no')));
   document.querySelectorAll('#stylepop .stgl[data-smodo]').forEach(b=>b.classList.toggle('on',b.dataset.smodo===sombraModo));
   const saz=document.getElementById('sunAz'); if(saz)saz.value=Math.round(sunAz);
@@ -1243,6 +1252,7 @@ document.getElementById('stylepop').addEventListener('click',e=>{
     if(wantDark!==darkView){darkView=wantDark; if(!darkView)invView=false; applyTheme();} else applyMode(); syncStylePanel();}
   else if(b.dataset.sky){styleSky=(b.dataset.sky==='deg'); applyMode(); syncStylePanel();}});
 document.getElementById('styleOpac').oninput=function(){baseOpacity=Math.max(0.06,+this.value/100); applyMode();};
+document.getElementById('styleSat').oninput=function(){matSaturacion=_clamp(+this.value,0,100); applyMode();};   // saturación de caras en tiempo real
 document.getElementById('stylePerfGro').oninput=function(){stylePerfW=+this.value; applyPerfiles();};
 document.getElementById('styleSueloCol').oninput=function(){setSueloColor(this.value);};
 document.getElementById('styleCieloCol').oninput=function(){styleCielo=this.value; if(styleSky)applyMode();};

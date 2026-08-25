@@ -1794,6 +1794,36 @@ const secciones = {
     ok('estilo: "Maqueta blanca con aristas" grosor 0,5 por defecto (aristas y perfiles)', r.grosor05);
   },
 
+  async saturacion_caras() {   // materiales.saturacion (v3.6): desatura las caras en cualquier modo; X-Ray a 0 = grises
+    const r = await page.evaluate(() => {
+      const D = window._dbg, out = {};
+      const uuid = '5a1e0000-0000-4000-8000-0000000000c1';
+      const mk = (caras, sat) => ({ v:1, id:uuid, nombre:'t', familia:'presentacion', caras:{modo:caras}, materiales:{saturacion:sat} });
+      const col = () => { const c = D.pieces['4 palanca'].userData.matShaded.color; return { r:c.r, g:c.g, b:c.b, op:D.pieces['4 palanca'].userData.matShaded.opacity }; };
+      D.applyStyle(mk('somb', 100)); const c1 = col();
+      out.color = Math.abs(c1.r-c1.g) > 0.05 || Math.abs(c1.g-c1.b) > 0.05;    // a 100 = color
+      D.applyStyle(mk('somb', 0)); const c2 = col();
+      out.gris = Math.abs(c2.r-c2.g) < 0.01 && Math.abs(c2.g-c2.b) < 0.01;      // a 0 = gris
+      D.applyStyle(mk('xray', 0)); const c3 = col();
+      out.xrayGris = Math.abs(c3.r-c3.g) < 0.01 && Math.abs(c3.g-c3.b) < 0.01 && c3.op < 0.5;  // X-Ray gris y translúcido
+      D.applyStyle(mk('somb', 37)); out.roundtrip = D.currentStyle().materiales.saturacion === 37;
+      // el control del panel está justo tras Caras (Caras → Texturas → Saturación → Aristas)
+      const labels = [...document.querySelectorAll('#stylepop label')].map(l => l.textContent.trim().slice(0,10));
+      const iC = labels.findIndex(t=>t.startsWith('Caras')), iT = labels.findIndex(t=>t.startsWith('Texturas')), iS = labels.findIndex(t=>t.startsWith('Saturaci')), iA = labels.findIndex(t=>t.startsWith('Aristas'));
+      out.orden = iC>=0 && iT===iC+1 && iS===iC+2 && iA===iC+3 && !!document.getElementById('styleSat');
+      // no fuga: un estilo sin saturacion vuelve a 100
+      D.applyStyle(mk('somb', 0));
+      D.applyStyle(D.FACTORY_STYLES.find(s=>s.nombre==='estilo.pen'));
+      out.sinFuga = D.currentStyle().materiales.saturacion === 100;
+      return out;
+    });
+    ok('saturación: a 100 las caras van a color, a 0 a escala de grises', r.color && r.gris);
+    ok('saturación: X-Ray a 0 = X-Ray en grises (y translúcido)', r.xrayGris);
+    ok('saturación: round-trip del campo materiales.saturacion', r.roundtrip);
+    ok('saturación: control tras Caras (Caras→Texturas→Saturación→Aristas)', r.orden);
+    ok('saturación: no se queda pegada al cambiar de estilo', r.sinFuga);
+  },
+
   async sombras_antiacne() {   // receta anti-acné: caras traseras al mapa + bias pequeño negativo (no bias grande)
     const r = await page.evaluate(() => {
       const D = window._dbg, T3 = window.THREE, out = {};
