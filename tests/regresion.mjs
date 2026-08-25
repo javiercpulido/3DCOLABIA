@@ -1765,6 +1765,42 @@ const secciones = {
     ok('bloqueo del plano se guarda y se recupera', r.exporta && r.importa);
   },
 
+  async poche_seccion() {   // POCHÉ: rellena SÓLO la sección real, sin sobre-relleno de silueta
+    const r = await page.evaluate(() => {
+      const D = window._dbg, T3 = window.THREE, out = {};
+      // corte horizontal (normal +Z) por el centro del modelo → atraviesa todas las piezas
+      const bb = new T3.Box3(); for (const nm in D.pieces) bb.expandByObject(D.pieces[nm]);
+      const c = bb.getCenter(new T3.Vector3());
+      const s = D.newSectionObj('POCHE', c.clone(), new T3.Vector3(0, 0, 1), false);   // sección real (no papel)
+      D.activateSection(s);
+      window.setSecCut(true); window.setSecPoche(true);
+      D.applySec(); D.updatePoche();
+      out.activo = D.activeCutsN >= 1;
+      // clasificación sólido-cerrado / abierto por pieza (pocheSolidGeo: suelda + orienta por BFS)
+      const cls = {}; for (const nm in D.pieces) cls[nm] = D.pieces[nm].userData.pocheClosed;
+      // la roseta llega con winding MEZCLADO; la re-orientación BFS la deja como sólido cerrado
+      out.roseta = cls['1 roseta'] === true;
+      out.cuello = cls['2 cuello'] === true;
+      out.palanca = cls['4 palanca'] === true;
+      out.gargantaAbierta = cls['3 garganta (propuesta)'] === false;   // malla abierta → excluida
+      // el stencil SÓLO cuenta piezas cerradas Y cortadas; la abierta queda fuera
+      out.rosetaCuenta = D.pieces['1 roseta'].userData.stB.visible === true;
+      out.gargantaExcluida = D.pieces['3 garganta (propuesta)'].userData.stB.visible === false;
+      // hay una tapa de poché visible en la escena (stencil NotEqual 0)
+      let cap = null; D.pieces['1 roseta'].parent.traverse(o => {
+        if (o.isMesh && o.material && o.material.stencilFunc === T3.NotEqualStencilFunc && o.visible) cap = o; });
+      out.tapaVisible = !!cap;
+      // desactivar el poché apaga el relleno del stencil
+      window.setSecPoche(false); D.updatePoche();
+      out.apagado = D.pieces['1 roseta'].userData.stB.visible === false;
+      return out;
+    });
+    ok('poché: corte activo con tapa de relleno visible', r.activo && r.tapaVisible);
+    ok('poché: sólidos cerrados (roseta re-orientada, cuello, palanca) cuentan en el stencil', r.roseta && r.cuello && r.palanca && r.rosetaCuenta);
+    ok('poché: malla ABIERTA (garganta) excluida — no sobre-rellena su silueta', r.gargantaAbierta && r.gargantaExcluida);
+    ok('poché: desactivar apaga el relleno', r.apagado);
+  },
+
   async rendimiento() {   // FASE 1: redibujado incremental, sin fuga de GPU
     const r = await page.evaluate(async () => {
       const D = window._dbg, out = {};

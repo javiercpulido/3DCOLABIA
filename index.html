@@ -159,7 +159,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.02 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.03 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -4132,6 +4132,41 @@ scene.add(pocheClear);
 //     de modo que sólo se rellena la SECCIÓN real; y
 //  3) las piezas visibles usan depthFunc<= para dibujarse sobre el prepass coplanar.
 // Ya NO hace falta forzar las piezas a opacas (los estilos se ven igual que siempre).
+// Geometría de POCHÉ por pieza: SUELDA por posición y ORIENTA de forma coherente
+// (recorrido BFS por aristas compartidas). El conteo de winding (+trasera / −delantera)
+// EXIGE una orientación consistente de los triángulos; algunas mallas demo (p. ej. la
+// roseta) llegan con el giro de triángulos MEZCLADO (mismo sentido en aristas vecinas),
+// y sin re-orientar rellenaban TODA su silueta en vez de sólo la sección. La normal es
+// irrelevante aquí (el stencil no escribe color), así que re-orientar no afecta a la luz.
+// Devuelve {geo, closed}: las mallas ABIERTAS (garganta “propuesta”) salen closed:false y
+// quedan EXCLUIDAS del poché — la sección de una superficie abierta no está definida.
+function pocheSolidGeo(g){
+  const pos=g.getAttribute('position'), idx=g.getIndex();
+  const q=v=>Math.round(v*1000);
+  const key=i=>q(pos.getX(i))+'_'+q(pos.getY(i))+'_'+q(pos.getZ(i));
+  const vmap=new Map(), vx=[];
+  const wid=i=>{const k=key(i); let id=vmap.get(k); if(id===undefined){id=vx.length;vmap.set(k,id);vx.push([pos.getX(i),pos.getY(i),pos.getZ(i)]);} return id;};
+  const n=idx?idx.count:pos.count, gi=i=>idx?idx.getX(i):i;
+  const tris=[];
+  for(let t=0;t<n;t+=3){const a=wid(gi(t)),b=wid(gi(t+1)),c=wid(gi(t+2)); if(a!==b&&b!==c&&a!==c)tris.push([a,b,c]);}
+  const em=new Map(), ek=(u,v)=>u<v?u+'_'+v:v+'_'+u;   // arista no dirigida → triángulos que la comparten
+  tris.forEach((tr,ti)=>{for(let k=0;k<3;k++){const u=tr[k],v=tr[(k+1)%3];let a=em.get(ek(u,v));if(!a){a=[];em.set(ek(u,v),a);}a.push({ti,u,v});}});
+  let boundary=0,nonMani=0; em.forEach(a=>{if(a.length===1)boundary++;else if(a.length>2)nonMani++;});
+  const done=new Array(tris.length).fill(false), flip=new Array(tris.length).fill(false);
+  for(let seed=0;seed<tris.length;seed++){if(done[seed])continue;done[seed]=true;const st=[seed];
+    while(st.length){const ti=st.pop(),tr=tris[ti],fl=flip[ti];
+      const es=[[tr[0],tr[1]],[tr[1],tr[2]],[tr[2],tr[0]]];
+      for(const[u,v]of es){const du=fl?v:u,dv=fl?u:v;const a=em.get(ek(u,v));if(!a)continue;   // mi arista dirigida (tras mi propio flip)
+        for(const rec of a){if(rec.ti===ti||done[rec.ti])continue;
+          flip[rec.ti]=(rec.u===du&&rec.v===dv);done[rec.ti]=true;st.push(rec.ti);}}}}  // vecino en MI sentido → hay que voltearlo
+  const outPos=[];
+  tris.forEach((tr,ti)=>{let a=tr[0],b=tr[1],c=tr[2];if(flip[ti]){const t=b;b=c;c=t;}
+    [a,b,c].forEach(vi=>{const p=vx[vi];outPos.push(p[0],p[1],p[2]);});});
+  const ng=new THREE.BufferGeometry();
+  ng.setAttribute('position',new THREE.Float32BufferAttribute(outPos,3));
+  ng.computeBoundingBox(); ng.computeBoundingSphere();
+  return {geo:ng, closed:boundary===0&&nonMani===0};
+}
 (function buildPoche(){
   // MISMO polygonOffset que las piezas visibles → el prepass y el stencil quedan
   // coplanares con la geometría (imprescindible para el conteo por profundidad).
@@ -4149,7 +4184,8 @@ scene.add(pocheClear);
   const mD=new THREE.MeshBasicMaterial(Object.assign({colorWrite:false,depthWrite:true,depthTest:true,side:THREE.DoubleSide},PO));
   pocheMats={mB,mF,mD};
   for(const n in pieces){const m=pieces[n];
-    const b=new THREE.Mesh(m.geometry,mB), f=new THREE.Mesh(m.geometry,mF), d=new THREE.Mesh(m.geometry,mD);
+    const sg=pocheSolidGeo(m.geometry); m.userData.pocheClosed=sg.closed; const gg=sg.geo;   // geo soldada + orientada (sólo para el stencil)
+    const b=new THREE.Mesh(gg,mB), f=new THREE.Mesh(gg,mF), d=new THREE.Mesh(gg,mD);
     d.renderOrder=-1; b.renderOrder=1; f.renderOrder=1; b.visible=f.visible=d.visible=false;
     m.add(d); m.add(b); m.add(f); m.userData.stB=b; m.userData.stF=f; m.userData.stD=d;}
 })();
@@ -4164,13 +4200,14 @@ function updatePoche(){
   const A=(secShowCut&&secPoche)?activeCuts():[];
   const on=A.length>0;
   const planes=A.map(s=>s.plane);   // ya actualizados por curClipPlanes en applySec
-  // Sólo cuentan en el stencil las piezas que ALGÚN plano corta de verdad: las
-  // demás sumarían 0 si fueran cerradas, pero las mallas abiertas (roseta,
-  // semiesferas) rompen la paridad y pintaban toda su silueta de poché.
-  // El prepass de profundidad queda como OCLUSOR de la tapa (z estrictos).
+  // Sólo cuentan en el stencil las piezas que (a) ALGÚN plano corta de verdad y
+  // (b) son un SÓLIDO CERRADO y bien orientado (pocheClosed). Las mallas ABIERTAS
+  // (garganta “propuesta”: bordes libres) rompen la paridad y rellenaban toda su
+  // silueta de poché → se excluyen. El prepass de profundidad se mantiene en TODAS
+  // como OCLUSOR de la tapa (z estrictos), abiertas incluidas.
   for(const n in pieces){const m=pieces[n],ud=m.userData;
     let cut=false;
-    if(on&&m.visible){
+    if(on&&m.visible&&ud.pocheClosed!==false){
       m.updateMatrixWorld(); m.geometry.computeBoundingBox();
       const bb=m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld);
       cut=A.some(s=>{let neg=false,pos=false; const d0=s.normal.dot(s.pt);
@@ -6940,7 +6977,7 @@ function buildExport(){
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
-window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},get pointersDbg(){return [...pointers.values()].map(v=>v.t)},get capsDbg(){return _caps.size},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},set viewMode(v){viewMode=v},get styleEdgeColor(){return styleEdgeColor},get savedStyles(){return savedStyles},currentStyle,applyStyle,validarEstilo,renderSavedStyles,openStyleEditor,get editingStyleId(){return editingStyleId},get styleFamily(){return styleFamily},set styleFamily(v){styleFamily=v},get FACTORY_STYLES(){return FACTORY_STYLES},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
+window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,activateSection,applySec,updatePoche,get activeCutsN(){return activeCuts().length},paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},get pointersDbg(){return [...pointers.values()].map(v=>v.t)},get capsDbg(){return _caps.size},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},set viewMode(v){viewMode=v},get styleEdgeColor(){return styleEdgeColor},get savedStyles(){return savedStyles},currentStyle,applyStyle,validarEstilo,renderSavedStyles,openStyleEditor,get editingStyleId(){return editingStyleId},get styleFamily(){return styleFamily},set styleFamily(v){styleFamily=v},get FACTORY_STYLES(){return FACTORY_STYLES},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
 buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},set contJoin(v){contJoin=v},get drawLock(){return drawLock},set drawLock(v){drawLock=v; const b=document.getElementById('mCont'); if(b)b.classList.toggle('on',drawLock&&contJoin);},get trazoMode(){return trazoMode},get shapeMode(){return shapeMode},cancelShapeDraw,circleFrom3,genPoints,to3,
 buildContourSurfaceFromPts,buildTerrainFromContour,get axGhost(){return axGhost},selectStroke,surfToolStart,surfToolTap,get surfTool(){return surfTool},moveContPoint,askClose,closeContourStroke,strokeClosed,
 buildRevolveFromPts,buildCoonsFromPts,buildExtrudeFromPts,buildTubeFromPts,chain4,buildExport,
