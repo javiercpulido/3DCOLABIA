@@ -159,7 +159,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.04 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.05 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -645,13 +645,14 @@ MESHES.forEach(m=>{
   g.setAttribute('position',new THREE.Float32BufferAttribute(m.v,3));
   g.setIndex(m.f); g.computeVertexNormals();
   let mesh=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:m.color,side:THREE.DoubleSide,
-      transparent:true,opacity:1,metalness:0,roughness:.9,depthFunc:THREE.LessEqualDepth,
+      shadowSide:THREE.BackSide,   // ACNÉ DE AUTO-SOMBRA: el material es DoubleSide, así que al mapa de sombra
+      transparent:true,opacity:1,metalness:0,roughness:.9,depthFunc:THREE.LessEqualDepth,   // se renderizan las caras TRASERAS → la cara iluminada deja de auto-sombrearse (Cowork)
       polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));   // mate (no plástico): sin especular que simule reflejos curvos
   mesh.name=m.name; scene.add(mesh); pieces[m.name]=mesh; pickables.push(mesh); bbox.expandByObject(mesh);
   mesh.castShadow=true; mesh.receiveShadow=true;   // Fase B1: cada pieza arroja y recibe sombra (contacto entre piezas + suelo)
   mesh.userData.baseColor=new THREE.Color(m.color).getHex();
   mesh.userData.matShaded=mesh.material;
-  mesh.userData.matFlat=new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide,transparent:true,
+  mesh.userData.matFlat=new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide,shadowSide:THREE.BackSide,transparent:true,
       opacity:1,depthFunc:THREE.LessEqualDepth,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1});
   mesh.userData.edges=new THREE.LineSegments(new THREE.EdgesGeometry(g,25),
       new THREE.LineBasicMaterial({color:0x1c1c1e}));
@@ -4352,9 +4353,10 @@ function fitSunShadow(){ if(!sol)return; const scam=sol.shadow.camera;
   // de contacto = peter-panning, y es justo lo que ocultaba la sombra pieza-sobre-pieza).
   bbox.getBoundingSphere(_sunSph); const rad=Math.max(_sunSph.radius*1.06, 1);
   scam.left=-rad; scam.right=rad; scam.top=rad; scam.bottom=-rad; scam.near=0.5; scam.far=Math.max(R,1)*8; scam.updateProjectionMatrix();
-  // bias MODERADO (antes 1.6mm ≈ peter-panning). Con el frustum ceñido + 4096 en escritorio,
-  // este valor mata el grueso del acné sin despegar la sombra de contacto entre piezas.
-  sol.shadow.bias=-0.00008; sol.shadow.normalBias=Math.max(0.35, rad*0.008); }
+  // bias PEQUEÑO y NEGATIVO + normalBias MODERADO (receta Cowork). El acné se ataca con
+  // shadowSide=BackSide (caras traseras al mapa) + frustum ceñido + 4096, NO subiendo el bias
+  // (un bias grande oscurece, hace peter-panning y despega la sombra de contacto).
+  sol.shadow.bias=-0.0005; sol.shadow.normalBias=Math.max(0.18, rad*0.0025); }
 function duraToRadius(d){ return 0.6 + (100-_clamp(d,0,100))/100 * 13; }   // dureza 100→~0.6 (dura) · 0→~13.6 (penumbra suave)
 function applySombra(){ if(!sol)return;
   if(sombraModo==='geo'){ const s=solarAzAlt(); sunAz=s.az; sunAlt=s.alt; }
@@ -4367,9 +4369,9 @@ function applySombra(){ if(!sol)return;
     // (propias, de contacto y pieza-sobre-pieza) LEAN como en SketchUp. Antes el relleno
     // (hemisferio 0.55 + relleno de cámara 0.42 + ambiente) las lavaba hasta hacerlas
     // invisibles aunque SÍ se calculaban. La vista base (sin sombra) no cambia.
-    sol.intensity=0.62+0.006*_clamp(ilumSol,0,100);   // sol dominante (clave)
-    hemi.intensity=0.16+0.003*_clamp(ilumAmb,0,100)+0.06*soft;   // hemisferio contenido (cielo↑/suelo↓)
-    amb.intensity=0.05; dl.intensity=0.05; dl2.intensity=0.03; camFill.intensity=0.16;   // relleno mínimo: revela la curvatura sin borrar la sombra
+    sol.intensity=0.60+0.006*_clamp(ilumSol,0,100);   // sol dominante (clave)
+    hemi.intensity=0.30+0.003*_clamp(ilumAmb,0,100)+0.05*soft;   // hemisferio MODERADO: el lado en sombra del cilindro queda gris suave, NO negro
+    amb.intensity=0.10; dl.intensity=0.12; dl2.intensity=0.08; camFill.intensity=0.28;   // relleno que revela la curvatura sin lavar la sombra arrojada
   } else { sol.visible=false; sol.castShadow=false; sol.intensity=0;
     amb.intensity=.28; hemi.intensity=.55; dl.intensity=.5; dl2.intensity=.2; camFill.intensity=.25; }   // base (con hemisferio + relleno de cámara suave)
   renderer.shadowMap.autoUpdate=sombraOn; renderer.shadowMap.needsUpdate=true; }

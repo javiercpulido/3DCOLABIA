@@ -1794,6 +1794,26 @@ const secciones = {
     ok('estilo: "Maqueta blanca con aristas" grosor 0,5 por defecto (aristas y perfiles)', r.grosor05);
   },
 
+  async sombras_antiacne() {   // receta anti-acné: caras traseras al mapa + bias pequeño negativo (no bias grande)
+    const r = await page.evaluate(() => {
+      const D = window._dbg, T3 = window.THREE, out = {};
+      // shadowSide = BackSide en el material sombreado de cada pieza (renderiza caras traseras al shadow map)
+      out.backside = Object.keys(D.pieces).every(n => D.pieces[n].userData.matShaded.shadowSide === T3.BackSide);
+      // con sombra activa: bias PEQUEÑO y NEGATIVO + normalBias MODERADO (nada de bias grande)
+      window.setSombra(true); window.applySombra();
+      const b = D.sol.shadow.bias, nb = D.sol.shadow.normalBias;
+      out.biasNegPeq = b < 0 && b >= -0.002;        // negativo y de magnitud pequeña
+      out.normalModerado = nb > 0 && nb < 1.0;       // moderado (no el 1.6 que hacía peter-panning)
+      // frustum ceñido a la esfera del modelo (no al R holgado): medio-ancho < R
+      out.frustumCenido = D.sol.shadow.camera.right < D.R;
+      window.setSombra(false);
+      return out;
+    });
+    ok('sombra: shadowSide=BackSide en las piezas (anti-acné de auto-sombra)', r.backside);
+    ok('sombra: bias pequeño y negativo + normalBias moderado (sin peter-panning)', r.biasNegPeq && r.normalModerado);
+    ok('sombra: frustum ceñido al modelo', r.frustumCenido);
+  },
+
   async poche_seccion() {   // POCHÉ: rellena SÓLO la sección real, sin sobre-relleno de silueta
     const r = await page.evaluate(() => {
       const D = window._dbg, T3 = window.THREE, out = {};
