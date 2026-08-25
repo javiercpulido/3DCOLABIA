@@ -1831,10 +1831,11 @@ const secciones = {
       const cs = D.currentStyle();
       out.limpio = D.aoOn === false && D.sombraOn === false && cs.oclusion_ambiental.activo === false && cs.sombra_arrojada.activo === false && cs.suelo.ver === false;
       out.vmSomb = D.viewMode === 'somb';
-      // maqueta con aristas (perfiles ON) → botón "Blanco" debe apagar perfiles
-      D.applyStyle(D.FACTORY_STYLES.find(s => s.nombre === 'estilo.maqueta_blanca_aristas'));
+      // botón "Blanco" tras maqueta: resetea las capas de escena PERO mantiene los PERFILES visibles
+      // (como al arrancar, stylePerfOn=true → los cilindros conservan su silueta)
+      D.applyStyle(D.FACTORY_STYLES.find(s => s.nombre === 'estilo.maqueta_blanca'));   // sin perfiles + AO + sombra
       clickMode('blanco');
-      out.perfLimpio = D.currentStyle().perfiles.ver === false && D.viewMode === 'blanco';
+      out.perfVisible = D.currentStyle().perfiles.ver === true && D.aoOn === false && D.sombraOn === false && D.viewMode === 'blanco';
       // cada modo cae en su viewMode; Oculto enciende líneas ocultas
       const modos = ['somb', 'blanco', 'wire', 'xray', 'tecnico', 'oculto'];
       out.modos = modos.every(m => { clickMode(m); return D.viewMode === m; });
@@ -1842,7 +1843,7 @@ const secciones = {
       return out;
     });
     ok('botón de modo: "Sombreado" tras maqueta deja AO/sombra/suelo apagados (vista limpia)', r.maqAO && r.limpio && r.vmSomb);
-    ok('botón de modo: "Blanco" tras maqueta con aristas apaga los perfiles', r.perfLimpio);
+    ok('botón de modo: "Blanco" tras maqueta resetea AO/sombra pero MANTIENE los perfiles (silueta de cilindros)', r.perfVisible);
     ok('botón de modo: cada modo cae en su vista (incl. Técnico/Oculto) y Oculto enciende ocultas', r.modos && r.ocultoHid);
   },
 
