@@ -185,7 +185,7 @@
 <div id="nojs">Cargando visor 3D…<br><br>Si este mensaje no desaparece, este visor no ejecuta JavaScript:
  abre la página con Safari o Chrome.</div>
 <div id="err"></div>
-<div id="brand" class="pill">TECTOS·3D <span>v7.29 · WebGL</span></div>
+<div id="brand" class="pill">TECTOS·3D <span>v7.30 · WebGL</span></div>
 <button id="panelBtn" class="pill" aria-label="panel">
  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
 </button>
@@ -1773,9 +1773,40 @@ function toast(t,ms){let d=document.getElementById('toast');d.textContent=t;d.st
 // ---- anotaciones ----
 let strokes=[], texts=[], images=[], annGroup=new THREE.Group(); scene.add(annGroup);
 let selected=null, trash=[];   // seleccion actual y papelera (historico recuperable)
-let selSet=[], multiSel=false, axLock=null, grpN=0; // multi-seleccion, bloqueo de eje, grupos
+let selSet=[], selSetP=[], multiSel=false, axLock=null, grpN=0; // multi-seleccion (trazos / PIEZAS), bloqueo de eje, grupos
 function effSel(){if(selSet.length)return selSet.slice();
   return (selected&&selected.kind==='trazo')?[selected.ref]:[];}
+// PIEZAS multi-seleccionadas (Plan A): grupo de sólidos para mover/girar juntos.
+function effSelP(){if(selSetP.length)return selSetP.slice();
+  return (selected&&selected.kind==='pieza')?[selected.ref]:[];}
+function pieceHi(m,on){ const ud=m.userData; ud.hi=!!on;   // resaltado como la selección única (aristas/siluetas → applyMode)
+  if(ud.matShaded&&ud.matShaded.emissive)ud.matShaded.emissive.setHex(on?0x0a84ff:0x000000); }
+function clearSelSetP(){ selSetP.forEach(m=>pieceHi(m,false)); selSetP=[]; if(typeof applyMode==='function')applyMode(); }
+// Sumar/restar una PIEZA al grupo (modo multi-selección). No pasa por select() para no
+// tirar el grupo; gestiona selSetP directamente (espejo de la multi-selección de trazos).
+function togglePieceSel(m){
+  if(selected&&selected.kind!=='pieza')deselect();
+  if(!selSetP.length&&selected&&selected.kind==='pieza'&&selected.ref!==m){pieceHi(selected.ref,true);selSetP=[selected.ref];}
+  const ix=selSetP.indexOf(m);
+  if(ix>=0){pieceHi(m,false);selSetP.splice(ix,1);} else {pieceHi(m,true);selSetP.push(m);}
+  if(selSetP.length){
+    selected={kind:'pieza',ref:selSetP[selSetP.length-1],label:selSetP.length+' piezas'};
+    document.getElementById('selname').textContent=selSetP.length+' pieza'+(selSetP.length>1?'s':'');
+    document.getElementById('selLen').style.display='none';document.getElementById('selLenU').style.display='none';
+    showOpsFor('pieza');updOpsBar();
+    document.getElementById('selbar').style.display='flex';
+    applyMode();updateGizmo();redraw();
+  } else deselect();
+}
+// Deshacer/rehacer de una transformación de GRUPO de piezas (mover/girar juntas).
+function pushPieceGroupXform(list,pos0s,quat0s,label){
+  const pos1s=list.map(m=>m.position.clone()),quat1s=list.map(m=>m.quaternion.clone());
+  if(!list.some((m,i)=>!pos0s[i].equals(pos1s[i])||!quat0s[i].equals(quat1s[i])))return;
+  const rec=()=>{computeIntersections();applySec();_silhFrame=-1;updateLasers();updateGizmo();};
+  pushUndo(label||('mover '+list.length+' piezas'),
+    ()=>{list.forEach((m,i)=>{m.position.copy(pos0s[i]);m.quaternion.copy(quat0s[i]);});rec();},
+    ()=>{list.forEach((m,i)=>{m.position.copy(pos1s[i]);m.quaternion.copy(quat1s[i]);});rec();});
+}
 let handles=[];
 let ray=new THREE.Raycaster(); ray.params.Line={threshold:1.6}; let ptr=new THREE.Vector2();
 function ndc(e){let r=renderer.domElement.getBoundingClientRect();
@@ -2291,6 +2322,7 @@ function deselect(){
     applyMode();}   // devuelve aristas y siluetas a su color
   if(selected&&selected.kind==='superficie'){const m=selected.ref;   // superficie: quitar resaltado
     if(m.material&&m.material.emissive)m.material.emissive.setHex(m.userData._emiss||0x000000);}
+  if(selSetP.length)clearSelSetP();   // limpia el grupo de piezas y su resaltado
   selected=null;selSet=[];hideContact();
   if(secRotate){secRotate=null;if(typeof renderSecList==='function')renderSecList();}
   document.getElementById('selbar').style.display='none';redraw();
@@ -2714,7 +2746,10 @@ renderer.domElement.addEventListener('pointerdown',e=>{
             textDrag={rec,depth,start:planePoint(e,depth),orig:rec.pos.slice()};return;}
           select('texto',rec,'nota "'+rec.text+'"');return;}
         else if(rec&&images.includes(rec)){select('imagen',rec,'imagen '+rec.name);return;}
-        else if(o.name&&pieces[o.name]){select('pieza',o,o.name);return;}
+        else if(o.name&&pieces[o.name]){const mp=pieces[o.name];
+          if(multiSel){togglePieceSel(mp);return;}                        // multi-selección: sumar/restar la pieza al grupo
+          if(selSetP.length&&selSetP.includes(mp))return;                 // tocar una pieza del grupo: mantenerlo (se mueve con el gizmo)
+          select('pieza',mp,mp.name);return;}
       }}
     // SUELO VIRTUAL: última prioridad (tras piezas/superficies/anotaciones) para poder cogerlo con el gizmo Z
     if(sueloMesh&&sueloMesh.visible){const sh=ray.intersectObject(sueloMesh,false);
@@ -3291,6 +3326,8 @@ function endPointer(e){
   if(gizDrag){
     if(gizDrag.t==='pieza'){computeIntersections();applySec();_silhFrame=-1;updateLasers();
       if(gizDrag.mesh&&gizDrag.pos0)pushPieceXform(gizDrag.mesh,gizDrag.pos0,gizDrag.quat0);}   // registra deshacer del giro/mov.
+    if(gizDrag.t==='piezas'){computeIntersections();applySec();_silhFrame=-1;updateLasers();   // GRUPO: refresca y registra deshacer conjunto
+      if(gizDrag.listP)pushPieceGroupXform(gizDrag.listP,gizDrag.pos0s,gizDrag.quat0s);}
     if(gizDrag.t==='superficie'&&gizDrag.mesh&&gizDrag.pos0)      // deshacer del giro/mov. de superficie
       pushPieceXform(gizDrag.mesh,gizDrag.pos0,gizDrag.quat0,'mover superficie');
     if(gizDrag.t==='suelo'&&gizDrag.mesh){                        // suelo virtual: fija sueloZ y registra deshacer
@@ -3407,7 +3444,7 @@ document.getElementById('pieces').addEventListener('input',e=>{
 // ---- AYUDAS DE DIBUJO: multi-seleccion, ejes, duplicar, grupos, iman fijo, contacto ----
 document.getElementById('mMulti').onclick=e=>{
   multiSel=!multiSel; e.currentTarget.classList.toggle('on',multiSel);
-  if(multiSel){if(mode!=='sel')setMode('sel');toast('multi-selección: toca trazos para sumar/restar');}};
+  if(multiSel){if(mode!=='sel')setMode('sel');toast('multi-selección: toca trazos o piezas para sumar/restar · mueve/gira el grupo con el gizmo');}};
 document.querySelectorAll('.mvax').forEach(b=>b.onclick=()=>{
   axLock=(axLock===b.dataset.ax)?null:b.dataset.ax;
   document.querySelectorAll('.mvax').forEach(x=>x.classList.toggle('on',x.dataset.ax===axLock));
@@ -3753,6 +3790,7 @@ let secRotate=null;   // sección cuyo giro está activo (icono órbita)
 })();
 function gizTarget(){
   if(selSet.length||(selected&&selected.kind==='trazo'))return 'trazo';
+  if(selSetP.length)return 'piezas';   // grupo de sólidos (multi-selección)
   if(selected&&selected.kind==='pieza')return 'pieza';
   if(selected&&selected.kind==='superficie')return 'superficie';
   if(selected&&selected.kind==='suelo')return 'suelo';
@@ -3788,6 +3826,10 @@ function updateGizmo(){
   if(t==='trazo'){const bb=new THREE.Box3(); let n=0;   // centro GEOMÉTRICO (caja), no media de muestras
     effSel().forEach(s=>s.points.forEach(p=>{bb.expandByPoint(new THREE.Vector3(p[0],p[1],p[2]));n++;}));
     if(!n){gizmo.visible=false;return;} bb.getCenter(c);}
+  else if(t==='piezas'){const bb=new THREE.Box3();   // pivote = centro de la caja envolvente COMBINADA del grupo
+    effSelP().forEach(m=>{m.updateMatrixWorld(); if(m.geometry){m.geometry.computeBoundingBox();
+      bb.union(m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld));}});
+    if(bb.isEmpty()){gizmo.visible=false;return;} bb.getCenter(c);}
   else if(t==='laser')c.copy(selected.ref.mesh.position);
   else if(t==='suelo')c.copy(sueloMesh.position);
   else if(t==='section')c.copy(selected.ref.pt);
@@ -3839,6 +3881,18 @@ function startGizDrag(g){
       U:s.reg.U&&s.reg.U.clone(),V:s.reg.V&&s.reg.V.clone()}:null);}
   else if(t==='section'){gizDrag.sec=selected.ref;
     gizDrag.pt0=selected.ref.pt.clone(); gizDrag.n0=selected.ref.normal.clone();}
+  else if(t==='piezas'){const listP=effSelP();
+    gizDrag.listP=listP;
+    gizDrag.pos0s=listP.map(m=>m.position.clone());
+    gizDrag.quat0s=listP.map(m=>m.quaternion.clone());
+    if(g.type==='move'&&mag){   // OSNAP: imanta el PIVOTE del grupo a los centros de las piezas quietas y al ORIGEN (a lo largo del eje)
+      gizDrag.pos0=gizDrag.C.clone();   // referencia del imán = pivote (reutiliza el imán del láser en moveGizDrag)
+      const moving=new Set(listP); gizDrag.mag=[];
+      for(const n in pieces){const mm=pieces[n]; if(moving.has(mm)||mm.userData.locked)continue;
+        mm.updateMatrixWorld(); mm.geometry.computeBoundingBox();
+        const ctr=mm.geometry.boundingBox.clone().applyMatrix4(mm.matrixWorld).getCenter(new THREE.Vector3());
+        gizDrag.mag.push({c:ctr.dot(u),mesh:mm});}
+      if(typeof datumOrigin==='function')gizDrag.mag.push({c:datumOrigin().dot(u),mesh:null});}}   // el origen también imanta
   else{const m=(t==='laser')?selected.ref.mesh:selected.ref;
     gizDrag.mesh=m; gizDrag.pos0=m.position.clone(); gizDrag.quat0=m.quaternion.clone();
     if(t==='laser'&&g.type==='move')gizDrag.mag=buildLaserMag(u);}
@@ -3862,6 +3916,13 @@ function applyGiz(d,ang){
           if(or.V)s.reg.V.copy(or.V).applyAxisAngle(g.u,ang);}}
     });
     contactProbe(g.list[0]);
+  }else if(g.t==='piezas'){   // GRUPO de sólidos: traslada/gira cada pieza alrededor del pivote común g.C
+    const q=d?null:new THREE.Quaternion().setFromAxisAngle(g.u,ang);
+    g.listP.forEach((m,i)=>{
+      if(d)m.position.copy(g.pos0s[i]).add(d);
+      else{m.quaternion.copy(q).multiply(g.quat0s[i]);
+        m.position.copy(g.C).add(g.pos0s[i].clone().sub(g.C).applyQuaternion(q));}});
+    _silhFrame=-1;
   }else if(g.t==='section'){
     const s2=g.sec;
     if(d)s2.pt.copy(g.pt0).add(d);
@@ -7217,7 +7278,7 @@ function buildExport(){
     imagenes:images.map(i=>({name:i.name,pos:i.mesh.position.toArray(),
       quat:i.mesh.quaternion.toArray(),w:i.mesh.geometry.parameters.width,dataURL:i.dataURL}))};
 }
-window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,activateSection,applySec,updatePoche,get activeCutsN(){return activeCuts().length},paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},get pointersDbg(){return [...pointers.values()].map(v=>v.t)},get capsDbg(){return _caps.size},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},set viewMode(v){viewMode=v},get styleEdgeColor(){return styleEdgeColor},get savedStyles(){return savedStyles},currentStyle,applyStyle,validarEstilo,renderSavedStyles,openStyleEditor,get editingStyleId(){return editingStyleId},get styleFamily(){return styleFamily},set styleFamily(v){styleFamily=v},get FACTORY_STYLES(){return FACTORY_STYLES},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
+window.buildExport=buildExport;window._dbg={get ann(){return annGroup},get strokes(){return strokes},get texts(){return texts},get mag(){return mag},get drawMode(){return drawMode},get mode(){return mode},get sections(){return sections},get papers(){return papers()},get activePaper(){return activePaper},get lasers(){return lasers},get cam(){return cam},get W(){return W},get H(){return H},buildSnapPts,snapQueryWorld,get snapSpr(){return snapSpr},get snapState(){return _snapState},get pieces(){return pieces},get polyDraw(){return polyDraw},get handDrag(){return handDrag},get handles(){return handles},get selected(){return selected},get ray(){return ray},ndc,pieceCylGuide,buildPolyGuides,finishPoly,rebuildPoly,arc3d,trySplitAt,checkJoinOnRelease,setActivePaper,newSectionObj,activateSection,applySec,updatePoche,get activeCutsN(){return activeCuts().length},paperUV,paperXY,paperFrame,syncSecWidget,updatePaperStrokes,addLaser,updateLasers,buildLaserPolys,get laserPolys(){return _laserPolys},nearestLaserVertexScreen,redraw,makeText,select,get gizmo(){return gizmo},updateGizmo,togglePieceSel,gizTarget,applyGiz,startGizDrag,get gizDrag(){return gizDrag},get selSetP(){return selSetP},get multiSel(){return multiSel},set multiSel(v){multiSel=v},get darkView(){return darkView},get R(){return R},get undoActs(){return undoActs},get redoActs(){return redoActs},get pointersDbg(){return [...pointers.values()].map(v=>v.t)},get capsDbg(){return _caps.size},removeLaser,resetLaser,deselect,applyMode,get viewMode(){return viewMode},set viewMode(v){viewMode=v},get styleEdgeColor(){return styleEdgeColor},get savedStyles(){return savedStyles},currentStyle,applyStyle,validarEstilo,renderSavedStyles,openStyleEditor,get editingStyleId(){return editingStyleId},get styleFamily(){return styleFamily},set styleFamily(v){styleFamily=v},get FACTORY_STYLES(){return FACTORY_STYLES},get surfaces(){return surfaces},buildSurfaceFromPts,removeSurface,get mirrorViz(){return mirrorViz},commitPolyTap,get polychips(){return document.getElementById('polychips')},
 buildCalcoPolys,get calcoPolys(){return _calcoPolys},tryContinuousMerge,get contJoin(){return contJoin},set contJoin(v){contJoin=v},get drawLock(){return drawLock},set drawLock(v){drawLock=v; const b=document.getElementById('mCont'); if(b)b.classList.toggle('on',drawLock&&contJoin);},get trazoMode(){return trazoMode},get shapeMode(){return shapeMode},cancelShapeDraw,circleFrom3,genPoints,to3,
 buildContourSurfaceFromPts,buildTerrainFromContour,get axGhost(){return axGhost},selectStroke,surfToolStart,surfToolTap,get surfTool(){return surfTool},moveContPoint,askClose,closeContourStroke,strokeClosed,
 buildRevolveFromPts,buildCoonsFromPts,buildExtrudeFromPts,buildTubeFromPts,chain4,buildExport,

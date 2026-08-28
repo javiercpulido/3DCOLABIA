@@ -823,6 +823,43 @@ const secciones = {
     ok('gizmo de trazo en el centro de su caja', r.trazo);
   },
 
+  async piezas_grupo() {   // Plan A: multi-selección de SÓLIDOS + mover/girar el grupo + OSNAP
+    const r = await page.evaluate(() => {
+      const D = window._dbg, T = window.THREE, out = {};
+      D.multiSel = true;
+      const cuello = D.pieces['2 cuello'], palanca = D.pieces['4 palanca'], garganta = D.pieces['3 garganta (propuesta)'];
+      D.togglePieceSel(cuello); D.togglePieceSel(palanca);
+      out.count = D.selSetP.length; out.target = D.gizTarget();
+      D.updateGizmo(); out.giz = D.gizmo.visible;
+      out.hiCuello = cuello.userData.hi === true && palanca.userData.hi === true && garganta.userData.hi !== true;
+      // MOVER +15 en Y: ambas piezas se desplazan lo mismo
+      const c0 = cuello.position.clone(), p0 = palanca.position.clone();
+      D.startGizDrag({ axis: 'y', type: 'move' }); D.applyGiz(new T.Vector3(0, 15, 0), 0);
+      out.moved = Math.abs(cuello.position.y - c0.y - 15) < 0.01 && Math.abs(palanca.position.y - p0.y - 15) < 0.01;
+      // OSNAP: con imán, el arrastre de MOVER construye candidatos (piezas quietas + origen)
+      out.magOn = D.mag === true;
+      D.startGizDrag({ axis: 'x', type: 'move' });
+      out.magBuilt = !!(D.gizDrag && D.gizDrag.mag && D.gizDrag.mag.length >= 1);
+      // GIRAR 90° sobre X alrededor del pivote común: cambia posición y orientación de ambas
+      const cq = cuello.quaternion.clone(), cp = cuello.position.clone();
+      D.startGizDrag({ axis: 'x', type: 'rot' }); D.applyGiz(null, Math.PI / 2);
+      out.rot = !cuello.quaternion.equals(cq) && cuello.position.distanceTo(cp) > 0.5;
+      // deselección: limpia el grupo y el resaltado
+      D.deselect();
+      out.cleared = D.selSetP.length === 0 && cuello.userData.hi !== true && palanca.userData.hi !== true;
+      // selección ÚNICA sigue intacta (no multi)
+      D.multiSel = false; D.select('pieza', cuello, '2 cuello');
+      out.single = D.gizTarget() === 'pieza' && D.selSetP.length === 0;
+      D.deselect();
+      return out;
+    });
+    ok('grupo de piezas: multi-selección de sólidos (gizmo al centro combinado, resaltado)', r.count === 2 && r.target === 'piezas' && r.giz && r.hiCuello);
+    ok('grupo de piezas: mover desplaza TODAS por igual', r.moved);
+    ok('grupo de piezas: OSNAP construye candidatos (imán) al mover', r.magOn && r.magBuilt);
+    ok('grupo de piezas: girar rota todas alrededor del pivote común', r.rot);
+    ok('grupo de piezas: deselección limpia grupo + resaltado; la selección única sigue', r.cleared && r.single);
+  },
+
   async menus() {
     const r = await page.evaluate(() => {
       const dock = document.getElementById('dock'), dg = dock.querySelector('[data-grip]');
