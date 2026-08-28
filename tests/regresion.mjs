@@ -860,6 +860,27 @@ const secciones = {
     ok('grupo de piezas: deselección limpia grupo + resaltado; la selección única sigue', r.cleared && r.single);
   },
 
+  async menu_formas_grupos() {   // el menú de formas está agrupado (abiertas / cerradas rectas / cerradas curvas) y la nota vive en Modo de lápiz
+    const r = await page.evaluate(() => {
+      const sm = document.getElementById('shapemenu'), dm = document.getElementById('drawmenu');
+      const order = [...sm.querySelectorAll('button[data-fm]')].map(b => b.dataset.fm).join(',');
+      const heads = [...sm.querySelectorAll('b')].map(b => b.textContent.toLowerCase());
+      const grupos = heads.some(h => /abiertas/.test(h)) && heads.some(h => /cerradas.*rectas/.test(h)) && heads.some(h => /cerradas.*curvas/.test(h));
+      return {
+        order,
+        grupos,
+        // todos los data-fm siguen existiendo (no se perdió ninguna herramienta)
+        completo: ['line', 'arc', 'poly', 'rect', 'circle', 'ellipse'].every(k => order.includes(k)),
+        notaEnDraw: /gesto sigue vivo/i.test(dm.textContent),
+        notaFueraShape: !/gesto sigue vivo/i.test(sm.textContent),
+        libreTip: /gesto sigue vivo/i.test(dm.querySelector('[data-dm="free"]').title),
+      };
+    });
+    ok('formas: agrupadas en abiertas / cerradas rectas / cerradas curvas (sin perder herramientas)', r.grupos && r.completo);
+    ok('formas: orden abiertas→rectas→curvas (recta,arco,poli,rect,circle,ellipse)', r.order === 'line,arc,poly,rect,circle,ellipse');
+    ok('nota «gesto sigue vivo» movida a Modo de lápiz (+ tooltip del lápiz Libre)', r.notaEnDraw && r.notaFueraShape && r.libreTip);
+  },
+
   async menus() {
     const r = await page.evaluate(() => {
       const dock = document.getElementById('dock'), dg = dock.querySelector('[data-grip]');
