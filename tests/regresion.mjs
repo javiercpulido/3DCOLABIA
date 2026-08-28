@@ -860,25 +860,35 @@ const secciones = {
     ok('grupo de piezas: deselección limpia grupo + resaltado; la selección única sigue', r.cleared && r.single);
   },
 
-  async menu_formas_grupos() {   // el menú de formas está agrupado (abiertas / cerradas rectas / cerradas curvas) y la nota vive en Modo de lápiz
+  async menu_formas_botones() {   // TRES botones de forma independientes (abiertas / cerradas rectas / cerradas curvas) + nota en Modo de lápiz
     const r = await page.evaluate(() => {
-      const sm = document.getElementById('shapemenu'), dm = document.getElementById('drawmenu');
-      const order = [...sm.querySelectorAll('button[data-fm]')].map(b => b.dataset.fm).join(',');
-      const heads = [...sm.querySelectorAll('b')].map(b => b.textContent.toLowerCase());
-      const grupos = heads.some(h => /abiertas/.test(h)) && heads.some(h => /cerradas.*rectas/.test(h)) && heads.some(h => /cerradas.*curvas/.test(h));
-      return {
-        order,
-        grupos,
-        // todos los data-fm siguen existiendo (no se perdió ninguna herramienta)
-        completo: ['line', 'arc', 'poly', 'rect', 'circle', 'ellipse'].every(k => order.includes(k)),
+      const D = window._dbg, dm = document.getElementById('drawmenu');
+      const btns = ['mShapeOpen', 'mShapeRect', 'mShapeCurve'].every(id => !!document.getElementById(id));
+      const noMShape = !document.getElementById('mShape');
+      const oOpen = [...document.querySelectorAll('#shapemenuOpen [data-fm]')].map(b => b.dataset.fm).join(',');
+      const oRect = [...document.querySelectorAll('#shapemenuRect [data-fm]')].map(b => b.dataset.fm).join(',');
+      const oCurve = [...document.querySelectorAll('#shapemenuCurve [data-fm]')].map(b => b.dataset.fm).join(',');
+      // cada botón entra en su categoría y despliega su menú
+      document.getElementById('mShapeOpen').click();
+      const eOpen = { dm: D.drawMode, menu: getComputedStyle(document.getElementById('shapemenuOpen')).display !== 'none', on: document.getElementById('mShapeOpen').classList.contains('on') };
+      document.querySelector('#shapemenuOpen [data-fm="arc"]').click();
+      const arc = D.drawMode === 'arc';
+      document.getElementById('mShapeCurve').click();
+      const eCurve = { dm: D.drawMode, on: document.getElementById('mShapeCurve').classList.contains('on'), offOpen: !document.getElementById('mShapeOpen').classList.contains('on') };
+      document.getElementById('mShapeRect').click();
+      const eRect = { dm: D.drawMode };
+      document.getElementById('mShapeOpen').click();   // memoria por categoría: recuerda arco
+      const mem = D.drawMode === 'arc';
+      return { btns, noMShape, oOpen, oRect, oCurve, eOpen, arc, eCurve, eRect, mem,
         notaEnDraw: /gesto sigue vivo/i.test(dm.textContent),
-        notaFueraShape: !/gesto sigue vivo/i.test(sm.textContent),
-        libreTip: /gesto sigue vivo/i.test(dm.querySelector('[data-dm="free"]').title),
-      };
+        libreTip: /gesto sigue vivo/i.test(dm.querySelector('[data-dm="free"]').title) };
     });
-    ok('formas: agrupadas en abiertas / cerradas rectas / cerradas curvas (sin perder herramientas)', r.grupos && r.completo);
-    ok('formas: orden abiertas→rectas→curvas (recta,arco,poli,rect,circle,ellipse)', r.order === 'line,arc,poly,rect,circle,ellipse');
-    ok('nota «gesto sigue vivo» movida a Modo de lápiz (+ tooltip del lápiz Libre)', r.notaEnDraw && r.notaFueraShape && r.libreTip);
+    ok('formas: 3 botones independientes (mShapeOpen/Rect/Curve), sin el botón único', r.btns && r.noMShape);
+    ok('formas: reparto por categoría (abiertas=recta,arco,poli · rectas=rect · curvas=circle,ellipse)',
+      r.oOpen === 'line,arc,poly' && r.oRect === 'rect' && r.oCurve === 'circle,ellipse');
+    ok('formas: cada botón entra en su categoría, despliega su menú y se ilumina', r.eOpen.dm === 'line' && r.eOpen.menu && r.eOpen.on && r.arc && r.eCurve.dm === 'circle' && r.eCurve.on && r.eCurve.offOpen && r.eRect.dm === 'rect');
+    ok('formas: memoria por categoría (reabrir Abiertas recuerda Arco)', r.mem);
+    ok('nota «gesto sigue vivo» en Modo de lápiz (+ tooltip del lápiz Libre)', r.notaEnDraw && r.libreTip);
   },
 
   async menus() {
@@ -955,7 +965,7 @@ const secciones = {
       document.getElementById('vLook').click(); out.mira = look() && !orbit();   // girar la cabeza
       document.getElementById('vLook').click(); out.vuelve = orbit() && !look(); // vuelve a órbita
       document.getElementById('mDraw').click(); out.dibujo = orbit();            // en dibujo, órbita sigue disponible
-      document.getElementById('mShape').click(); out.forma = orbit();
+      document.getElementById('mShapeOpen').click(); out.forma = orbit();
       document.getElementById('mSel').click();
       // invariante: exactamente uno de {órbita, girar la cabeza} activo en todo momento
       out.nuncaAmbosOff = orbit() || look();
@@ -1317,25 +1327,25 @@ const secciones = {
       out.menuTrazo = document.querySelectorAll('#drawmenu [data-dm]').length === 4 &&
         !document.querySelector('#drawmenu [data-dm="line"]') && !document.querySelector('#drawmenu [data-dm="poly"]') &&
         !document.getElementById('dmLock') && !document.getElementById('dmJoin');
-      // el menú de FORMA tiene recta, arco, circunferencia, elipse, rectángulo y poli
-      out.menuForma = document.querySelectorAll('#shapemenu [data-fm]').length === 6;
-      // botón Forma: entra en dibujo con la última forma (recta por defecto) y se ilumina él, no Trazo
-      document.getElementById('mShape').click(); await frame();
+      // las 3 categorías de FORMA suman recta, arco, poli, rectángulo, circunferencia y elipse
+      out.menuForma = document.querySelectorAll('#shapemenuOpen [data-fm],#shapemenuRect [data-fm],#shapemenuCurve [data-fm]').length === 6;
+      // botón «Abiertas»: entra en dibujo con su última forma (recta por defecto) y se ilumina él, no Trazo
+      document.getElementById('mShapeOpen').click(); await frame();
       out.entraForma = D.mode === 'draw' && D.drawMode === 'line' &&
-        document.getElementById('mShape').classList.contains('on') &&
+        document.getElementById('mShapeOpen').classList.contains('on') &&
         !document.getElementById('mDraw').classList.contains('on');
-      // elegir Poli en el submenú: el botón MUTA su icono y drawMode cambia
-      document.getElementById('mShape').click(); await frame();   // 2º toque abre el submenú
-      const icon0 = document.getElementById('mShape').innerHTML;
-      document.querySelector('#shapemenu [data-fm="poly"]').click(); await frame();
+      // elegir Poli en su submenú: el botón MUTA su icono y drawMode cambia
+      document.getElementById('mShapeOpen').click(); await frame();   // 2º toque abre el submenú
+      const icon0 = document.getElementById('mShapeOpen').innerHTML;
+      document.querySelector('#shapemenuOpen [data-fm="poly"]').click(); await frame();
       out.mutaIcono = D.drawMode === 'poly' && D.shapeMode === 'poly' &&
-        document.getElementById('mShape').innerHTML !== icon0 &&
-        document.getElementById('shapemenu').style.display === 'none';
+        document.getElementById('mShapeOpen').innerHTML !== icon0 &&
+        document.getElementById('shapemenuOpen').style.display === 'none';
       // botón Trazo: vuelve a la mano alzada (geo), se ilumina Trazo y se apaga Forma
       document.getElementById('mDraw').click(); await frame();
       out.vuelveTrazo = D.drawMode === 'geo' && D.trazoMode === 'geo' &&
         document.getElementById('mDraw').classList.contains('on') &&
-        !document.getElementById('mShape').classList.contains('on');
+        !document.getElementById('mShapeOpen').classList.contains('on');
       document.getElementById('drawmenu').style.display = 'none';
       // CONTINUO global: ON por defecto (candado + unir); un toque lo apaga, otro lo enciende
       D.deselect();
@@ -1368,8 +1378,8 @@ const secciones = {
     };
     const cx = 640, cy = 400;   // zona de aire (sin piezas): plano de vista
     // CIRCUNFERENCIA: elegir en el menú Forma y arrastrar centro→radio
-    await page.evaluate(() => { document.getElementById('mShape').click();
-      document.querySelector('#shapemenu [data-fm="circle"]').click(); });
+    await page.evaluate(() => { document.getElementById('mShapeCurve').click();
+      document.querySelector('#shapemenuCurve [data-fm="circle"]').click(); });
     const n0 = await page.evaluate(() => window._dbg.strokes.length);
     await dragPen(cx, cy, cx + 90, cy);
     let r = await page.evaluate(n => {
@@ -1399,8 +1409,8 @@ const secciones = {
     // aislar: retirar el círculo (r=25 mm es enorme en pantalla y su OSNAP interferiría)
     await page.evaluate(() => { const D = window._dbg; D.deselect(); D.strokes.pop(); D.redraw(); });
     // ELIPSE: arrastre centro→esquina (semiejes distintos)
-    await page.evaluate(() => { document.getElementById('mShape').click();
-      document.querySelector('#shapemenu [data-fm="ellipse"]').click(); });
+    await page.evaluate(() => { document.getElementById('mShapeCurve').click();
+      document.querySelector('#shapemenuCurve [data-fm="ellipse"]').click(); });
     await dragPen(200, 660, 310, 620);   // AIRE (plano de vista): los px mapean directo a los semiejes
     r = await page.evaluate(() => {
       const D = window._dbg, st = D.strokes[D.strokes.length - 1];
@@ -1409,8 +1419,8 @@ const secciones = {
     });
     ok('elipse de toque: centro→esquina, semiejes distintos', r.ok);
     // ARCO: 1º arrastre = cuerda · 2º arrastre = curvar · suelta
-    await page.evaluate(() => { document.getElementById('mShape').click();
-      document.querySelector('#shapemenu [data-fm="arc"]').click(); });
+    await page.evaluate(() => { document.getElementById('mShapeOpen').click();
+      document.querySelector('#shapemenuOpen [data-fm="arc"]').click(); });
     const nA = await page.evaluate(() => window._dbg.strokes.length);
     await dragPen(cx - 60, cy + 160, cx + 60, cy + 160);           // cuerda horizontal
     const waiting = await page.evaluate(() => {
@@ -1488,8 +1498,8 @@ const secciones = {
       await pen('pointerup', x1, y1); await page.waitForTimeout(80);
     };
     // RECTÁNGULO: esquina→esquina opuesta en aire
-    await page.evaluate(() => { document.getElementById('mShape').click();
-      document.querySelector('#shapemenu [data-fm="rect"]').click(); });
+    await page.evaluate(() => { document.getElementById('mShapeRect').click();
+      document.querySelector('#shapemenuRect [data-fm="rect"]').click(); });
     const n0 = await page.evaluate(() => window._dbg.strokes.length);
     await dragPen(200, 640, 360, 720);
     let r = await page.evaluate(n => {
